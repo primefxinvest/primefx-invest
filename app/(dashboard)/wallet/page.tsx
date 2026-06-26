@@ -1,6 +1,6 @@
 'use client'
 
-import { Download, Upload, Send, DollarSign, Shield, Lock, Settings } from 'lucide-react'
+import { Download, Upload, Send, DollarSign, Shield, Lock, Settings, TrendingUp, Gift } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import { AssetAllocationChart } from '@/components/shared/Charts'
 import { walletData, recentTransactions } from '@/lib/mock-data'
