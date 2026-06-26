@@ -10,8 +10,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
+  title: 'PrimeFx Invest - AI-Powered Investment Platform',
+  description: 'Invest Smarter. Grow Wealth. Secure Your Future. PrimeFx Invest combines advanced AI, real-time market intelligence, and secure digital asset management to empower your financial growth.',
   generator: 'v0.app',
   icons: {
     icon: [
@@ -35,8 +35,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   colorScheme: 'light dark',
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
+    { media: '(prefers-color-scheme: light)', color: '#0052ff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0052ff' },
   ],
 }
 
