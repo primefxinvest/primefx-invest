@@ -1,8 +1,13 @@
 'use client'
 
 import { BookOpen, Play, CheckCircle, Lock, BarChart3, TrendingUp, DollarSign, Globe } from 'lucide-react'
+import { useInvestorTier } from '@/lib/hooks/useInvestorTier'
+import { canAccessFeature } from '@/lib/investor/tiers'
 
 export default function AcademyPage() {
+  const { tierKey } = useInvestorTier()
+  const canAccessAdvanced = canAccessFeature(tierKey, 'portfolio_analysis')
+
   const courses = [
     {
       id: '1',
@@ -33,7 +38,8 @@ export default function AcademyPage() {
       difficulty: 'Advanced',
       progress: 0,
       icon: TrendingUp,
-      locked: true,
+      locked: !canAccessAdvanced,
+      lockReason: 'Prime Investor',
     },
     {
       id: '4',
@@ -156,10 +162,10 @@ export default function AcademyPage() {
             { name: 'Beginner Investor', earned: true, date: 'Earned on Mar 15, 2024' },
             { name: 'Advanced Trader', earned: false, progress: 'Complete 3 more courses' },
           ].map((cert, idx) => (
-            <div key={idx} className={`rounded-lg border p-6 ${earned => earned ? 'bg-blue-50 dark:bg-blue-950 border-blue-300 dark:border-blue-700' : 'border-border'}`}>
+            <div key={idx} className={`rounded-lg border p-6 ${cert.earned ? 'bg-blue-50 border-blue-300' : 'border-border'}`}>
               <p className="font-semibold text-foreground">{cert.name}</p>
               {cert.earned ? (
-                <div className="mt-2 flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+                <div className="mt-2 flex items-center gap-2 text-sm text-emerald-600">
                   <CheckCircle className="h-4 w-4" />
                   {cert.date}
                 </div>

@@ -1,109 +1,194 @@
 'use client'
 
-import { Globe, Moon, DollarSign, Lock, Bell, Eye, Smartphone, LogOut } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
+import { Globe, Moon, DollarSign, Lock, Bell, Eye, Smartphone, LogOut, ChevronRight, Loader2 } from 'lucide-react'
+import { getCurrentUser } from '@/lib/supabase'
+import { getMfaStatus, type MfaStatus } from '@/lib/auth/mfa'
+import TwoFactorModal from '@/components/settings/TwoFactorModal'
+import ChangePasswordModal from '@/components/settings/ChangePasswordModal'
+import { CustomSelect } from '@/components/ui/custom-select'
+import { cn } from '@/lib/utils'
+
+const LANGUAGE_OPTIONS = [
+  { value: 'en', label: 'English' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'fr', label: 'French' },
+  { value: 'de', label: 'German' },
+]
+
+const THEME_OPTIONS = [
+  { value: 'light', label: 'Light' },
+  { value: 'auto', label: 'Auto' },
+  { value: 'dark', label: 'Dark' },
+]
+
+const CURRENCY_OPTIONS = [
+  { value: 'usd', label: 'USD' },
+  { value: 'eur', label: 'EUR' },
+  { value: 'gbp', label: 'GBP' },
+  { value: 'jpy', label: 'JPY' },
+]
+
+const VISIBILITY_OPTIONS = [
+  { value: 'public', label: 'Public' },
+  { value: 'private', label: 'Private' },
+  { value: 'friends', label: 'Friends Only' },
+]
 
 export default function SettingsPage() {
+  const [mfaStatus, setMfaStatus] = useState<MfaStatus>({ enabled: false, provider: null })
+  const [userEmail, setUserEmail] = useState('')
+  const [loadingMfa, setLoadingMfa] = useState(true)
+  const [twoFactorOpen, setTwoFactorOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
+  const [language, setLanguage] = useState('en')
+  const [theme, setTheme] = useState('auto')
+  const [currency, setCurrency] = useState('usd')
+  const [profileVisibility, setProfileVisibility] = useState('public')
+
+  const loadMfaStatus = useCallback(async () => {
+    setLoadingMfa(true)
+    const { data: user } = await getCurrentUser()
+    setUserEmail(user?.email ?? '')
+    const status = await getMfaStatus()
+    setMfaStatus(status)
+    setLoadingMfa(false)
+  }, [])
+
+  useEffect(() => {
+    loadMfaStatus()
+    window.addEventListener('primefx:profile-updated', loadMfaStatus)
+    return () => window.removeEventListener('primefx:profile-updated', loadMfaStatus)
+  }, [loadMfaStatus])
+
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground">Settings</h1>
         <p className="mt-1 text-muted-foreground">Customize your account preferences and security settings.</p>
       </div>
 
-      {/* General Settings */}
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
         <h2 className="mb-6 text-lg font-semibold text-foreground">General Settings</h2>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div className="flex items-start gap-3">
-              <Globe className="h-5 w-5 text-primary mt-1" />
+              <Globe className="mt-1 h-5 w-5 text-primary" />
               <div>
                 <p className="font-semibold text-foreground">Language</p>
                 <p className="text-sm text-muted-foreground">Choose your preferred language</p>
               </div>
             </div>
-            <select className="rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none">
-              <option selected>English</option>
-              <option>Spanish</option>
-              <option>French</option>
-              <option>German</option>
-            </select>
+            <CustomSelect
+              value={language}
+              onValueChange={setLanguage}
+              options={LANGUAGE_OPTIONS}
+              placeholder="Language"
+            />
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-start gap-3">
-              <Moon className="h-5 w-5 text-primary mt-1" />
+              <Moon className="mt-1 h-5 w-5 text-primary" />
               <div>
                 <p className="font-semibold text-foreground">Theme</p>
                 <p className="text-sm text-muted-foreground">Light or dark mode</p>
               </div>
             </div>
-            <select className="rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none">
-              <option>Light</option>
-              <option selected>Auto</option>
-              <option>Dark</option>
-            </select>
+            <CustomSelect
+              value={theme}
+              onValueChange={setTheme}
+              options={THEME_OPTIONS}
+              placeholder="Theme"
+            />
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-start gap-3">
-              <DollarSign className="h-5 w-5 text-primary mt-1" />
+              <DollarSign className="mt-1 h-5 w-5 text-primary" />
               <div>
                 <p className="font-semibold text-foreground">Currency</p>
                 <p className="text-sm text-muted-foreground">Default display currency</p>
               </div>
             </div>
-            <select className="rounded-lg border border-border bg-background px-4 py-2 text-sm outline-none">
-              <option selected>USD</option>
-              <option>EUR</option>
-              <option>GBP</option>
-              <option>JPY</option>
-            </select>
+            <CustomSelect
+              value={currency}
+              onValueChange={setCurrency}
+              options={CURRENCY_OPTIONS}
+              placeholder="Currency"
+            />
           </div>
         </div>
       </div>
 
-      {/* Security Settings */}
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
         <h2 className="mb-6 text-lg font-semibold text-foreground">Security Settings</h2>
         <div className="space-y-4">
-          <button className="flex w-full items-center justify-between rounded-lg border border-border p-4 hover:bg-secondary transition-colors">
+          <button
+            type="button"
+            onClick={() => setPasswordOpen(true)}
+            disabled={!userEmail}
+            className="flex w-full items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-secondary disabled:opacity-60"
+          >
             <div className="flex items-start gap-3">
-              <Lock className="h-5 w-5 text-primary mt-1" />
+              <Lock className="mt-1 h-5 w-5 text-primary" />
               <div className="text-left">
                 <p className="font-semibold text-foreground">Change Password</p>
-                <p className="text-sm text-muted-foreground">Update your password</p>
+                <p className="text-sm text-muted-foreground">Update your account password securely</p>
               </div>
             </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
 
-          <button className="flex w-full items-center justify-between rounded-lg border border-border p-4 hover:bg-secondary transition-colors">
+          <button
+            type="button"
+            onClick={() => setTwoFactorOpen(true)}
+            disabled={loadingMfa}
+            className="flex w-full items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-secondary disabled:opacity-60"
+          >
             <div className="flex items-start gap-3">
-              <Smartphone className="h-5 w-5 text-primary mt-1" />
+              <Smartphone className="mt-1 h-5 w-5 text-primary" />
               <div className="text-left">
                 <p className="font-semibold text-foreground">Two-Factor Authentication</p>
-                <p className="text-sm text-muted-foreground">Enabled via authenticator app</p>
+                <p className="text-sm text-muted-foreground">
+                  {mfaStatus.enabled
+                    ? 'Protected with an authenticator app'
+                    : 'Add an extra layer of security to your account'}
+                </p>
               </div>
             </div>
-            <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-              Active
-            </span>
+            {loadingMfa ? (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            ) : (
+              <span
+                className={cn(
+                  'inline-block rounded-full px-3 py-1 text-xs font-semibold',
+                  mfaStatus.enabled
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-gray-100 text-gray-600'
+                )}
+              >
+                {mfaStatus.enabled ? 'Active' : 'Off'}
+              </span>
+            )}
           </button>
 
-          <button className="flex w-full items-center justify-between rounded-lg border border-border p-4 hover:bg-secondary transition-colors">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-secondary"
+          >
             <div className="flex items-start gap-3">
-              <Eye className="h-5 w-5 text-primary mt-1" />
+              <Eye className="mt-1 h-5 w-5 text-primary" />
               <div className="text-left">
                 <p className="font-semibold text-foreground">Active Sessions</p>
                 <p className="text-sm text-muted-foreground">Manage your login sessions</p>
               </div>
             </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
       </div>
 
-      {/* Notification Settings */}
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
         <h2 className="mb-6 text-lg font-semibold text-foreground">Notification Preferences</h2>
         <div className="space-y-4">
@@ -112,8 +197,8 @@ export default function SettingsPage() {
             { label: 'Push Notifications', desc: 'Browser push notifications' },
             { label: 'Investment Alerts', desc: 'Alerts for investment updates' },
             { label: 'Security Alerts', desc: 'Important account security alerts' },
-          ].map((notif, idx) => (
-            <div key={idx} className="flex items-center justify-between rounded-lg border border-border p-4">
+          ].map((notif) => (
+            <div key={notif.label} className="flex items-center justify-between rounded-lg border border-border p-4">
               <div>
                 <p className="font-semibold text-foreground">{notif.label}</p>
                 <p className="text-sm text-muted-foreground">{notif.desc}</p>
@@ -124,7 +209,6 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Privacy Controls */}
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
         <h2 className="mb-6 text-lg font-semibold text-foreground">Privacy Controls</h2>
         <div className="space-y-4">
@@ -133,11 +217,13 @@ export default function SettingsPage() {
               <p className="font-semibold text-foreground">Profile Visibility</p>
               <p className="text-sm text-muted-foreground">Show profile in community</p>
             </div>
-            <select className="rounded-lg border border-border bg-background px-3 py-1 text-sm outline-none">
-              <option selected>Public</option>
-              <option>Private</option>
-              <option>Friends Only</option>
-            </select>
+            <CustomSelect
+              value={profileVisibility}
+              onValueChange={setProfileVisibility}
+              options={VISIBILITY_OPTIONS}
+              placeholder="Visibility"
+              size="sm"
+            />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
@@ -150,15 +236,33 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Danger Zone */}
-      <div className="rounded-lg border-2 border-red-500 bg-red-50 dark:bg-red-950 p-6 shadow-sm">
-        <h2 className="mb-6 text-lg font-semibold text-red-600 dark:text-red-400">Danger Zone</h2>
-        <button className="flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 font-semibold text-white hover:bg-red-600 transition-colors">
+      <div className="rounded-lg border-2 border-red-500 bg-red-50 p-6 shadow-sm">
+        <h2 className="mb-6 text-lg font-semibold text-red-600">Danger Zone</h2>
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-lg bg-red-500 px-4 py-2 font-semibold text-white transition-colors hover:bg-red-600"
+        >
           <LogOut className="h-4 w-4" />
           Delete Account
         </button>
-        <p className="mt-3 text-sm text-red-600 dark:text-red-400">This action cannot be undone. All your data will be permanently deleted.</p>
+        <p className="mt-3 text-sm text-red-600">
+          This action cannot be undone. All your data will be permanently deleted.
+        </p>
       </div>
+
+      <TwoFactorModal
+        open={twoFactorOpen}
+        onClose={() => setTwoFactorOpen(false)}
+        onStatusChange={setMfaStatus}
+        userEmail={userEmail}
+        initialEnabled={mfaStatus.enabled}
+      />
+
+      <ChangePasswordModal
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        userEmail={userEmail}
+      />
     </div>
   )
 }

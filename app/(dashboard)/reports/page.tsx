@@ -1,8 +1,21 @@
 'use client'
 
+import { useState } from 'react'
 import { Download, Calendar, FileText, TrendingUp, Filter } from 'lucide-react'
+import { InvestorPageGate } from '@/components/investor/InvestorPageGate'
+import { CustomSelect } from '@/components/ui/custom-select'
+
+const REPORT_TYPE_OPTIONS = [
+  { value: 'all', label: 'All Types' },
+  { value: 'performance', label: 'Performance' },
+  { value: 'portfolio', label: 'Portfolio' },
+  { value: 'tax', label: 'Tax' },
+  { value: 'overview', label: 'Overview' },
+  { value: 'risk', label: 'Risk' },
+]
 
 export default function ReportsPage() {
+  const [reportType, setReportType] = useState('all')
   const reports = [
     {
       id: '1',
@@ -42,6 +55,7 @@ export default function ReportsPage() {
   ]
 
   return (
+    <InvestorPageGate route="/reports">
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -64,14 +78,14 @@ export default function ReportsPage() {
           </div>
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <select className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none">
-              <option>All Types</option>
-              <option>Performance</option>
-              <option>Portfolio</option>
-              <option>Tax</option>
-              <option>Overview</option>
-              <option>Risk</option>
-            </select>
+            <CustomSelect
+              value={reportType}
+              onValueChange={setReportType}
+              size="sm"
+              options={REPORT_TYPE_OPTIONS}
+              placeholder="Report type"
+              className="min-w-[9rem]"
+            />
           </div>
         </div>
       </div>
@@ -128,5 +142,6 @@ export default function ReportsPage() {
         </div>
       </div>
     </div>
+    </InvestorPageGate>
   )
 }

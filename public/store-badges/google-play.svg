@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="135" height="40" viewBox="0 0 135 40" fill="none">
+  <rect width="135" height="40" rx="5" fill="#000"/>
+  <path d="M8.445 7.812l9.337 9.188-9.337 9.188a2.05 2.05 0 0 1-.053-.475V8.287c0-.17.018-.337.053-.475z" fill="#00D0FF"/>
+  <path d="M17.782 17l3.718-3.625L9.86 7.4a3.07 3.07 0 0 1 1.585-.425c.48 0 .93.09 1.33.26l9.44 5.42-4.433 4.345z" fill="#FFCE00"/>
+  <path d="M17.782 23l4.433 4.345-9.44 5.42a3.07 3.07 0 0 1-1.33.26 3.07 3.07 0 0 1-1.585-.425l7.922-9.6z" fill="#FF3A44"/>
+  <path d="M29.5 20.5l-4.05-3.5-4.668 4.345 4.668 4.345 4.05-3.5a1.5 1.5 0 0 0 0-1.69z" fill="#00F076"/>
+  <text x="36" y="13.5" fill="#fff" font-family="Roboto,'Segoe UI',sans-serif" font-size="6" letter-spacing=".8">GET IT ON</text>
+  <text x="36" y="27" fill="#fff" font-family="Roboto,'Segoe UI',sans-serif" font-size="12.5" font-weight="500">Google Play</text>
+</svg>

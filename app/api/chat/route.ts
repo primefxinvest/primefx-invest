@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai'
-import { streamText } from 'ai'
+import { convertToModelMessages, streamText, type UIMessage } from 'ai'
 
 export const runtime = 'nodejs'
 
@@ -30,15 +30,33 @@ When discussing investments:
 Remember: Past performance does not guarantee future results.`
 
 export async function POST(req: Request) {
-  const { messages } = await req.json()
+  try {
+    const body = await req.json()
+    const messages = (body.messages ?? []) as UIMessage[]
 
-  const result = streamText({
-    model: openai('gpt-4o-mini'),
-    system,
-    messages,
-    temperature: 0.7,
-    maxTokens: 1024,
-  })
+    if (!process.env.OPENAI_API_KEY) {
+      return new Response(
+        JSON.stringify({
+          error: 'PrimeAI is not configured. Add OPENAI_API_KEY to your environment.',
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
 
-  return result.toDataStreamResponse()
+    const result = streamText({
+      model: openai('gpt-4o-mini'),
+      system,
+      messages: await convertToModelMessages(messages),
+      temperature: 0.7,
+      maxOutputTokens: 1024,
+    })
+
+    return result.toUIMessageStreamResponse()
+  } catch (error) {
+    console.error('PrimeAI chat error:', error)
+    return new Response(JSON.stringify({ error: 'Failed to process chat request.' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 }

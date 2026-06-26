@@ -290,4 +290,4 @@ For issues or questions:
 
 Your PrimeFx Invest platform is complete and ready for the world!
 
-Let's launch! 🚀
+Let's launch!

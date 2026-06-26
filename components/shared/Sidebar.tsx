@@ -1,8 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { logout } from '@/lib/auth/logout'
+import Logo from '@/components/shared/Logo'
+import SidebarUpgradeCard from '@/components/shared/SidebarUpgradeCard'
+import { toast } from 'sonner'
 import {
   Home,
   TrendingUp,
@@ -15,104 +19,110 @@ import {
   Trophy,
   Users,
   Share2,
-  Barcode,
+  BarChart3,
   MessageSquare,
+  Bell,
   Settings,
   User,
   HelpCircle,
   LogOut,
-  Crown,
+  Scale,
+  Lock,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { useInvestorTier } from '@/lib/hooks/useInvestorTier'
+import { canAccessRoute } from '@/lib/investor/tiers'
+import { INVESTOR_NAV_ITEMS } from '@/lib/investor/navigation'
+import { fetchNotifications } from '@/lib/data/queries'
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/invest', label: 'Invest', icon: TrendingUp },
-  { href: '/portfolio', label: 'Portfolio', icon: PieChart },
-  { href: '/wallet', label: 'Wallet', icon: Wallet },
-  { href: '/transactions', label: 'Transactions', icon: History },
-  { href: '/primeai', label: 'PrimeAI', icon: Zap },
-  { href: '/academy', label: 'Academy', icon: BookOpen },
-  { href: '/reports', label: 'Reports', icon: FileText },
-  { href: '/rewards', label: 'Rewards', icon: Trophy },
-  { href: '/community', label: 'Community', icon: Users },
-  { href: '/referral', label: 'Referral Center', icon: Share2 },
-  { href: '/market-insights', label: 'Market Insights', icon: Barcode },
-  { href: '/support', label: 'Support', icon: MessageSquare },
-]
+const navIconMap = {
+  '/dashboard': Home,
+  '/invest': TrendingUp,
+  '/portfolio': PieChart,
+  '/wallet': Wallet,
+  '/transactions': History,
+  '/primeai': Zap,
+  '/academy': BookOpen,
+  '/reports': FileText,
+  '/rewards': Trophy,
+  '/community': Users,
+  '/referral': Share2,
+  '/market-insights': BarChart3,
+  '/support': MessageSquare,
+} as const
 
 const bottomNavItems = [
+  { href: '/notifications', label: 'Notifications', icon: Bell },
   { href: '/profile', label: 'Profile', icon: User },
   { href: '/settings', label: 'Settings', icon: Settings },
   { href: '/about', label: 'About', icon: HelpCircle },
+  { href: '/legal', label: 'Legal', icon: Scale },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const [loggingOut, setLoggingOut] = useState(false)
+  const { tierKey } = useInvestorTier()
+  const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [])
+  const unreadCount = (notifications ?? []).filter((n) => !n.read).length
+
+  const handleLogout = async () => {
+    if (loggingOut) return
+    setLoggingOut(true)
+    const result = await logout()
+    if (!result.success) {
+      setLoggingOut(false)
+      toast.error('Logout failed', { description: result.error })
+    }
+  }
 
   return (
-    <aside className="fixed left-0 top-0 h-screen w-64 border-r border-border bg-sidebar shadow-sm">
-      {/* Logo */}
-      <Link href="/dashboard" className="block border-b border-border p-6 hover:opacity-80 transition-opacity">
-        <div className="flex items-center gap-3">
-          <Image
-            src="/logo.png"
-            alt="PrimeFx Invest"
-            width={40}
-            height={40}
-            className="object-contain"
-            priority
-          />
-          <div className="flex flex-col">
-            <span className="font-bold text-foreground">PrimeFx</span>
-            <span className="text-xs text-muted-foreground">INVEST</span>
-          </div>
-        </div>
-      </Link>
-
-      {/* Navigation */}
-      <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
-        {navItems.map((item) => {
-          const Icon = item.icon
-          const isActive = pathname.startsWith(item.href)
-
-          return (
-            <Link key={item.href} href={item.href}>
-              <div
-                className={cn(
-                  'flex items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-                  isActive ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                )}
-              >
-                <Icon className="h-5 w-5" />
-                <span>{item.label}</span>
-              </div>
-            </Link>
-          )
-        })}
-      </nav>
-
-      {/* Upgrade Banner */}
-      <div className="border-t border-border p-4">
-        <div className="rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 p-4 text-white">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <Crown className="h-5 w-5" />
-                <span className="text-sm font-semibold">Upgrade to Elite</span>
-              </div>
-              <p className="mt-2 text-xs text-blue-100">Unlock exclusive benefits and higher returns</p>
-              <button className="mt-3 w-full rounded-lg bg-white py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors">
-                Upgrade Now
-              </button>
-            </div>
-          </div>
-        </div>
+    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
+      <div className="shrink-0 border-b border-gray-200 px-5 py-5">
+        <Logo href="/dashboard" size={40} />
       </div>
 
-      {/* Bottom Navigation */}
-      <div className="border-t border-border px-4 py-4">
-        <div className="space-y-1">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+        <div className="space-y-0.5">
+          {INVESTOR_NAV_ITEMS.map((item) => {
+            const Icon = navIconMap[item.href as keyof typeof navIconMap] ?? Home
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+            const locked = item.requiredTier ? !canAccessRoute(tierKey, item.href) : false
+
+            if (locked) {
+              return (
+                <div
+                  key={item.href}
+                  title={`Requires ${item.requiredTier} tier`}
+                  className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-400"
+                >
+                  <Icon className="h-5 w-5 shrink-0 opacity-50" />
+                  <span className="flex-1">{item.label}</span>
+                  <Lock className="h-3.5 w-3.5 shrink-0" />
+                </div>
+              )
+            }
+
+            return (
+              <Link key={item.href} href={item.href}>
+                <div
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-[#0052ff] text-white shadow-sm'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  )}
+                >
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span>{item.label}</span>
+                </div>
+              </Link>
+            )
+          })}
+        </div>
+
+        <div className="mt-3 space-y-0.5 border-t border-gray-200 pt-3">
           {bottomNavItems.map((item) => {
             const Icon = item.icon
             const isActive = pathname.startsWith(item.href)
@@ -121,24 +131,37 @@ export default function Sidebar() {
               <Link key={item.href} href={item.href}>
                 <div
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
-                    isActive ? 'bg-primary text-white' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    isActive
+                      ? 'bg-[#0052ff] text-white'
+                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   )}
                 >
-                  <Icon className="h-5 w-5" />
-                  <span>{item.label}</span>
+                  <Icon className="h-5 w-5 shrink-0" />
+                  <span className="flex-1">{item.label}</span>
+                  {item.href === '/notifications' && unreadCount > 0 && (
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
                 </div>
               </Link>
             )
           })}
         </div>
-      </div>
+      </nav>
 
-      {/* Logout */}
-      <div className="border-t border-border p-4">
-        <button className="flex w-full items-center gap-3 rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+      <SidebarUpgradeCard />
+
+      <div className="shrink-0 border-t border-gray-200 px-3 py-3">
+        <button
+          type="button"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-60"
+        >
           <LogOut className="h-5 w-5" />
-          <span>Logout</span>
+          <span>{loggingOut ? 'Logging out...' : 'Logout'}</span>
         </button>
       </div>
     </aside>

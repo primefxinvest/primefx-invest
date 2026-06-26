@@ -242,4 +242,4 @@ For issues or questions:
 
 ---
 
-Built with care for modern investment experiences. Happy investing! 🚀
+Built with care for modern investment experiences. Happy investing!

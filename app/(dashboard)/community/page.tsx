@@ -1,8 +1,19 @@
 'use client'
 
+import { useState } from 'react'
 import { Heart, MessageCircle, Share2, Users, TrendingUp, Search } from 'lucide-react'
+import { CustomSelect } from '@/components/ui/custom-select'
+
+const CATEGORY_OPTIONS = [
+  { value: 'all', label: 'All Categories' },
+  { value: 'investing', label: 'Investing' },
+  { value: 'market', label: 'Market Analysis' },
+  { value: 'strategies', label: 'Strategies' },
+  { value: 'support', label: 'Support' },
+]
 
 export default function CommunityPage() {
+  const [category, setCategory] = useState('all')
   const discussions = [
     {
       id: '1',
@@ -74,13 +85,13 @@ export default function CommunityPage() {
               className="flex-1 bg-transparent outline-none"
             />
           </div>
-          <select className="rounded-lg border border-border bg-background px-4 py-2">
-            <option>All Categories</option>
-            <option>Investing</option>
-            <option>Market Analysis</option>
-            <option>Strategies</option>
-            <option>Support</option>
-          </select>
+          <CustomSelect
+            value={category}
+            onValueChange={setCategory}
+            options={CATEGORY_OPTIONS}
+            placeholder="Category"
+            className="w-full md:w-auto md:min-w-[11rem]"
+          />
         </div>
       </div>
 

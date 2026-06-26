@@ -1,200 +1,229 @@
 'use client'
 
-import { ArrowUpRight, ArrowDownLeft, Download, Filter, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import Link from 'next/link'
+import {
+  ArrowUpRight,
+  ArrowDownLeft,
+  Download,
+  Filter,
+  Search,
+  Gift,
+  Send,
+  Upload,
+} from 'lucide-react'
+import { AsyncState } from '@/components/shared/data-state'
+import { PageHeaderSkeleton, TableSkeleton } from '@/components/shared/skeletons'
+import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { fetchWalletTransactions } from '@/lib/data/queries'
+import { CustomSelect } from '@/components/ui/custom-select'
+
+const typeIcons: Record<string, typeof Download> = {
+  Deposit: Download,
+  Withdraw: Upload,
+  Withdrawal: Upload,
+  Transfer: Send,
+  Bonus: Gift,
+  Profit: ArrowDownLeft,
+}
+
+function isIncoming(type: string) {
+  const value = type.toLowerCase()
+  return value.includes('deposit') || value.includes('profit') || value.includes('bonus')
+}
 
 export default function TransactionsPage() {
-  const transactions = [
-    {
-      id: '1',
-      type: 'buy',
-      security: 'Apple Inc.',
-      ticker: 'AAPL',
-      quantity: 10,
-      price: 150.25,
-      amount: 1502.50,
-      date: '2024-06-25',
-      status: 'completed',
-      time: '14:30 UTC',
-    },
-    {
-      id: '2',
-      type: 'sell',
-      security: 'Microsoft Corporation',
-      ticker: 'MSFT',
-      quantity: 5,
-      price: 420.50,
-      amount: 2102.50,
-      date: '2024-06-24',
-      status: 'completed',
-      time: '10:15 UTC',
-    },
-    {
-      id: '3',
-      type: 'deposit',
-      security: 'Bank Transfer',
-      ticker: 'USD',
-      quantity: 1,
-      price: 10000,
-      amount: 10000,
-      date: '2024-06-22',
-      status: 'completed',
-      time: '09:00 UTC',
-    },
-    {
-      id: '4',
-      type: 'buy',
-      security: 'Tesla Inc.',
-      ticker: 'TSLA',
-      quantity: 8,
-      price: 245.75,
-      amount: 1966.00,
-      date: '2024-06-20',
-      status: 'completed',
-      time: '16:45 UTC',
-    },
-    {
-      id: '5',
-      type: 'withdraw',
-      security: 'Bank Transfer',
-      ticker: 'USD',
-      quantity: 1,
-      price: 5000,
-      amount: 5000,
-      date: '2024-06-18',
-      status: 'completed',
-      time: '11:30 UTC',
-    },
-    {
-      id: '6',
-      type: 'buy',
-      security: 'Amazon.com Inc.',
-      ticker: 'AMZN',
-      quantity: 15,
-      price: 185.40,
-      amount: 2781.00,
-      date: '2024-06-15',
-      status: 'completed',
-      time: '13:20 UTC',
-    },
-  ]
+  const [search, setSearch] = useState('')
+  const [typeFilter, setTypeFilter] = useState('All')
+  const { data: transactions = [], loading, error, reload } = useAsyncData(
+    () => fetchWalletTransactions(),
+    []
+  )
+
+  const filtered = useMemo(() => {
+    return transactions.filter((tx) => {
+      const matchesType = typeFilter === 'All' || tx.type === typeFilter
+      const query = search.trim().toLowerCase()
+      const matchesSearch =
+        !query ||
+        tx.description?.toLowerCase().includes(query) ||
+        tx.type.toLowerCase().includes(query) ||
+        tx.referenceId?.toLowerCase().includes(query)
+      return matchesType && matchesSearch
+    })
+  }, [transactions, search, typeFilter])
+
+  const types = useMemo(() => {
+    const unique = new Set(transactions.map((tx) => tx.type))
+    return ['All', ...Array.from(unique)]
+  }, [transactions])
+
+  if (loading && !transactions.length) {
+    return (
+      <div className="space-y-6 sm:space-y-8">
+        <PageHeaderSkeleton />
+        <TableSkeleton rows={6} cols={5} />
+      </div>
+    )
+  }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 sm:space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Transactions</h1>
-          <p className="mt-1 text-muted-foreground">View and manage all your investment transactions.</p>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">Transactions</h1>
+          <p className="mt-1 text-muted-foreground">
+            View and manage all your investment transactions.
+          </p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-white hover:bg-blue-700 transition-colors">
+        <button
+          type="button"
+          className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2 font-semibold text-white transition-colors hover:bg-blue-700"
+        >
           <Download className="h-4 w-4" />
           Export
         </button>
       </div>
 
-      {/* Search and Filters */}
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <div className="flex flex-1 items-center gap-2 rounded-lg border border-border bg-background px-4 py-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
+            <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <input
               type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Search transactions..."
               className="flex-1 bg-transparent outline-none"
             />
           </div>
-          <div className="flex gap-2">
-            <button className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 hover:bg-secondary transition-colors">
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-lg border border-border px-4 py-2 transition-colors hover:bg-secondary"
+            >
               <Filter className="h-4 w-4" />
               Filter
             </button>
-            <select className="rounded-lg border border-border bg-background px-4 py-2">
-              <option>All Types</option>
-              <option>Buy</option>
-              <option>Sell</option>
-              <option>Deposit</option>
-              <option>Withdraw</option>
-            </select>
+            <CustomSelect
+              value={typeFilter}
+              onValueChange={setTypeFilter}
+              options={types.map((type) => ({
+                value: type,
+                label: type === 'All' ? 'All Types' : type,
+              }))}
+              placeholder="Filter type"
+              className="min-w-[9rem]"
+            />
           </div>
         </div>
       </div>
 
-      {/* Transactions List */}
-      <div className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-border bg-secondary">
-                <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Type</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Security</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Quantity</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Price</th>
-                <th className="px-6 py-4 text-right text-sm font-semibold text-muted-foreground">Amount</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Date</th>
-                <th className="px-6 py-4 text-left text-sm font-semibold text-muted-foreground">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {transactions.map((transaction) => {
-                const isBuy = transaction.type === 'buy' || transaction.type === 'deposit'
-                const Icon = isBuy ? ArrowDownLeft : ArrowUpRight
-                const iconColor = isBuy ? 'text-emerald-500' : 'text-red-500'
+      <AsyncState
+        loading={loading}
+        error={error}
+        onRetry={reload}
+        isEmpty={filtered.length === 0}
+        emptyTitle="No transactions found"
+        emptyDescription={
+          search || typeFilter !== 'All'
+            ? 'Try adjusting your search or filters.'
+            : 'Transactions will appear here after your first deposit or investment.'
+        }
+        skeleton={<TableSkeleton rows={6} cols={5} />}
+      >
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px]">
+              <thead>
+                <tr className="border-b border-border bg-secondary">
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-muted-foreground sm:px-6">
+                    Type
+                  </th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-muted-foreground sm:px-6">
+                    Description
+                  </th>
+                  <th className="px-4 py-4 text-right text-sm font-semibold text-muted-foreground sm:px-6">
+                    Amount
+                  </th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-muted-foreground sm:px-6">
+                    Date
+                  </th>
+                  <th className="px-4 py-4 text-left text-sm font-semibold text-muted-foreground sm:px-6">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {filtered.map((transaction) => {
+                  const incoming = isIncoming(transaction.type)
+                  const Icon =
+                    typeIcons[transaction.type] ?? (incoming ? ArrowDownLeft : ArrowUpRight)
+                  const iconColor = incoming ? 'text-emerald-500' : 'text-red-500'
 
-                return (
-                  <tr key={transaction.id} className="hover:bg-secondary transition-colors">
-                    <td className="px-6 py-4">
-                      <div className={`inline-flex items-center gap-2 rounded-lg p-2 ${isBuy ? 'bg-emerald-100 dark:bg-emerald-950' : 'bg-red-100 dark:bg-red-950'}`}>
-                        <Icon className={`h-4 w-4 ${iconColor}`} />
-                        <span className={`text-sm font-semibold capitalize ${isBuy ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}>
-                          {transaction.type}
+                  return (
+                    <tr key={transaction.id} className="transition-colors hover:bg-secondary">
+                      <td className="px-4 py-4 sm:px-6">
+                        <div
+                          className={`inline-flex items-center gap-2 rounded-lg p-2 ${
+                            incoming ? 'bg-emerald-100' : 'bg-red-100'
+                          }`}
+                        >
+                          <Icon className={`h-4 w-4 ${iconColor}`} />
+                          <span
+                            className={`text-sm font-semibold ${
+                              incoming ? 'text-emerald-700' : 'text-red-700'
+                            }`}
+                          >
+                            {transaction.type}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 sm:px-6">
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">
+                            {transaction.description ?? transaction.type}
+                          </p>
+                          {transaction.referenceId && (
+                            <p className="text-xs text-muted-foreground">{transaction.referenceId}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-right text-sm font-semibold text-foreground sm:px-6">
+                        {transaction.amount}
+                      </td>
+                      <td className="px-4 py-4 sm:px-6">
+                        <div>
+                          <p className="text-sm text-foreground">{transaction.date}</p>
+                          {transaction.time && (
+                            <p className="text-xs text-muted-foreground">{transaction.time}</p>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 sm:px-6">
+                        <span
+                          className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
+                            transaction.status.toLowerCase() === 'completed'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-amber-100 text-amber-700'
+                          }`}
+                        >
+                          {transaction.status}
                         </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">{transaction.security}</p>
-                        <p className="text-xs text-muted-foreground">{transaction.ticker}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-foreground">{transaction.quantity}</td>
-                    <td className="px-6 py-4 text-sm text-foreground">${transaction.price}</td>
-                    <td className="px-6 py-4 text-right text-sm font-semibold text-foreground">${transaction.amount.toFixed(2)}</td>
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="text-sm text-foreground">{transaction.date}</p>
-                        <p className="text-xs text-muted-foreground">{transaction.time}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="inline-block rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                        {transaction.status}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      </AsyncState>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between rounded-lg border border-border bg-card p-4">
-        <p className="text-sm text-muted-foreground">Showing 1-6 of 47 transactions</p>
-        <div className="flex items-center gap-2">
-          <button className="rounded-lg border border-border px-3 py-2 hover:bg-secondary transition-colors disabled:opacity-50">
-            Previous
-          </button>
-          <button className="rounded-lg bg-primary px-3 py-2 text-white hover:bg-blue-700 transition-colors">
-            1
-          </button>
-          <button className="rounded-lg border border-border px-3 py-2 hover:bg-secondary transition-colors">
-            2
-          </button>
-          <button className="rounded-lg border border-border px-3 py-2 hover:bg-secondary transition-colors">
-            Next
-          </button>
-        </div>
+      <div className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted-foreground">
+          Showing {filtered.length} of {transactions.length} transactions
+        </p>
       </div>
     </div>
   )

@@ -72,13 +72,13 @@ export default function SupportPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'open':
-        return 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300'
+        return 'bg-red-100 text-red-700'
       case 'in-progress':
-        return 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
+        return 'bg-blue-100 text-blue-700'
       case 'resolved':
-        return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+        return 'bg-emerald-100 text-emerald-700'
       default:
-        return 'bg-gray-100 text-gray-700 dark:bg-gray-950 dark:text-gray-300'
+        return 'bg-gray-100 text-gray-700'
     }
   }
 

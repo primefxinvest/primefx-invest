@@ -1,24 +1,56 @@
 'use client'
 
-import { useState } from 'react'
-import Image from 'next/image'
+import { Suspense, useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
+import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase'
+import { needsMfaChallenge } from '@/lib/auth/mfa'
+import { MFA_VERIFY_ROUTE } from '@/lib/auth/routes'
+import Logo from '@/components/shared/Logo'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-)
-
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || '/dashboard'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const finishLogin = () => {
+    router.refresh()
+    router.push(redirectTo.startsWith('/') ? redirectTo : '/dashboard')
+  }
+
+  const redirectToMfaVerify = () => {
+    const params = new URLSearchParams({
+      redirect: redirectTo.startsWith('/') ? redirectTo : '/dashboard',
+    })
+    router.push(`${MFA_VERIFY_ROUTE}?${params.toString()}`)
+  }
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Enter your email address first to reset your password.')
+      return
+    }
+
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/login`,
+    })
+
+    if (resetError) {
+      setError(resetError.message)
+      return
+    }
+
+    toast.success('Password reset email sent', {
+      description: `Check ${email} for reset instructions.`,
+    })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -39,10 +71,25 @@ export default function LoginPage() {
 
       if (authError) {
         setError(authError.message || 'Login failed. Please check your credentials.')
-      } else if (data.user) {
-        router.push('/dashboard')
+        setLoading(false)
+        return
       }
-    } catch (err) {
+
+      if (!data.user) {
+        setError('Login failed. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      const mfa = await needsMfaChallenge()
+      if (mfa.required) {
+        redirectToMfaVerify()
+        setLoading(false)
+        return
+      }
+
+      finishLogin()
+    } catch {
       setError('Login failed. Please try again.')
     } finally {
       setLoading(false)
@@ -51,32 +98,21 @@ export default function LoginPage() {
 
   return (
     <div className="bg-card border border-border rounded-lg shadow-lg p-8">
-      {/* Logo */}
-      <div className="text-center mb-8">
-        <div className="flex justify-center mb-4">
-          <Image
-            src="/logo.png"
-            alt="PrimeFx Invest"
-            width={64}
-            height={64}
-            className="object-contain"
-            priority
-          />
+      <div className="mb-8 text-center">
+        <div className="mb-4 flex justify-center">
+          <Logo showText={false} size={64} />
         </div>
         <h1 className="text-2xl font-bold">PrimeFx Invest</h1>
         <p className="text-muted-foreground text-sm mt-1">Welcome back</p>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="mb-6 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm">
           {error}
         </div>
       )}
 
-      {/* Login Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Email Input */}
         <div>
           <label htmlFor="email" className="block text-sm font-medium mb-2">
             Email Address
@@ -92,7 +128,6 @@ export default function LoginPage() {
           />
         </div>
 
-        {/* Password Input */}
         <div>
           <label htmlFor="password" className="block text-sm font-medium mb-2">
             Password
@@ -117,7 +152,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Remember Me & Forgot Password */}
         <div className="flex items-center justify-between text-sm">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -127,12 +161,16 @@ export default function LoginPage() {
             />
             <span>Remember me</span>
           </label>
-          <Link href="#" className="text-primary hover:underline">
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            className="text-primary hover:underline"
+            disabled={loading}
+          >
             Forgot password?
-          </Link>
+          </button>
         </div>
 
-        {/* Submit Button */}
         <button
           type="submit"
           disabled={loading || !email || !password}
@@ -149,7 +187,6 @@ export default function LoginPage() {
         </button>
       </form>
 
-      {/* Divider */}
       <div className="relative my-6">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-border" />
@@ -159,7 +196,6 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Demo Accounts */}
       <div className="space-y-2 mb-6">
         <button
           type="button"
@@ -174,7 +210,6 @@ export default function LoginPage() {
         </button>
       </div>
 
-      {/* Sign Up Link */}
       <p className="text-center text-muted-foreground text-sm">
         Don&apos;t have an account?{' '}
         <Link href="/signup" className="text-primary hover:underline font-semibold">
@@ -182,5 +217,19 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="bg-card border border-border rounded-lg shadow-lg p-8 text-center text-sm text-muted-foreground">
+          Loading...
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   )
 }

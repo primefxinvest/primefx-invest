@@ -1,16 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-)
+import { supabase } from '@/lib/supabase'
+import Logo from '@/components/shared/Logo'
+import { RegistrationStepper } from '@/components/onboarding/RegistrationStepper'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -116,6 +112,7 @@ export default function SignupPage() {
           }])
 
         // Redirect to dashboard
+        router.refresh()
         router.push('/dashboard')
       }
     } catch (err) {
@@ -127,21 +124,18 @@ export default function SignupPage() {
 
   return (
     <div className="bg-card border border-border rounded-lg shadow-lg p-8">
-      {/* Logo */}
-      <div className="text-center mb-8">
-        <div className="flex justify-center mb-4">
-          <Image
-            src="/logo.png"
-            alt="PrimeFx Invest"
-            width={64}
-            height={64}
-            className="object-contain"
-            priority
-          />
+      <div className="mb-8 text-center">
+        <div className="mb-4 flex justify-center">
+          <Logo showText={false} size={64} />
         </div>
         <h1 className="text-2xl font-bold">PrimeFx Invest</h1>
         <p className="text-muted-foreground text-sm mt-1">Create your investment account</p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          All accounts start as <span className="font-medium">Starter Investors</span> 🌱 — upgrade by investing in higher plans.
+        </p>
       </div>
+
+      <RegistrationStepper activeStep={1} className="mb-8" />
 
       {/* Error Message */}
       {error && (
@@ -184,26 +178,6 @@ export default function SignupPage() {
             className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:border-primary focus:outline-none transition-colors"
             disabled={loading}
           />
-        </div>
-
-        {/* Investor Tier */}
-        <div>
-          <label htmlFor="tier" className="block text-sm font-medium mb-2">
-            Starting Tier
-          </label>
-          <select
-            id="tier"
-            name="tier"
-            value={formData.tier}
-            onChange={handleChange}
-            className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:border-primary focus:outline-none transition-colors"
-            disabled={loading}
-          >
-            <option value="Starter">Starter Plan - 8-15% ROI</option>
-            <option value="Growth">Growth Plan - 15-25% ROI</option>
-            <option value="Prime">Prime Plan - 25-40% ROI</option>
-            <option value="Elite">Elite Plan - 40-60% ROI</option>
-          </select>
         </div>
 
         {/* Password */}
@@ -269,11 +243,11 @@ export default function SignupPage() {
           />
           <span className="text-sm text-muted-foreground">
             I agree to the{' '}
-            <Link href="/legal" className="text-primary hover:underline">
+            <Link href="/terms" className="text-primary hover:underline">
               Terms of Service
             </Link>
             {' '}and{' '}
-            <Link href="/legal" className="text-primary hover:underline">
+            <Link href="/privacy" className="text-primary hover:underline">
               Privacy Policy
             </Link>
           </span>

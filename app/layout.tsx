@@ -1,43 +1,29 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Outfit } from 'next/font/google'
+import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
-const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
+const outfit = Outfit({
+  variable: '--font-sans',
   subsets: ['latin'],
+  display: 'swap',
 })
 
 export const metadata: Metadata = {
   title: 'PrimeFx Invest - AI-Powered Investment Platform',
-  description: 'Invest Smarter. Grow Wealth. Secure Your Future. PrimeFx Invest combines advanced AI, real-time market intelligence, and secure digital asset management to empower your financial growth.',
-  generator: 'v0.app',
+  description:
+    'Invest Smarter. Grow Wealth. Secure Your Future. PrimeFx Invest combines advanced AI, real-time market intelligence, and secure digital asset management to empower your financial growth.',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/logo.png',
+    apple: '/logo.png',
+    shortcut: '/logo.png',
   },
 }
 
 export const viewport: Viewport = {
-  colorScheme: 'light dark',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#0052ff' },
-    { media: '(prefers-color-scheme: dark)', color: '#0052ff' },
-  ],
+  colorScheme: 'light',
+  themeColor: '#0052ff',
 }
 
 export default function RootLayout({
@@ -46,9 +32,10 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} bg-background`} suppressHydrationWarning>
-      <body className="font-sans antialiased bg-background text-foreground">
+    <html lang="en" className={`light ${outfit.variable}`} suppressHydrationWarning>
+      <body className="font-sans antialiased bg-[#f5f7fa] text-gray-900">
         {children}
+        <Toaster />
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
