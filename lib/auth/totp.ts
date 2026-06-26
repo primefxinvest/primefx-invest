@@ -28,7 +28,7 @@ export function verifyTotpCode(secret: string, code: string) {
     secret: OTPAuth.Secret.fromBase32(secret),
   })
 
-  const delta = totp.validate({ token: code.replace(/\s/g, ''), window: 1 })
+  const delta = totp.validate({ token: code.replace(/\s/g, ''), window: 2 })
   return delta !== null
 }
 

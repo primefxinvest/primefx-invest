@@ -144,6 +144,7 @@ export const ADMIN_NAV_ITEMS: Array<{
   { href: '/admin/rewards', label: 'Rewards', module: 'rewards_referral', icon: 'Award' },
   { href: '/admin/analytics', label: 'Analytics', module: 'analytics_reporting', icon: 'BarChart3' },
   { href: '/admin/compliance', label: 'Compliance', module: 'audit_logs', icon: 'Lock' },
+  { href: '/admin/settings', label: 'Settings', module: 'platform_configuration', icon: 'Settings' },
 ]
 
 export const DUAL_APPROVAL_THRESHOLD = 10_000

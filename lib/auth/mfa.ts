@@ -9,6 +9,16 @@ import { logProfileActivity } from '@/lib/profile/actions'
 
 const LOCAL_2FA_PREFIX = 'primefx_2fa_'
 
+async function isMfaBypassedForUser(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('users')
+    .select('mfa_disabled_at')
+    .eq('id', userId)
+    .maybeSingle()
+
+  return Boolean(data?.mfa_disabled_at)
+}
+
 export type MfaProvider = 'supabase' | 'local'
 
 export interface MfaStatus {
@@ -61,6 +71,10 @@ async function syncTwoFactorMetadata(enabled: boolean) {
 export async function getMfaStatus(): Promise<MfaStatus> {
   const { data: authUser } = await getCurrentUser()
   if (!authUser) {
+    return { enabled: false, provider: null }
+  }
+
+  if (await isMfaBypassedForUser(authUser.id)) {
     return { enabled: false, provider: null }
   }
 
@@ -244,6 +258,11 @@ export async function needsMfaChallenge(): Promise<{
   factorId?: string
   provider?: MfaProvider
 }> {
+  const { data: authUser } = await getCurrentUser()
+  if (authUser && (await isMfaBypassedForUser(authUser.id))) {
+    return { required: false }
+  }
+
   try {
     const { data: aal, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
     if (!error && aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
@@ -257,7 +276,6 @@ export async function needsMfaChallenge(): Promise<{
     // ignore
   }
 
-  const { data: authUser } = await getCurrentUser()
   if (authUser) {
     const local = getLocalMfa(authUser.id)
     if (local?.enabled) {

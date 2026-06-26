@@ -57,7 +57,8 @@ export default function WalletActivitySummary() {
           value={period}
           onValueChange={setPeriod}
           size="sm"
-          className="min-w-[8rem]"
+          className="min-w-0 w-auto"
+          triggerClassName="border-0 bg-transparent px-1 shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 text-gray-600 font-medium"
           options={periods.map((p) => ({ value: p, label: p }))}
           placeholder="Period"
         />

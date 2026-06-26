@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { getCurrentUser, supabase } from '@/lib/supabase'
 import { getDefaultAvatarUrl } from '@/lib/profile/avatar'
-import { getStoredProfileAvatar } from '@/lib/profile/actions'
+import { getStoredProfileAvatar, getStoredProfileFullName } from '@/lib/profile/actions'
+import { resolveUserDisplayName } from '@/lib/profile/display-name'
 import { useInvestorTier } from '@/lib/hooks/useInvestorTier'
 import { formatInvestorTierLabel } from '@/lib/investor/tiers'
 
@@ -49,7 +50,7 @@ export function useSessionUser() {
 
       const { data: dbUser } = await supabase
         .from('users')
-        .select('investor_tier')
+        .select('investor_tier, full_name, avatar_url')
         .eq('id', data.id)
         .maybeSingle()
 
@@ -61,13 +62,16 @@ export function useSessionUser() {
 
       setUser({
         id: data.id,
-        name:
-          (data.user_metadata?.full_name as string | undefined) ??
-          data.email?.split('@')[0] ??
-          'User',
+        name: resolveUserDisplayName({
+          dbName: dbUser?.full_name as string | undefined,
+          metadataName: data.user_metadata?.full_name as string | undefined,
+          localName: getStoredProfileFullName(data.id),
+          email: data.email,
+        }),
         email: data.email ?? '',
         tier: formatTierLabel(tier),
         avatar:
+          (dbUser?.avatar_url as string | undefined) ??
           storedAvatar ??
           (data.user_metadata?.avatar_url as string | undefined) ??
           getDefaultAvatarUrl(data.id),

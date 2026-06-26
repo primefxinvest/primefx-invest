@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
 import { needsMfaChallenge } from '@/lib/auth/mfa'
 import { MFA_VERIFY_ROUTE } from '@/lib/auth/routes'
+import { AppSessionSkeleton } from '@/components/shared/skeletons'
 
 export default function MfaSessionGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -35,11 +35,7 @@ export default function MfaSessionGuard({ children }: { children: React.ReactNod
   }, [pathname, router])
 
   if (!ready) {
-    return (
-      <div className="flex min-h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0052ff]" />
-      </div>
-    )
+    return <AppSessionSkeleton pathname={pathname} />
   }
 
   return <>{children}</>

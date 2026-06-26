@@ -28,7 +28,7 @@ export function AdminShell({ context, children }: AdminShellProps) {
         <div className="border-t border-border p-4">
           <Link
             href="/dashboard"
-            className="flex items-center gap-3 rounded-lg px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            className="flex items-center gap-3 rounded-lg px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground"
           >
             <LogOut className="h-5 w-5" />
             <span>Back to App</span>
@@ -55,7 +55,7 @@ export function AdminShell({ context, children }: AdminShellProps) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-auto p-6">{children}</div>
+        <div className="primefx-scrollbar flex-1 overflow-auto p-6">{children}</div>
       </div>
     </div>
   )

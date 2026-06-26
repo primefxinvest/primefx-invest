@@ -1,12 +1,16 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { bootstrapUserProfile } from '@/lib/auth/bootstrap-profile'
+import { formatGoogleAuthError, isGoogleAuthEnabled, signInWithGoogle } from '@/lib/auth/google-oauth'
 import Logo from '@/components/shared/Logo'
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { RegistrationStepper } from '@/components/onboarding/RegistrationStepper'
+import { useResetOnPageShow } from '@/lib/hooks/useResetOnPageShow'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -20,12 +24,41 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState('')
   const [agreedToTerms, setAgreedToTerms] = useState(false)
+
+  const resetOAuthLoading = useCallback(() => {
+    setGoogleLoading(false)
+    setLoading(false)
+  }, [])
+
+  useResetOnPageShow(resetOAuthLoading)
+
+  useEffect(() => {
+    setGoogleLoading(false)
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleGoogleSignUp = async () => {
+    if (!agreedToTerms) {
+      setError('You must agree to the terms and conditions before continuing with Google.')
+      return
+    }
+
+    setError('')
+    setGoogleLoading(true)
+
+    try {
+      await signInWithGoogle('/dashboard')
+    } catch (err) {
+      setError(formatGoogleAuthError(err))
+      setGoogleLoading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -75,45 +108,25 @@ export default function SignupPage() {
 
       // Create user profile in database
       if (authData.user) {
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert([{
-            id: authData.user.id,
-            email: formData.email,
-            full_name: formData.name,
-            investor_tier: formData.tier,
-          }])
+        const profile = await bootstrapUserProfile({
+          userId: authData.user.id,
+          email: formData.email,
+          fullName: formData.name,
+          investorTier: formData.tier,
+        })
 
-        if (profileError) {
-          setError('Profile creation failed. Please contact support.')
+        if (!profile.success) {
+          setError(profile.error ?? 'Profile creation failed. Please contact support.')
           return
         }
 
-        // Create wallet for user
-        await supabase
-          .from('wallet_balances')
-          .insert([{
-            user_id: authData.user.id,
-            available_balance: 0,
-            pending_balance: 0,
-            bonus_balance: 0,
-            total_balance: 0,
-          }])
+        if (authData.session) {
+          router.refresh()
+          router.push('/dashboard')
+          return
+        }
 
-        // Create portfolio for user
-        await supabase
-          .from('portfolios')
-          .insert([{
-            user_id: authData.user.id,
-            total_invested: 0,
-            current_value: 0,
-            profit_loss: 0,
-            roi_percentage: 0,
-          }])
-
-        // Redirect to dashboard
-        router.refresh()
-        router.push('/dashboard')
+        router.push('/login?registered=1')
       }
     } catch (err) {
       setError('Registration failed. Please try again.')
@@ -159,7 +172,7 @@ export default function SignupPage() {
             onChange={handleChange}
             placeholder="John Doe"
             className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:border-primary focus:outline-none transition-colors"
-            disabled={loading}
+            disabled={loading || googleLoading}
           />
         </div>
 
@@ -176,7 +189,7 @@ export default function SignupPage() {
             onChange={handleChange}
             placeholder="you@example.com"
             className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:border-primary focus:outline-none transition-colors"
-            disabled={loading}
+            disabled={loading || googleLoading}
           />
         </div>
 
@@ -194,7 +207,7 @@ export default function SignupPage() {
               onChange={handleChange}
               placeholder="Create a strong password"
               className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:border-primary focus:outline-none transition-colors"
-              disabled={loading}
+              disabled={loading || googleLoading}
             />
             <button
               type="button"
@@ -220,7 +233,7 @@ export default function SignupPage() {
               onChange={handleChange}
               placeholder="Confirm your password"
               className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:border-primary focus:outline-none transition-colors"
-              disabled={loading}
+              disabled={loading || googleLoading}
             />
             <button
               type="button"
@@ -239,7 +252,7 @@ export default function SignupPage() {
             checked={agreedToTerms}
             onChange={(e) => setAgreedToTerms(e.target.checked)}
             className="rounded border border-border w-4 h-4 mt-1 cursor-pointer"
-            disabled={loading}
+            disabled={loading || googleLoading}
           />
           <span className="text-sm text-muted-foreground">
             I agree to the{' '}
@@ -256,7 +269,7 @@ export default function SignupPage() {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={loading || !agreedToTerms}
+          disabled={loading || googleLoading || !agreedToTerms}
           className="w-full bg-primary text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading ? (
@@ -269,6 +282,25 @@ export default function SignupPage() {
           )}
         </button>
       </form>
+
+      {isGoogleAuthEnabled() ? (
+        <>
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
+            </div>
+          </div>
+
+          <GoogleSignInButton
+            disabled={loading || googleLoading}
+            onClick={handleGoogleSignUp}
+            label={googleLoading ? 'Redirecting to Google...' : 'Sign up with Google'}
+          />
+        </>
+      ) : null}
 
       {/* Benefits */}
       <div className="mt-6 space-y-2 p-4 bg-primary/5 rounded-lg">

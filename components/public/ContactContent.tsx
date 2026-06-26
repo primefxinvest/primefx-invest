@@ -2,8 +2,10 @@
 
 import Link from 'next/link'
 import { Mail, MapPin, MessageSquare, Phone } from 'lucide-react'
+import { useAuthEntry } from '@/lib/hooks/useAuthEntry'
 
 export function ContactContent() {
+  const { isAuthenticated, dashboardHref, loginHref, signupHref, signupLabel } = useAuthEntry()
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
       <h1 className="mb-2 text-4xl font-bold text-gray-900">Contact Us</h1>
@@ -58,18 +60,29 @@ export function ContactContent() {
               assistance.
             </p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <Link
-                href="/login"
-                className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-              >
-                Sign in for support
-              </Link>
-              <Link
-                href="/signup"
-                className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary"
-              >
-                Create account
-              </Link>
+              {isAuthenticated ? (
+                <Link
+                  href={dashboardHref}
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  Go to dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href={loginHref}
+                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    Sign in for support
+                  </Link>
+                  <Link
+                    href={signupHref}
+                    className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary"
+                  >
+                    {signupLabel}
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>

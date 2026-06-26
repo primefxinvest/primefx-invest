@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
+import Link from 'next/link'
+import { Eye, Search } from 'lucide-react'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import type { AdminWalletRow } from '@/lib/admin/types'
 import { formatCurrency, formatDateTime } from '@/lib/data/format'
@@ -44,12 +45,13 @@ export function AdminWalletsView({ wallets }: { wallets: AdminWalletRow[] }) {
               <th className="px-6 py-3 text-left text-sm font-semibold">Bonus</th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Total</th>
               <th className="px-6 py-3 text-left text-sm font-semibold">Updated</th>
+              <th className="px-6 py-3 text-left text-sm font-semibold">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-6 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={7} className="px-6 py-8 text-center text-sm text-muted-foreground">
                   No wallets found.
                 </td>
               </tr>
@@ -69,6 +71,15 @@ export function AdminWalletsView({ wallets }: { wallets: AdminWalletRow[] }) {
                   <td className="px-6 py-4 font-bold">{formatCurrency(wallet.total_balance)}</td>
                   <td className="px-6 py-4 text-muted-foreground">
                     {formatDateTime(wallet.updated_at)}
+                  </td>
+                  <td className="px-6 py-4">
+                    <Link
+                      href={`/admin/users/${wallet.user_id}`}
+                      className="inline-flex items-center gap-1 rounded-lg p-2 hover:bg-background"
+                      title="View investor details"
+                    >
+                      <Eye className="h-4 w-4 text-primary" />
+                    </Link>
                   </td>
                 </tr>
               ))

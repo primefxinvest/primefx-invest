@@ -1,5 +1,6 @@
 import { AdminUsersView } from '@/components/admin/AdminUsersView'
 import { AdminServiceRoleBanner } from '@/components/admin/AdminServiceRoleBanner'
+import { getAdminUserMfaSummary } from '@/lib/auth/mfa-admin'
 import { requireAdminModule } from '@/lib/admin/auth'
 import { getAdminUsers } from '@/lib/admin/queries'
 import { withAdminData } from '@/lib/admin/safe-query'
@@ -7,6 +8,11 @@ import { withAdminData } from '@/lib/admin/safe-query'
 export default async function AdminUsersPage() {
   await requireAdminModule('user_management')
   const { data, error, configured } = await withAdminData(getAdminUsers, [])
+
+  const mfaSummary =
+    configured && !error && data.length > 0
+      ? await getAdminUserMfaSummary(data.map((user) => user.id))
+      : {}
 
   return (
     <>
@@ -16,7 +22,7 @@ export default async function AdminUsersPage() {
           {error}
         </div>
       ) : null}
-      <AdminUsersView users={data} />
+      <AdminUsersView users={data} mfaSummary={mfaSummary} dataReady={configured && !error} />
     </>
   )
 }

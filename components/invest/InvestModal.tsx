@@ -1,12 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { InvestmentPlan } from '@/lib/invest/plan-config'
 import { getPlanTheme } from '@/lib/invest/plan-config'
 import { cn } from '@/lib/utils'
 import { processInvestment } from '@/lib/invest/actions'
+import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
+import { getKycBlockReason } from '@/lib/investor/kyc'
 
 import { fetchWalletData } from '@/lib/data/queries'
 import { formatCurrency } from '@/lib/data/format'
@@ -19,6 +22,8 @@ interface InvestModalProps {
 }
 
 export default function InvestModal({ plan, open, onClose, onSuccess }: InvestModalProps) {
+  const router = useRouter()
+  const kyc = useFinancialKycAccess()
   const [amount, setAmount] = useState('')
   const [loading, setLoading] = useState(false)
   const [walletBalance, setWalletBalance] = useState(0)
@@ -46,6 +51,16 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!kyc.loading && !kyc.verified) {
+      toast.error('KYC verification required', {
+        description:
+          getKycBlockReason(kyc.status, 'investment') ??
+          kyc.summary ??
+          'Complete KYC before investing.',
+      })
+      return
+    }
 
     if (!numericAmount || Number.isNaN(numericAmount)) {
       toast.error('Enter a valid investment amount.')
@@ -77,6 +92,7 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
       return
     }
 
+    router.refresh()
     onSuccess(plan, numericAmount)
     onClose()
   }
@@ -102,6 +118,12 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
         <p className="mt-1 text-sm text-gray-500">
           {plan.weeklyRoi} weekly return · Min {plan.minInvestment}
         </p>
+
+        {!kyc.loading && !kyc.verified ? (
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            {getKycBlockReason(kyc.status, 'investment') ?? kyc.summary}
+          </div>
+        ) : null}
 
         <div className="mt-4 rounded-xl bg-gray-50 px-4 py-3">
           <p className="text-xs text-gray-500">Available Wallet Balance</p>
@@ -145,7 +167,7 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || (!kyc.loading && !kyc.verified)}
             className={cn(
               'flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold transition-colors disabled:opacity-60',
               theme.button

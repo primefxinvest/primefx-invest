@@ -49,6 +49,8 @@ export async function getInvestmentPlans() {
     const { data, error } = await supabase
       .from('investment_plans')
       .select('*')
+      .eq('is_active', true)
+      .eq('visibility', 'public')
       .order('minimum_investment', { ascending: true })
     return { data, error }
   } catch (error) {
@@ -71,6 +73,7 @@ export async function createInvestment(investment: {
           user_id: investment.user_id,
           plan_id: investment.plan_id,
           amount: investment.amount,
+          current_value: investment.amount,
           status: investment.status,
         },
       ])

@@ -44,6 +44,84 @@ export interface AdminUserRow {
   country: string | null
   created_at: string
   admin_notes: string | null
+  mfa_disabled_at?: string | null
+  mfa_disabled_reason?: string | null
+}
+
+export interface AdminUserDetailProfile extends AdminUserRow {
+  phone_number: string | null
+  avatar_url: string | null
+  kyc_rejection_reason: string | null
+  suspended_at: string | null
+  suspended_reason: string | null
+  updated_at: string | null
+  date_of_birth: string | null
+  address: string | null
+  email_verified: boolean
+  last_sign_in_at: string | null
+}
+
+export interface AdminUserInvestmentRow {
+  id: string
+  plan_name: string
+  amount: number
+  current_value: number
+  roi_percentage: number
+  status: string
+  start_date: string
+  end_date: string | null
+}
+
+export interface AdminUserReferralRow {
+  id: string
+  referred_email: string
+  referred_name: string | null
+  bonus_earned: number
+  status: string
+  created_at: string
+}
+
+export interface AdminUserActivityRow {
+  id: string
+  action: string
+  device: string | null
+  created_at: string
+}
+
+export interface AdminUserPaymentMethodRow {
+  id: string
+  method_type: string
+  last_four: string | null
+  is_primary: boolean
+  created_at: string
+}
+
+export interface AdminUserDetail {
+  profile: AdminUserDetailProfile
+  mfa: { bypassed: boolean; factorCount: number }
+  wallet: {
+    available_balance: number
+    pending_balance: number
+    bonus_balance: number
+    total_balance: number
+    updated_at: string
+  } | null
+  portfolio: {
+    total_invested: number
+    current_value: number
+    profit_loss: number
+    roi_percentage: number
+    updated_at: string
+  } | null
+  investments: AdminUserInvestmentRow[]
+  transactions: AdminTransactionRow[]
+  referrals: {
+    total: number
+    total_bonus: number
+    items: AdminUserReferralRow[]
+  }
+  activity: AdminUserActivityRow[]
+  payment_methods: AdminUserPaymentMethodRow[]
 }
 
 export interface AdminWalletRow {
@@ -109,8 +187,13 @@ export interface AdminDashboardMetrics {
   totalAum: number
   pendingKyc: number
   pendingWithdrawals: number
+  pendingDeposits: number
   totalDeposits: number
   totalWithdrawals: number
+  netFlow: number
+  monthlyVolume: Array<{ month: string; deposits: number; withdrawals: number }>
+  tierDistribution: Record<string, number>
+  transactionBreakdown: { pending: number; completed: number; failed: number }
   recentTransactions: AdminTransactionRow[]
   recentAuditLogs: AdminAuditLogRow[]
 }

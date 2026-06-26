@@ -1,11 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { logout } from '@/lib/auth/logout'
 import Logo from '@/components/shared/Logo'
 import SidebarUpgradeCard from '@/components/shared/SidebarUpgradeCard'
+import { useMobileNav } from '@/components/shared/MobileNavContext'
 import { toast } from 'sonner'
 import {
   Home,
@@ -28,6 +29,7 @@ import {
   LogOut,
   Scale,
   Lock,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
@@ -62,10 +64,15 @@ const bottomNavItems = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { open, close } = useMobileNav()
   const [loggingOut, setLoggingOut] = useState(false)
   const { tierKey } = useInvestorTier()
   const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [])
   const unreadCount = (notifications ?? []).filter((n) => !n.read).length
+
+  useEffect(() => {
+    close()
+  }, [pathname, close])
 
   const handleLogout = async () => {
     if (loggingOut) return
@@ -78,12 +85,35 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-gray-200 bg-white">
-      <div className="shrink-0 border-b border-gray-200 px-5 py-5">
-        <Logo href="/dashboard" size={40} />
-      </div>
+    <>
+      {open ? (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          className="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-[1px] lg:hidden"
+          onClick={close}
+        />
+      ) : null}
 
-      <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+      <aside
+        className={cn(
+          'fixed left-0 top-0 z-50 flex h-[100dvh] w-[min(18rem,85vw)] flex-col border-r border-gray-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-xl transition-transform duration-300 ease-out lg:w-64 lg:shadow-none',
+          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        )}
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-4 lg:px-5 lg:py-5">
+          <Logo href="/dashboard" size={40} />
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Close menu"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+      <nav className="primefx-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-4">
         <div className="space-y-0.5">
           {INVESTOR_NAV_ITEMS.map((item) => {
             const Icon = navIconMap[item.href as keyof typeof navIconMap] ?? Home
@@ -165,5 +195,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   )
 }

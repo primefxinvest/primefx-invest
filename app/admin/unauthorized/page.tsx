@@ -34,7 +34,7 @@ export default function AdminUnauthorizedPage() {
           >
             Contact Support
           </Link>
-          <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
+          <Link href="/auth/signout" className="text-sm text-muted-foreground hover:text-foreground">
             Sign in with a different account
           </Link>
         </div>

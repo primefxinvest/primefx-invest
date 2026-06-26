@@ -6,9 +6,11 @@ import type {
   AdminDashboardMetrics,
   AdminPlanRow,
   AdminTransactionRow,
+  AdminUserDetail,
   AdminUserRow,
   AdminWalletRow,
 } from './types'
+import { getAdminUserMfaSummary } from '@/lib/auth/mfa-admin'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -40,6 +42,8 @@ function mapUser(row: Record<string, unknown>): AdminUserRow {
     country: (row.country as string) ?? null,
     created_at: String(row.created_at ?? ''),
     admin_notes: (row.admin_notes as string) ?? null,
+    mfa_disabled_at: (row.mfa_disabled_at as string) ?? null,
+    mfa_disabled_reason: (row.mfa_disabled_reason as string) ?? null,
   }
 }
 
@@ -60,6 +64,196 @@ export async function getAdminUsers(search?: string): Promise<AdminUserRow[]> {
 export async function getAdminKycQueue(): Promise<AdminUserRow[]> {
   const users = await getAdminUsers()
   return users.filter((u) => u.kyc_status === 'Pending')
+}
+
+export async function getAdminUserDetail(userId: string): Promise<AdminUserDetail | null> {
+  const db = getDb()
+
+  const { data: userRow, error: userError } = await db
+    .from('users')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (userError) throw new Error(userError.message)
+  if (!userRow) return null
+
+  const { data: authData } = await db.auth.admin.getUserById(userId).catch(() => ({
+    data: { user: null },
+  }))
+  const authUser = authData.user
+  const metadata = authUser?.user_metadata ?? {}
+
+  const base = mapUser(userRow as Record<string, unknown>)
+  const profile = {
+    ...base,
+    phone_number:
+      (userRow.phone_number as string | null) ??
+      (metadata.phone as string | undefined) ??
+      null,
+    avatar_url: (userRow.avatar_url as string | null) ?? (metadata.avatar_url as string | undefined) ?? null,
+    kyc_rejection_reason: (userRow.kyc_rejection_reason as string | null) ?? null,
+    suspended_at: (userRow.suspended_at as string | null) ?? null,
+    suspended_reason: (userRow.suspended_reason as string | null) ?? null,
+    updated_at: (userRow.updated_at as string | null) ?? null,
+    date_of_birth: (metadata.date_of_birth as string | undefined) ?? null,
+    address: (metadata.address as string | undefined) ?? null,
+    email_verified: Boolean(authUser?.email_confirmed_at),
+    last_sign_in_at: authUser?.last_sign_in_at ?? null,
+  }
+
+  const [
+    walletRes,
+    portfolioRes,
+    investmentsRes,
+    transactionsRes,
+    referralsRes,
+    activityRes,
+    paymentMethodsRes,
+    mfaSummary,
+  ] = await Promise.all([
+    db.from('wallet_balances').select('*').eq('user_id', userId).maybeSingle(),
+    db.from('portfolios').select('*').eq('user_id', userId).maybeSingle(),
+    db
+      .from('investments')
+      .select('*, investment_plans(name)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50),
+    db
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(25),
+    db
+      .from('referrals')
+      .select('*')
+      .eq('referrer_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    db
+      .from('user_activity_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(15),
+    db
+      .from('payment_methods')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false }),
+    getAdminUserMfaSummary([userId]),
+  ])
+
+  if (walletRes.error) throw new Error(walletRes.error.message)
+  if (portfolioRes.error) throw new Error(portfolioRes.error.message)
+  if (investmentsRes.error) throw new Error(investmentsRes.error.message)
+  if (transactionsRes.error) throw new Error(transactionsRes.error.message)
+  if (referralsRes.error && !referralsRes.error.message.includes('schema cache')) {
+    throw new Error(referralsRes.error.message)
+  }
+  if (activityRes.error && !activityRes.error.message.includes('schema cache')) {
+    throw new Error(activityRes.error.message)
+  }
+  if (paymentMethodsRes.error && !paymentMethodsRes.error.message.includes('schema cache')) {
+    throw new Error(paymentMethodsRes.error.message)
+  }
+
+  const walletRow = walletRes.data
+  const portfolioRow = portfolioRes.data
+
+  const referralRows = referralsRes.data ?? []
+  const referredIds = referralRows
+    .map((row) => row.referred_user_id as string | undefined)
+    .filter(Boolean) as string[]
+
+  const referredUsersRes =
+    referredIds.length > 0
+      ? await db.from('users').select('id, email, full_name').in('id', referredIds)
+      : { data: [] as Record<string, unknown>[] }
+
+  const referredById = new Map(
+    (referredUsersRes.data ?? []).map((row) => [String(row.id), row])
+  )
+
+  const referralItems = referralRows.map((row: Record<string, unknown>) => {
+    const referred = referredById.get(String(row.referred_user_id))
+    return {
+      id: String(row.id),
+      referred_email: String(referred?.email ?? '—'),
+      referred_name: (referred?.full_name as string) ?? null,
+      bonus_earned: Number(row.bonus_earned ?? 0),
+      status: String(row.status ?? 'Active'),
+      created_at: String(row.created_at ?? ''),
+    }
+  })
+
+  return {
+    profile,
+    mfa: mfaSummary[userId] ?? { bypassed: Boolean(profile.mfa_disabled_at), factorCount: 0 },
+    wallet: walletRow
+      ? {
+          available_balance: Number(walletRow.available_balance ?? 0),
+          pending_balance: Number(walletRow.pending_balance ?? 0),
+          bonus_balance: Number(walletRow.bonus_balance ?? 0),
+          total_balance: Number(walletRow.total_balance ?? 0),
+          updated_at: String(walletRow.updated_at ?? ''),
+        }
+      : null,
+    portfolio: portfolioRow
+      ? {
+          total_invested: Number(portfolioRow.total_invested ?? 0),
+          current_value: Number(portfolioRow.current_value ?? 0),
+          profit_loss: Number(portfolioRow.profit_loss ?? 0),
+          roi_percentage: Number(portfolioRow.roi_percentage ?? 0),
+          updated_at: String(portfolioRow.updated_at ?? ''),
+        }
+      : null,
+    investments: (investmentsRes.data ?? []).map((row: Record<string, unknown>) => {
+      const plan = row.investment_plans as Record<string, unknown> | null
+      return {
+        id: String(row.id),
+        plan_name: String(plan?.name ?? 'Unknown plan'),
+        amount: Number(row.amount ?? 0),
+        current_value: Number(row.current_value ?? 0),
+        roi_percentage: Number(row.roi_percentage ?? 0),
+        status: String(row.status ?? 'Active'),
+        start_date: String(row.start_date ?? row.created_at ?? ''),
+        end_date: (row.end_date as string) ?? null,
+      }
+    }),
+    transactions: (transactionsRes.data ?? []).map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      user_id: userId,
+      user_email: profile.email,
+      user_name: profile.full_name,
+      type: String(row.type ?? ''),
+      amount: Number(row.amount ?? 0),
+      status: String(row.status ?? 'Pending'),
+      description: (row.description as string) ?? null,
+      reference_id: (row.reference_id as string) ?? null,
+      created_at: String(row.created_at ?? ''),
+    })),
+    referrals: {
+      total: referralItems.length,
+      total_bonus: referralItems.reduce((sum, item) => sum + item.bonus_earned, 0),
+      items: referralItems,
+    },
+    activity: (activityRes.data ?? []).map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      action: String(row.action ?? ''),
+      device: (row.device as string) ?? null,
+      created_at: String(row.created_at ?? ''),
+    })),
+    payment_methods: (paymentMethodsRes.data ?? []).map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      method_type: String(row.method_type ?? ''),
+      last_four: (row.last_four as string) ?? null,
+      is_primary: Boolean(row.is_primary),
+      created_at: String(row.created_at ?? ''),
+    })),
+  }
 }
 
 export async function getAdminWallets(): Promise<AdminWalletRow[]> {
@@ -149,7 +343,14 @@ export async function getAdminRewardsTiers() {
     .select('*')
     .order('minimum_points', { ascending: true })
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (error.message.includes('rewards_tiers') && error.message.includes('schema cache')) {
+      throw new Error(
+        'Table public.rewards_tiers is missing. Run supabase/migrations/006_rewards_tiers.sql in the Supabase SQL Editor.'
+      )
+    }
+    throw new Error(error.message)
+  }
   return data ?? []
 }
 
@@ -187,16 +388,23 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
 
   const [
     usersRes,
+    tierUsersRes,
     investmentsRes,
     walletsRes,
     pendingKycRes,
     pendingWithdrawalsRes,
+    pendingDepositsRes,
     depositsRes,
     withdrawalsRes,
+    txVolumeRes,
+    pendingTxRes,
+    completedTxRes,
+    failedTxRes,
     recentTxRes,
     auditRes,
   ] = await Promise.all([
     db.from('users').select('id', { count: 'exact', head: true }),
+    db.from('users').select('investor_tier'),
     db.from('investments').select('id', { count: 'exact', head: true }).eq('status', 'Active'),
     db.from('wallet_balances').select('total_balance'),
     db.from('users').select('id', { count: 'exact', head: true }).or('kyc_status.eq.Pending,kyc_status.eq.pending'),
@@ -205,18 +413,30 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
       .select('id', { count: 'exact', head: true })
       .eq('type', 'withdrawal')
       .eq('status', 'Pending'),
+    db
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('type', 'deposit')
+      .eq('status', 'Pending'),
     db.from('transactions').select('amount').eq('type', 'deposit').eq('status', 'Completed'),
     db.from('transactions').select('amount').eq('type', 'withdrawal').eq('status', 'Completed'),
+    db.from('transactions').select('type, amount, status, created_at'),
+    db.from('transactions').select('id', { count: 'exact', head: true }).eq('status', 'Pending'),
+    db.from('transactions').select('id', { count: 'exact', head: true }).eq('status', 'Completed'),
+    db
+      .from('transactions')
+      .select('id', { count: 'exact', head: true })
+      .or('status.eq.Failed,status.eq.Rejected,status.eq.Cancelled'),
     db
       .from('transactions')
       .select('*, users!inner(id, email, full_name)')
       .order('created_at', { ascending: false })
-      .limit(8),
+      .limit(12),
     db
       .from('admin_audit_logs')
       .select('*, admin:admin_id(email)')
       .order('created_at', { ascending: false })
-      .limit(6),
+      .limit(8),
   ])
 
   const totalAum = (walletsRes.data ?? []).reduce(
@@ -233,6 +453,14 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
     (sum, row) => sum + Number((row as { amount?: number }).amount ?? 0),
     0
   )
+
+  const tierDistribution = (tierUsersRes.data ?? []).reduce<Record<string, number>>((acc, user) => {
+    const tier = String((user as { investor_tier?: string }).investor_tier ?? 'Starter')
+    acc[tier] = (acc[tier] ?? 0) + 1
+    return acc
+  }, {})
+
+  const monthlyVolume = buildMonthlyVolume(txVolumeRes.data ?? [])
 
   const recentTransactions: AdminTransactionRow[] = (recentTxRes.data ?? []).map(
     (row: Record<string, unknown>) => {
@@ -278,8 +506,17 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
     totalAum,
     pendingKyc: pendingKycRes.count ?? 0,
     pendingWithdrawals: pendingWithdrawalsRes.count ?? 0,
+    pendingDeposits: pendingDepositsRes.count ?? 0,
     totalDeposits,
     totalWithdrawals,
+    netFlow: totalDeposits - totalWithdrawals,
+    monthlyVolume,
+    tierDistribution,
+    transactionBreakdown: {
+      pending: pendingTxRes.count ?? 0,
+      completed: completedTxRes.count ?? 0,
+      failed: failedTxRes.count ?? 0,
+    },
     recentTransactions,
     recentAuditLogs,
   }
@@ -288,8 +525,8 @@ export async function getAdminDashboardMetrics(): Promise<AdminDashboardMetrics>
 export async function getAdminAnalytics() {
   const db = getDb()
   const [users, plans, investments, transactions] = await Promise.all([
-    db.from('users').select('id, country, investor_tier, created_at'),
-    db.from('investment_plans').select('id, name, investor_count, weekly_roi'),
+    db.from('users').select('id, country, investor_tier, created_at, kyc_status'),
+    db.from('investment_plans').select('id, name, investor_count, weekly_roi, is_active'),
     db.from('investments').select('plan_id, amount, status'),
     db.from('transactions').select('type, amount, status, created_at'),
   ])
@@ -331,11 +568,62 @@ export async function getAdminAnalytics() {
   return {
     totalUsers: users.data?.length ?? 0,
     totalInvestments: investments.data?.length ?? 0,
+    activeInvestments:
+      investments.data?.filter((row) => String((row as { status?: string }).status) === 'Active')
+        .length ?? 0,
     planDistribution,
     tierDistribution,
     countryDistribution,
     completedDeposits,
     completedWithdrawals,
     netRevenue: completedDeposits - completedWithdrawals,
+    pendingDeposits:
+      transactions.data?.filter(
+        (tx) =>
+          String((tx as { type: string }).type).toLowerCase() === 'deposit' &&
+          String((tx as { status: string }).status).toLowerCase() === 'pending'
+      ).length ?? 0,
+    pendingWithdrawals:
+      transactions.data?.filter(
+        (tx) =>
+          String((tx as { type: string }).type).toLowerCase() === 'withdrawal' &&
+          String((tx as { status: string }).status).toLowerCase() === 'pending'
+      ).length ?? 0,
+    kycPending:
+      users.data?.filter((user) => {
+        const kyc = String((user as { kyc_status?: string }).kyc_status ?? 'pending').toLowerCase()
+        return kyc === 'pending'
+      }).length ?? 0,
+    monthlyVolume: buildMonthlyVolume(transactions.data ?? []),
+    activePlans: plans.data?.filter((plan) => (plan as { is_active?: boolean }).is_active !== false)
+      .length ?? 0,
   }
+}
+
+function buildMonthlyVolume(transactions: Record<string, unknown>[]) {
+  const buckets = new Map<string, { deposits: number; withdrawals: number }>()
+
+  for (const tx of transactions) {
+    const createdAt = String((tx as { created_at?: string }).created_at ?? '')
+    if (!createdAt) continue
+    const month = createdAt.slice(0, 7)
+    const type = String((tx as { type: string }).type).toLowerCase()
+    const status = String((tx as { status: string }).status).toLowerCase()
+    if (status !== 'completed') continue
+
+    const entry = buckets.get(month) ?? { deposits: 0, withdrawals: 0 }
+    const amount = Number((tx as { amount: number }).amount ?? 0)
+    if (type === 'deposit') entry.deposits += amount
+    if (type === 'withdrawal') entry.withdrawals += amount
+    buckets.set(month, entry)
+  }
+
+  return Array.from(buckets.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .slice(-6)
+    .map(([month, values]) => ({
+      month,
+      deposits: values.deposits,
+      withdrawals: values.withdrawals,
+    }))
 }

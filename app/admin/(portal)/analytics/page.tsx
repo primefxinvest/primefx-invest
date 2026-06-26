@@ -7,12 +7,18 @@ import { withAdminData } from '@/lib/admin/safe-query'
 const EMPTY_ANALYTICS = {
   totalUsers: 0,
   totalInvestments: 0,
+  activeInvestments: 0,
+  activePlans: 0,
   planDistribution: [],
   tierDistribution: {},
   countryDistribution: {},
   completedDeposits: 0,
   completedWithdrawals: 0,
   netRevenue: 0,
+  pendingDeposits: 0,
+  pendingWithdrawals: 0,
+  kycPending: 0,
+  monthlyVolume: [],
 }
 
 export default async function AdminAnalyticsPage() {

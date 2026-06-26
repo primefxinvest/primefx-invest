@@ -1,6 +1,11 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { adminReenableUserMfa, adminResetUserMfa } from '@/lib/auth/mfa-admin'
+import {
+  settleApprovedTransaction,
+  settleRejectedTransaction,
+} from '@/lib/payments/wallet-ledger'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { assertModuleAccess, assertNotSelfTarget, getAdminContext } from './auth'
 import { logAdminAction } from './audit'
@@ -21,6 +26,131 @@ async function getContext() {
     throw new Error('Unauthorized')
   }
   return context
+}
+
+export async function adminDisableUserMfa(userId: string, reason: string) {
+  const context = await getContext()
+  assertModuleAccess(context, 'user_management')
+  assertNotSelfTarget(context, userId)
+
+  await adminResetUserMfa(userId, reason)
+
+  await logAdminAction({
+    context,
+    module: 'security_risk',
+    action: 'mfa_reset',
+    targetUserId: userId,
+    afterState: { mfa_disabled: true },
+    reasonCode: reason,
+  })
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}
+
+export async function adminEnableUserMfaRequirement(userId: string) {
+  const context = await getContext()
+  assertModuleAccess(context, 'user_management')
+  assertNotSelfTarget(context, userId)
+
+  await adminReenableUserMfa(userId)
+
+  await logAdminAction({
+    context,
+    module: 'security_risk',
+    action: 'mfa_requirement_restored',
+    targetUserId: userId,
+    afterState: { mfa_disabled: false },
+  })
+
+  revalidatePath('/admin/users')
+  return { success: true }
+}
+
+export async function createInvestmentPlan(input: {
+  name: string
+  weekly_roi: number
+  risk_level: string
+  minimum_investment: number
+  max_investment?: number | null
+  duration?: string
+  payout_frequency?: string
+  description?: string
+  visibility?: string
+  max_investors?: number | null
+}) {
+  const context = await getContext()
+  assertModuleAccess(context, 'investment_plan_management')
+
+  const db = getDb()
+  const { data, error } = await db
+    .from('investment_plans')
+    .insert({
+      name: input.name.trim(),
+      weekly_roi: input.weekly_roi,
+      risk_level: input.risk_level,
+      minimum_investment: input.minimum_investment,
+      max_investment: input.max_investment ?? null,
+      duration: input.duration ?? 'Flexible',
+      payout_frequency: input.payout_frequency ?? 'Every 7 Days',
+      description: input.description ?? null,
+      visibility: input.visibility ?? 'public',
+      max_investors: input.max_investors ?? null,
+      is_active: true,
+      investor_count: 0,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) throw new Error(error?.message ?? 'Failed to create plan.')
+
+  await logAdminAction({
+    context,
+    module: 'investment_plan_management',
+    action: 'plan_created',
+    targetResource: String(data.id),
+    afterState: input as Record<string, unknown>,
+  })
+
+  revalidatePath('/admin/plans')
+  revalidatePath('/invest')
+  return { success: true, planId: String(data.id) }
+}
+
+export async function deleteInvestmentPlan(planId: string) {
+  const context = await getContext()
+  assertModuleAccess(context, 'investment_plan_management')
+
+  const db = getDb()
+  const { data: before } = await db.from('investment_plans').select('*').eq('id', planId).single()
+  if (!before) throw new Error('Plan not found.')
+
+  if (Number(before.investor_count ?? 0) > 0) {
+    const { error } = await db.from('investment_plans').update({ is_active: false }).eq('id', planId)
+    if (error) throw new Error(error.message)
+    await logAdminAction({
+      context,
+      module: 'investment_plan_management',
+      action: 'plan_deactivated',
+      targetResource: planId,
+      beforeState: before as Record<string, unknown>,
+      afterState: { is_active: false },
+    })
+  } else {
+    const { error } = await db.from('investment_plans').delete().eq('id', planId)
+    if (error) throw new Error(error.message)
+    await logAdminAction({
+      context,
+      module: 'investment_plan_management',
+      action: 'plan_deleted',
+      targetResource: planId,
+      beforeState: before as Record<string, unknown>,
+    })
+  }
+
+  revalidatePath('/admin/plans')
+  revalidatePath('/invest')
+  return { success: true }
 }
 
 export async function updateUserKycStatus(
@@ -183,6 +313,29 @@ export async function updateTransactionStatus(
     )
   }
 
+  const previousStatus = String(before.status ?? '').toLowerCase()
+  const nextStatus = status.toLowerCase()
+
+  if (previousStatus !== 'pending') {
+    throw new Error('Only pending transactions can be approved or rejected.')
+  }
+
+  if (nextStatus === 'completed') {
+    await settleApprovedTransaction({
+      user_id: String(before.user_id),
+      type: String(before.type ?? ''),
+      amount: before.amount,
+      reference_id: (before.reference_id as string | null) ?? null,
+    })
+  } else if (nextStatus === 'rejected') {
+    await settleRejectedTransaction({
+      user_id: String(before.user_id),
+      type: String(before.type ?? ''),
+      amount: before.amount,
+      reference_id: (before.reference_id as string | null) ?? null,
+    })
+  }
+
   const { error } = await db.from('transactions').update({ status }).eq('id', transactionId)
   if (error) throw new Error(error.message)
 
@@ -199,6 +352,9 @@ export async function updateTransactionStatus(
 
   revalidatePath('/admin/transactions')
   revalidatePath('/admin/wallets')
+  revalidatePath('/wallet')
+  revalidatePath('/dashboard')
+  revalidatePath('/transactions')
   return { success: true }
 }
 

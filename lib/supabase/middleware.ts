@@ -1,10 +1,22 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getAuthenticatedEntryPath } from '@/lib/auth/session'
 import { isAuthRoute, isMfaVerifyRoute, isProtectedRoute, MFA_VERIFY_ROUTE } from '@/lib/auth/routes'
 import { getSupabaseAnonKey, getSupabaseUrl } from './config'
 
-async function needsServerMfaChallenge(supabase: ReturnType<typeof createServerClient>) {
+async function needsServerMfaChallenge(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string
+) {
   try {
+    const { data: profile } = await supabase
+      .from('users')
+      .select('mfa_disabled_at')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (profile?.mfa_disabled_at) return false
+
     const { data: aal, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
     if (error) return false
     return aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2'
@@ -37,13 +49,20 @@ export async function updateSession(request: NextRequest) {
 
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser()
+
+  let activeUser = user
+  if (userError) {
+    await supabase.auth.signOut()
+    activeUser = null
+  }
 
   const { pathname } = request.nextUrl
   const onMfaVerify = isMfaVerifyRoute(pathname)
   const onAuthRoute = isAuthRoute(pathname)
 
-  if (!user && (isProtectedRoute(pathname) || onMfaVerify)) {
+  if (!activeUser && (isProtectedRoute(pathname) || onMfaVerify)) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/login'
     if (isProtectedRoute(pathname)) {
@@ -52,8 +71,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  if (user) {
-    const pendingMfa = await needsServerMfaChallenge(supabase)
+  if (activeUser) {
+    const pendingMfa = await needsServerMfaChallenge(supabase, activeUser.id)
 
     if (pendingMfa && isProtectedRoute(pathname) && !onMfaVerify) {
       const verifyUrl = request.nextUrl.clone()
@@ -63,14 +82,12 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (onAuthRoute) {
+      const redirectParam = request.nextUrl.searchParams.get('redirect')
+      const destination = getAuthenticatedEntryPath(redirectParam, pendingMfa)
+      const [path, query] = destination.split('?')
       const target = request.nextUrl.clone()
-      if (pendingMfa) {
-        target.pathname = MFA_VERIFY_ROUTE
-        target.search = ''
-      } else {
-        target.pathname = '/dashboard'
-        target.search = ''
-      }
+      target.pathname = path
+      target.search = query ? `?${query}` : ''
       return NextResponse.redirect(target)
     }
   }

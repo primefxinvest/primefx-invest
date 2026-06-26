@@ -3,6 +3,7 @@ import { getUser, createUserActivityLog, getUserActivityLogs } from '@/lib/db/su
 import { normalizePlanTier, planTierOrder } from '@/lib/invest/upgrade'
 import { getMfaStatus } from '@/lib/auth/mfa'
 import { getDefaultAvatarUrl, isDataUrl } from './avatar'
+import { resolveUserDisplayName, formatPersonName } from './display-name'
 import type { ProfileActivity, UpdateProfileInput, UserProfile } from './types'
 
 const emptyProfile: UserProfile = {
@@ -127,6 +128,10 @@ export function getStoredProfileAvatar(userId: string): string | null {
   return getLocalProfile(userId)?.avatarUrl ?? null
 }
 
+export function getStoredProfileFullName(userId: string): string | null {
+  return getLocalProfile(userId)?.fullName ?? null
+}
+
 export async function getUserProfile(): Promise<UserProfile> {
   const { data: authUser } = await getCurrentUser()
 
@@ -158,12 +163,12 @@ export async function getUserProfile(): Promise<UserProfile> {
 
   return {
     id: authUser.id,
-    fullName:
-      local?.fullName ??
-      (dbUser?.full_name as string | undefined) ??
-      (metadata.full_name as string | undefined) ??
-      authUser.email?.split('@')[0] ??
-      '',
+    fullName: resolveUserDisplayName({
+      dbName: dbUser?.full_name as string | undefined,
+      metadataName: metadata.full_name as string | undefined,
+      localName: local?.fullName,
+      email: authUser.email,
+    }),
     email: authUser.email ?? '',
     phone:
       local?.phone ??
@@ -200,14 +205,15 @@ export async function updateUserProfile(
     return { success: false, error: 'You must be logged in to update your profile.' }
   }
 
+  const fullName = formatPersonName(input.fullName.trim())
   const avatarUrl =
-    input.avatarUrl?.trim() || getDefaultAvatarUrl(input.fullName.trim())
+    input.avatarUrl?.trim() || getDefaultAvatarUrl(fullName)
   const avatarForMetadata = isDataUrl(avatarUrl) ? undefined : avatarUrl
 
   try {
     const { error: authError } = await supabase.auth.updateUser({
       data: {
-        full_name: input.fullName.trim(),
+        full_name: fullName,
         phone: input.phone.trim(),
         date_of_birth: input.dateOfBirth.trim(),
         address: input.address.trim(),
@@ -222,7 +228,7 @@ export async function updateUserProfile(
     const { error: dbError } = await supabase
       .from('users')
       .update({
-        full_name: input.fullName.trim(),
+        full_name: fullName,
         phone_number: input.phone.trim(),
         ...(avatarForMetadata ? { avatar_url: avatarForMetadata } : {}),
         updated_at: new Date().toISOString(),
@@ -230,7 +236,7 @@ export async function updateUserProfile(
       .eq('id', authUser.id)
 
     saveLocalProfile(authUser.id, {
-      fullName: input.fullName.trim(),
+      fullName,
       phone: input.phone.trim(),
       dateOfBirth: input.dateOfBirth.trim(),
       address: input.address.trim(),
@@ -252,7 +258,7 @@ export async function updateUserProfile(
     return { success: true, profile }
   } catch {
     saveLocalProfile(authUser.id, {
-      fullName: input.fullName.trim(),
+      fullName,
       phone: input.phone.trim(),
       dateOfBirth: input.dateOfBirth.trim(),
       address: input.address.trim(),

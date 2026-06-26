@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import LandingNav from './LandingNav'
 import DashboardMockup from './DashboardMockup'
+import { useAuthEntry } from '@/lib/hooks/useAuthEntry'
 
 const features = [
   { icon: Shield, label: 'Secure & Regulated' },
@@ -40,6 +41,10 @@ const stats = [
 ]
 
 export default function HeroSection() {
+  const { loading, isAuthenticated, dashboardHref, signupHref } = useAuthEntry()
+  const primaryHref = isAuthenticated ? dashboardHref : signupHref
+  const primaryLabel = isAuthenticated ? 'Go to Dashboard' : 'Start Investing Now'
+
   return (
     <section className="relative overflow-hidden bg-white">
       {/* Background accents */}
@@ -95,10 +100,10 @@ export default function HeroSection() {
             {/* CTAs */}
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
               <Link
-                href="/signup"
+                href={primaryHref}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0052ff] px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/30 transition-all hover:bg-blue-700 hover:shadow-blue-500/40 sm:w-auto"
               >
-                Start Investing Now
+                {loading ? 'Start Investing Now' : primaryLabel}
                 <ArrowRight className="h-4 w-4" />
               </Link>
               <Link

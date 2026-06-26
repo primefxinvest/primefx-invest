@@ -11,8 +11,13 @@ const EMPTY_METRICS: AdminDashboardMetrics = {
   totalAum: 0,
   pendingKyc: 0,
   pendingWithdrawals: 0,
+  pendingDeposits: 0,
   totalDeposits: 0,
   totalWithdrawals: 0,
+  netFlow: 0,
+  monthlyVolume: [],
+  tierDistribution: {},
+  transactionBreakdown: { pending: 0, completed: 0, failed: 0 },
   recentTransactions: [],
   recentAuditLogs: [],
 }

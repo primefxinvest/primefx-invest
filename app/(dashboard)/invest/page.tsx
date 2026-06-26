@@ -27,6 +27,9 @@ import AIRecommendationBanner from '@/components/invest/AIRecommendationBanner'
 import InvestPrimeAIWidget from '@/components/invest/InvestPrimeAIWidget'
 import MarketOverviewWidget from '@/components/dashboard/MarketOverviewWidget'
 import WhyInvestWidget from '@/components/invest/WhyInvestWidget'
+import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
+import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
+import { getKycBlockReason } from '@/lib/investor/kyc'
 import { cn } from '@/lib/utils'
 
 type ViewMode = 'grid' | 'compare'
@@ -71,6 +74,7 @@ export default function InvestPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
   const [modalPlan, setModalPlan] = useState<InvestmentPlan | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const kyc = useFinancialKycAccess()
   const howItWorksRef = useRef<HTMLDivElement>(null)
   const recommendationRef = useRef<HTMLDivElement>(null)
 
@@ -82,7 +86,7 @@ export default function InvestPage() {
 
   useEffect(() => {
     const planId = searchParams.get('plan')
-    if (!planId || !investmentPlans.length) return
+    if (!planId || !investmentPlans.length || kyc.loading || !kyc.verified) return
 
     const plan = investmentPlans.find((p) => p.id === planId)
     if (plan) {
@@ -90,9 +94,19 @@ export default function InvestPage() {
       setModalPlan(plan)
       setModalOpen(true)
     }
-  }, [searchParams, investmentPlans])
+  }, [searchParams, investmentPlans, kyc.loading, kyc.verified])
 
   const openInvestModal = (plan: InvestmentPlan) => {
+    if (!kyc.loading && !kyc.verified) {
+      toast.error('KYC verification required', {
+        description:
+          getKycBlockReason(kyc.status, 'investment') ??
+          kyc.summary ??
+          'Complete KYC before investing.',
+      })
+      return
+    }
+
     setModalPlan(plan)
     setModalOpen(true)
     setSelectedPlanId(plan.id)
@@ -143,6 +157,8 @@ export default function InvestPage() {
               How it works
             </button>
           </div>
+
+          <KycFinancialBanner />
 
           {/* Feature highlights */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">

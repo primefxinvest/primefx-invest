@@ -1,5 +1,8 @@
-import { getCurrentUser } from '@/lib/supabase'
-import { createInvestment, createTransaction } from '@/lib/db/supabase'
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { executeInvestment } from '@/lib/invest/service'
+import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 interface ProcessInvestmentInput {
   planId: string
@@ -9,54 +12,29 @@ interface ProcessInvestmentInput {
 
 export async function processInvestment(
   input: ProcessInvestmentInput
-): Promise<{ success: boolean; error?: string }> {
-  const { data: user } = await getCurrentUser()
+): Promise<{ success: boolean; error?: string; referenceId?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
   if (!user) {
     return { success: false, error: 'You must be logged in to invest.' }
   }
 
-  try {
-    const { error: investmentError } = await createInvestment({
-      user_id: user.id,
-      plan_id: input.planId,
-      plan_name: input.planName,
-      amount: input.amount,
-      status: 'active',
-    })
-
-    if (investmentError) {
-      // Fall back to local storage when DB schema isn't ready
-      saveLocalInvestment(user.id, input)
-    } else {
-      await createTransaction({
-        user_id: user.id,
-        type: 'investment',
-        amount: input.amount,
-        status: 'completed',
-        description: `Investment in ${input.planName}`,
-        plan_id: input.planId,
-      })
-    }
-
-    return { success: true }
-  } catch {
-    if (user?.id) {
-      saveLocalInvestment(user.id, input)
-      return { success: true }
-    }
-
-    return { success: false, error: 'Something went wrong. Please try again.' }
-  }
-}
-
-function saveLocalInvestment(userId: string, input: ProcessInvestmentInput) {
-  if (typeof window === 'undefined') return
-
-  const key = `primefx_investments_${userId}`
-  const existing = JSON.parse(localStorage.getItem(key) ?? '[]') as ProcessInvestmentInput[]
-  existing.push({ ...input, createdAt: new Date().toISOString() } as ProcessInvestmentInput & {
-    createdAt: string
+  const result = await executeInvestment({
+    userId: user.id,
+    planId: input.planId,
+    amount: input.amount,
   })
-  localStorage.setItem(key, JSON.stringify(existing))
+
+  if (result.success) {
+    revalidatePath('/invest')
+    revalidatePath('/portfolio')
+    revalidatePath('/dashboard')
+    revalidatePath('/wallet')
+    revalidatePath('/transactions')
+  }
+
+  return result
 }

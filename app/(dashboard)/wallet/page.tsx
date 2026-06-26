@@ -10,6 +10,7 @@ import WalletPrimeAIInsight from '@/components/wallet/WalletPrimeAIInsight'
 import WalletTransactionTable from '@/components/wallet/WalletTransactionTable'
 import WalletActivitySummary from '@/components/wallet/WalletActivitySummary'
 import PaymentMethodsCard from '@/components/wallet/PaymentMethodsCard'
+import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
 
 export default function WalletPage() {
   const handleSettings = () => {
@@ -36,6 +37,8 @@ export default function WalletPage() {
           Wallet Settings
         </button>
       </div>
+
+      <KycFinancialBanner />
 
       <WalletBalanceCards />
 

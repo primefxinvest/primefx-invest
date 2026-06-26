@@ -4,6 +4,7 @@ import {
   BarChart3,
   FileText,
   Lock,
+  Settings,
   TrendingUp,
   Users,
   Wallet,
@@ -23,6 +24,7 @@ const ICONS = {
   TrendingUp,
   Award,
   Lock,
+  Settings,
 } as const
 
 interface AdminNavProps {
@@ -34,7 +36,7 @@ export function AdminNav({ tier, pathname }: AdminNavProps) {
   const items = ADMIN_NAV_ITEMS.filter((item) => canAccessModule(tier, item.module))
 
   return (
-    <nav className="flex-1 space-y-2 overflow-y-auto p-4">
+    <nav className="primefx-scrollbar flex-1 space-y-2 overflow-y-auto p-4">
       {items.map(({ href, label, icon }) => {
         const Icon = ICONS[icon as keyof typeof ICONS]
         const active = pathname === href || (href !== '/admin' && pathname.startsWith(href))
@@ -47,7 +49,7 @@ export function AdminNav({ tier, pathname }: AdminNavProps) {
               'flex items-center gap-3 rounded-lg px-4 py-2 text-sm transition-colors',
               active
                 ? 'bg-primary/10 font-medium text-primary'
-                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                : 'text-muted-foreground hover:bg-gray-100 hover:text-foreground'
             )}
           >
             <Icon className="h-5 w-5" />

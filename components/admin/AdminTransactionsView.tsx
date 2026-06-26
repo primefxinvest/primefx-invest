@@ -23,11 +23,25 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
     )
   }, [search, transactions])
 
-  const handleStatus = (id: string, status: 'Completed' | 'Rejected') => {
+  const handleStatus = (tx: AdminTransactionRow, status: 'Completed' | 'Rejected') => {
     startTransition(async () => {
       try {
-        await updateTransactionStatus(id, status)
-        toast.success(`Transaction ${status.toLowerCase()}`)
+        await updateTransactionStatus(tx.id, status)
+        if (status === 'Completed') {
+          const type = tx.type.toLowerCase()
+          if (type === 'deposit' || type === 'bonus' || type === 'profit') {
+            toast.success('Transaction approved — wallet balance updated')
+          } else {
+            toast.success('Transaction approved')
+          }
+        } else {
+          const type = tx.type.toLowerCase()
+          if (type === 'withdrawal') {
+            toast.success('Transaction rejected — funds returned to wallet')
+          } else {
+            toast.success('Transaction rejected')
+          }
+        }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to update transaction')
       }
@@ -100,7 +114,7 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
                         <button
                           type="button"
                           disabled={pending}
-                          onClick={() => handleStatus(tx.id, 'Completed')}
+                          onClick={() => handleStatus(tx, 'Completed')}
                           className="rounded bg-emerald-600 px-2 py-1 text-xs text-white disabled:opacity-50"
                         >
                           Approve
@@ -108,7 +122,7 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
                         <button
                           type="button"
                           disabled={pending}
-                          onClick={() => handleStatus(tx.id, 'Rejected')}
+                          onClick={() => handleStatus(tx, 'Rejected')}
                           className="rounded bg-red-500 px-2 py-1 text-xs text-white disabled:opacity-50"
                         >
                           Reject

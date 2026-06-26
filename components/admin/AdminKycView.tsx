@@ -1,16 +1,19 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import { CheckCircle2, Clock, Loader2, Search, XCircle } from 'lucide-react'
+import Link from 'next/link'
+import { CheckCircle2, Clock, Eye, Loader2, Search, XCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { updateUserKycStatus } from '@/lib/admin/actions'
 import type { AdminUserRow } from '@/lib/admin/types'
 import { formatDate } from '@/lib/data/format'
+import { useActionDialog } from '@/lib/hooks/useActionDialog'
 
 export function AdminKycView({ users }: { users: AdminUserRow[] }) {
   const [search, setSearch] = useState('')
   const [pending, startTransition] = useTransition()
+  const { prompt, ActionDialog } = useActionDialog()
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -33,12 +36,15 @@ export function AdminKycView({ users }: { users: AdminUserRow[] }) {
     })
   }
 
-  const handleReject = (userId: string) => {
-    const reason = window.prompt('Rejection reason code (required):')
-    if (!reason?.trim()) {
-      toast.error('KYC rejections must include a documented reason code.')
-      return
-    }
+  const handleReject = async (userId: string) => {
+    const reason = await prompt({
+      title: 'Reject KYC',
+      label: 'Rejection reason code',
+      required: true,
+      requiredMessage: 'KYC rejections must include a documented reason code.',
+      confirmLabel: 'Reject',
+    })
+    if (!reason) return
 
     startTransition(async () => {
       try {
@@ -109,26 +115,35 @@ export function AdminKycView({ users }: { users: AdminUserRow[] }) {
                   </td>
                   <td className="px-6 py-4 text-muted-foreground">{formatDate(user.created_at)}</td>
                   <td className="px-6 py-4">
-                    {user.kyc_status === 'Pending' ? (
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          disabled={pending}
-                          onClick={() => handleApprove(user.id)}
-                          className="rounded bg-emerald-600 px-3 py-1 text-sm text-white hover:opacity-90 disabled:opacity-50"
-                        >
-                          {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approve'}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={pending}
-                          onClick={() => handleReject(user.id)}
-                          className="rounded bg-red-500 px-3 py-1 text-sm text-white hover:opacity-90 disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
-                      </div>
-                    ) : null}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {user.kyc_status === 'Pending' ? (
+                        <>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => handleApprove(user.id)}
+                            className="rounded bg-emerald-600 px-3 py-1 text-sm text-white hover:opacity-90 disabled:opacity-50"
+                          >
+                            {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Approve'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() => handleReject(user.id)}
+                            className="rounded bg-red-500 px-3 py-1 text-sm text-white hover:opacity-90 disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      ) : null}
+                      <Link
+                        href={`/admin/users/${user.id}`}
+                        className="inline-flex items-center gap-1 rounded border border-border px-3 py-1 text-sm font-medium hover:bg-background"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -136,6 +151,8 @@ export function AdminKycView({ users }: { users: AdminUserRow[] }) {
           </tbody>
         </table>
       </div>
+
+      <ActionDialog />
     </div>
   )
 }

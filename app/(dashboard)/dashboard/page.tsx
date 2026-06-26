@@ -118,7 +118,8 @@ export default function DashboardPage() {
               value={selectedPeriod}
               onValueChange={setSelectedPeriod}
               size="sm"
-              className="min-w-[9rem]"
+              className="min-w-0 w-auto"
+              triggerClassName="border-0 bg-transparent px-1 shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 text-gray-600 font-medium"
               options={[
                 { value: 'This Year', label: 'This Year' },
                 { value: 'Last Month', label: 'Last Month' },

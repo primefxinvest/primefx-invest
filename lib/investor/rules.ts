@@ -9,7 +9,9 @@ export const INVESTOR_RULES = {
     profitWithdrawalMinimum: 10,
     newAccountWithdrawalHoldHours: 72,
     kycRequiredForWithdrawal: true,
-    kycRequiredForInvestmentAbove: 1000,
+    kycRequiredForDeposit: true,
+    kycRequiredForInvestment: true,
+    kycRequiredForTransfers: true,
   },
   security: {
     twoFactorRequiredForWithdrawal: true,
