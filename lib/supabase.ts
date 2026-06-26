@@ -36,10 +36,11 @@ export async function signOut() {
   return logout()
 }
 
+/** Client-side session lookup (local cookies). Use server `getUser()` for trusted auth checks. */
 export async function getCurrentUser() {
   try {
-    const { data, error } = await supabase.auth.getUser()
-    return { data: data?.user, error }
+    const { data, error } = await supabase.auth.getSession()
+    return { data: data.session?.user ?? null, error }
   } catch (error) {
     return { data: null, error }
   }

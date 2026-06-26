@@ -12,6 +12,19 @@ interface AuthRedirectGuardProps {
   children: ReactNode
 }
 
+function isTransientAuthError(error: unknown) {
+  if (error instanceof TypeError) {
+    return error.message === 'Failed to fetch'
+  }
+
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = String((error as { message: unknown }).message)
+    return message === 'Failed to fetch' || message.toLowerCase().includes('network')
+  }
+
+  return false
+}
+
 export default function AuthRedirectGuard({ children }: AuthRedirectGuardProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -27,8 +40,12 @@ export default function AuthRedirectGuard({ children }: AuthRedirectGuardProps) 
         if (!active) return
 
         if (error || !user) {
-          if (error) {
-            await supabase.auth.signOut()
+          if (error && !isTransientAuthError(error)) {
+            try {
+              await supabase.auth.signOut()
+            } catch {
+              // Ignore sign-out failures (e.g. offline).
+            }
           }
           setReady(true)
           return

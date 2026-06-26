@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { CustomSelect } from '@/components/ui/custom-select'
 import { getPaymentProviderOptions, initiateDeposit } from '@/lib/payments/actions'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
-import { getKycBlockReason } from '@/lib/investor/kyc'
+import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 
 interface DepositModalProps {
   open: boolean
@@ -73,11 +73,10 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
 
   const handleCreatePayment = () => {
     if (!kyc.loading && !kyc.verified) {
-      toast.error('KYC verification required', {
-        description:
-          getKycBlockReason(kyc.status, 'deposit') ??
-          kyc.summary ??
-          'Complete KYC before making a deposit.',
+      showKycRequiredToast({
+        status: kyc.status,
+        action: 'deposit',
+        fallback: kyc.summary ?? 'Complete KYC before making a deposit.',
       })
       return
     }

@@ -9,7 +9,7 @@ import { getPlanTheme } from '@/lib/invest/plan-config'
 import { cn } from '@/lib/utils'
 import { processInvestment } from '@/lib/invest/actions'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
-import { getKycBlockReason } from '@/lib/investor/kyc'
+import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 
 import { fetchWalletData } from '@/lib/data/queries'
 import { formatCurrency } from '@/lib/data/format'
@@ -53,11 +53,10 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
     e.preventDefault()
 
     if (!kyc.loading && !kyc.verified) {
-      toast.error('KYC verification required', {
-        description:
-          getKycBlockReason(kyc.status, 'investment') ??
-          kyc.summary ??
-          'Complete KYC before investing.',
+      showKycRequiredToast({
+        status: kyc.status,
+        action: 'investment',
+        fallback: kyc.summary ?? 'Complete KYC before investing.',
       })
       return
     }

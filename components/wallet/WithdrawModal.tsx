@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import { CustomSelect } from '@/components/ui/custom-select'
 import { getPaymentProviderOptions, initiateWithdrawal } from '@/lib/payments/actions'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
-import { getKycBlockReason } from '@/lib/investor/kyc'
+import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 
 interface WithdrawModalProps {
   open: boolean
@@ -34,11 +34,10 @@ export default function WithdrawModal({ open, onOpenChange }: WithdrawModalProps
 
   const handleSubmit = () => {
     if (!kyc.loading && !kyc.verified) {
-      toast.error('KYC verification required', {
-        description:
-          getKycBlockReason(kyc.status, 'withdrawal') ??
-          kyc.summary ??
-          'Complete KYC before withdrawing funds.',
+      showKycRequiredToast({
+        status: kyc.status,
+        action: 'withdrawal',
+        fallback: kyc.summary ?? 'Complete KYC before withdrawing funds.',
       })
       return
     }

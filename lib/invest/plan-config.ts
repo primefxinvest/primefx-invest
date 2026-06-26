@@ -8,47 +8,98 @@ export interface PlanTheme {
   card: string
   badge: string
   iconBg: string
+  illustration: string
   roiColor: string
   button: string
   riskColor: string
+  checkColor: string
+  avatarColors: string[]
+  primeAiScore: number
+  features: string[]
 }
 
 export const planThemes: Record<string, PlanTheme> = {
   '1': {
     icon: Sprout,
-    card: 'border-emerald-200 bg-white hover:border-emerald-300',
-    badge: 'bg-emerald-100 text-emerald-700',
+    card: 'border-emerald-100 bg-white shadow-sm hover:border-emerald-200 hover:shadow-md',
+    badge: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
     iconBg: 'bg-emerald-100 text-emerald-600',
+    illustration: 'from-emerald-50 via-white to-emerald-100/80',
     roiColor: 'text-emerald-600',
     button: 'bg-emerald-500 text-white hover:bg-emerald-600',
     riskColor: 'text-emerald-600',
+    checkColor: 'text-emerald-500',
+    avatarColors: ['bg-emerald-400', 'bg-teal-400', 'bg-green-500'],
+    primeAiScore: 88,
+    features: [
+      'Weekly Profit Distribution',
+      'Flexible Exit',
+      'PrimeAI Monitoring',
+      '24/7 Support',
+      'Portfolio Insights',
+    ],
   },
   '2': {
     icon: TrendingUp,
-    card: 'border-blue-200 bg-white hover:border-blue-300',
-    badge: 'bg-blue-100 text-blue-700',
+    card: 'border-blue-100 bg-white shadow-sm hover:border-blue-200 hover:shadow-md',
+    badge: 'bg-blue-50 text-blue-700 ring-1 ring-blue-100',
     iconBg: 'bg-blue-100 text-[#0052ff]',
+    illustration: 'from-blue-50 via-white to-blue-100/80',
     roiColor: 'text-[#0052ff]',
     button: 'bg-[#0052ff] text-white hover:bg-blue-700',
     riskColor: 'text-blue-600',
+    checkColor: 'text-blue-500',
+    avatarColors: ['bg-blue-400', 'bg-indigo-400', 'bg-sky-500'],
+    primeAiScore: 90,
+    features: [
+      'Weekly Profit Distribution',
+      'Flexible Exit',
+      'PrimeAI Monitoring',
+      '24/7 Support',
+      'Portfolio Analytics',
+    ],
   },
   '3': {
     icon: Crown,
-    card: 'border-purple-300 bg-white ring-2 ring-purple-400/60 hover:border-purple-400',
-    badge: 'bg-purple-600 text-white',
+    card: 'border-purple-300 bg-white shadow-md ring-1 ring-purple-200 hover:border-purple-400 hover:shadow-lg',
+    badge: 'bg-purple-50 text-purple-700 ring-1 ring-purple-100',
     iconBg: 'bg-purple-100 text-purple-600',
+    illustration: 'from-purple-50 via-white to-purple-100/80',
     roiColor: 'text-purple-600',
     button: 'bg-purple-600 text-white hover:bg-purple-700',
     riskColor: 'text-purple-600',
+    checkColor: 'text-purple-500',
+    avatarColors: ['bg-purple-400', 'bg-violet-400', 'bg-fuchsia-500'],
+    primeAiScore: 94,
+    features: [
+      'Weekly Profit Distribution',
+      'Flexible Exit',
+      'PrimeAI Monitoring',
+      '24/7 Support',
+      'Advanced Analytics',
+      'Dedicated Manager',
+    ],
   },
   '4': {
     icon: Gem,
-    card: 'border-orange-200 bg-white hover:border-orange-300',
-    badge: 'bg-orange-100 text-orange-700',
+    card: 'border-orange-100 bg-white shadow-sm hover:border-orange-200 hover:shadow-md',
+    badge: 'bg-orange-50 text-orange-700 ring-1 ring-orange-100',
     iconBg: 'bg-orange-100 text-orange-600',
+    illustration: 'from-orange-50 via-white to-amber-100/80',
     roiColor: 'text-orange-600',
     button: 'bg-orange-500 text-white hover:bg-orange-600',
     riskColor: 'text-orange-600',
+    checkColor: 'text-orange-500',
+    avatarColors: ['bg-orange-400', 'bg-amber-400', 'bg-yellow-500'],
+    primeAiScore: 98,
+    features: [
+      'Weekly Profit Distribution',
+      'Flexible Exit',
+      'PrimeAI Monitoring',
+      '24/7 Support',
+      'VIP Support',
+      'Exclusive Opportunities',
+    ],
   },
 }
 

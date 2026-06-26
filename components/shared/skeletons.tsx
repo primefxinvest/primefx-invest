@@ -104,20 +104,30 @@ export function ListSkeleton({ rows = 4 }: { rows?: number }) {
 
 export function PlanCardsSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <div className="flex gap-3 overflow-hidden">
+    <>
       {Array.from({ length: count }).map((_, i) => (
         <div
           key={i}
-          className="min-w-[200px] flex-shrink-0 rounded-xl border border-gray-200/90 bg-white p-4 shadow-sm sm:min-w-[220px]"
+          className="rounded-2xl border border-gray-200/90 bg-white p-4 shadow-sm sm:p-5"
         >
-          <Skeleton className="h-4 w-24" delay={staggerDelay(i, 60)} />
-          <Skeleton className="mt-3 h-7 w-20" delay={staggerDelay(i, 80)} />
-          <Skeleton className="mt-2 h-3 w-16" delay={staggerDelay(i, 100)} />
-          <Skeleton className="mt-4 h-5 w-20 rounded-full" delay={staggerDelay(i, 120)} />
-          <Skeleton className="mt-4 h-9 w-full rounded-lg" delay={staggerDelay(i, 140)} />
+          <Skeleton className="h-5 w-24 rounded-full" delay={staggerDelay(i, 60)} />
+          <Skeleton className="mt-4 h-24 w-full rounded-2xl" delay={staggerDelay(i, 80)} />
+          <Skeleton className="mt-4 h-5 w-28" delay={staggerDelay(i, 100)} />
+          <Skeleton className="mt-3 h-10 w-20" delay={staggerDelay(i, 120)} />
+          <div className="mt-4 space-y-2 border-b border-gray-100 pb-4">
+            {Array.from({ length: 6 }).map((__, row) => (
+              <Skeleton key={row} className="h-4 w-full" delay={staggerDelay(i + row, 130)} />
+            ))}
+          </div>
+          <div className="mt-4 space-y-2">
+            {Array.from({ length: 4 }).map((__, row) => (
+              <Skeleton key={row} className="h-3.5 w-[88%]" delay={staggerDelay(i + row, 180)} />
+            ))}
+          </div>
+          <Skeleton className="mt-5 h-11 w-full rounded-xl" delay={staggerDelay(i, 220)} />
         </div>
       ))}
-    </div>
+    </>
   )
 }
 

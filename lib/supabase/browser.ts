@@ -14,9 +14,13 @@ export function createBrowserSupabaseClient(): SupabaseClient {
     )
   }
 
-  if (!browserClient) {
-    browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
+  // Keep a single instance in the browser; avoid reusing a server-created singleton after hydration.
+  if (typeof window !== 'undefined') {
+    if (!browserClient) {
+      browserClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
+    }
+    return browserClient
   }
 
-  return browserClient
+  return createBrowserClient(supabaseUrl, supabaseAnonKey)
 }

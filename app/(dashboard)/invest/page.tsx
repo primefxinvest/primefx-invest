@@ -8,8 +8,9 @@ import {
   CirclePlay,
   Headphones,
   LayoutGrid,
+  Scale,
   Shield,
-  Table2,
+  Star,
   Wallet,
 } from 'lucide-react'
 import { HowItWorksSteps } from '@/components/ui/steps'
@@ -29,7 +30,7 @@ import MarketOverviewWidget from '@/components/dashboard/MarketOverviewWidget'
 import WhyInvestWidget from '@/components/invest/WhyInvestWidget'
 import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
-import { getKycBlockReason } from '@/lib/investor/kyc'
+import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 import { cn } from '@/lib/utils'
 
 type ViewMode = 'grid' | 'compare'
@@ -98,11 +99,10 @@ export default function InvestPage() {
 
   const openInvestModal = (plan: InvestmentPlan) => {
     if (!kyc.loading && !kyc.verified) {
-      toast.error('KYC verification required', {
-        description:
-          getKycBlockReason(kyc.status, 'investment') ??
-          kyc.summary ??
-          'Complete KYC before investing.',
+      showKycRequiredToast({
+        status: kyc.status,
+        action: 'investment',
+        fallback: kyc.summary ?? 'Complete KYC before investing.',
       })
       return
     }
@@ -180,18 +180,24 @@ export default function InvestPage() {
           </div>
 
           {/* Investment plans */}
-          <div>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Investment Plans</h2>
-                <p className="text-xs text-gray-500">{investmentPlans.length} Plans Available</p>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-bold tracking-wide text-[#0052ff]">
+                  <Star className="h-3 w-3 fill-[#0052ff]" />
+                  {investmentPlans.length} PREMIUM PLANS AVAILABLE
+                </span>
+                <h2 className="mt-3 text-xl font-bold text-gray-900 sm:text-2xl">Investment Plans</h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  Choose the perfect plan that fits your financial goals
+                </p>
               </div>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setViewMode('grid')}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors',
+                    'inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors sm:px-4 sm:text-sm',
                     viewMode === 'grid'
                       ? 'border-[#0052ff] bg-[#0052ff] text-white'
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
@@ -204,13 +210,13 @@ export default function InvestPage() {
                   type="button"
                   onClick={() => setViewMode('compare')}
                   className={cn(
-                    'inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors',
+                    'inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors sm:px-4 sm:text-sm',
                     viewMode === 'compare'
                       ? 'border-[#0052ff] bg-[#0052ff] text-white'
                       : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
                   )}
                 >
-                  <Table2 className="h-3.5 w-3.5" />
+                  <Scale className="h-3.5 w-3.5" />
                   Compare Plans
                 </button>
               </div>
@@ -224,14 +230,14 @@ export default function InvestPage() {
               emptyTitle="No investment plans"
               emptyDescription="Plans will appear here once they are configured in your account."
               skeleton={
-                <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
                   <PlanCardsSkeleton count={4} />
                 </div>
               }
               compact
             >
             {viewMode === 'grid' ? (
-              <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
                 {investmentPlans.map((plan, index) => (
                   <InvestPlanCard
                     key={plan.id}

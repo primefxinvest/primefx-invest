@@ -13,7 +13,7 @@ import {
 import DepositModal from '@/components/wallet/DepositModal'
 import WithdrawModal from '@/components/wallet/WithdrawModal'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
-import { getKycBlockReason } from '@/lib/investor/kyc'
+import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 
 const FINANCIAL_ACTIONS = new Set(['deposit', 'withdraw', 'transfer', 'convert', 'payment'])
 
@@ -63,22 +63,20 @@ export default function WalletActionCards() {
   const ensureKyc = (actionId: string, label: string) => {
     if (kyc.loading || kyc.verified) return true
 
-    const reason = getKycBlockReason(
-      kyc.status === 'rejected' ? 'rejected' : 'pending',
-      actionId === 'withdraw'
-        ? 'withdrawal'
-        : actionId === 'deposit'
-          ? 'deposit'
-          : actionId === 'transfer'
-            ? 'transfer'
-            : actionId === 'convert'
-              ? 'convert'
-              : 'payment'
-    )
-
-    toast.error('KYC verification required', {
-      description: reason ?? kyc.summary ?? `Complete KYC before using ${label.toLowerCase()}.`,
-      action: {
+    showKycRequiredToast({
+      status: kyc.status === 'rejected' ? 'rejected' : 'pending',
+      action:
+        actionId === 'withdraw'
+          ? 'withdrawal'
+          : actionId === 'deposit'
+            ? 'deposit'
+            : actionId === 'transfer'
+              ? 'transfer'
+              : actionId === 'convert'
+                ? 'convert'
+                : 'payment',
+      fallback: kyc.summary ?? `Complete KYC before using ${label.toLowerCase()}.`,
+      actionButton: {
         label: 'View profile',
         onClick: () => {
           window.location.href = '/profile'
