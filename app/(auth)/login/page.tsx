@@ -5,6 +5,12 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+)
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,21 +26,21 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // Mock authentication - in production, connect to real auth
-      if (email && password.length >= 6) {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        // Store session in localStorage for demo
-        localStorage.setItem('user_session', JSON.stringify({
-          email,
-          name: email.split('@')[0],
-          tier: 'Elite Investor',
-        }))
-        
+      if (!email || password.length < 6) {
+        setError('Please enter a valid email and password (min 6 characters)')
+        setLoading(false)
+        return
+      }
+
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (authError) {
+        setError(authError.message || 'Login failed. Please check your credentials.')
+      } else if (data.user) {
         router.push('/dashboard')
-      } else {
-        setError('Invalid email or password')
       }
     } catch (err) {
       setError('Login failed. Please try again.')

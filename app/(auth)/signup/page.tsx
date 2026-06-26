@@ -5,6 +5,12 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+)
 
 export default function SignupPage() {
   const router = useRouter()
@@ -54,17 +60,64 @@ export default function SignupPage() {
     setLoading(true)
 
     try {
-      // Simulate registration
-      await new Promise(resolve => setTimeout(resolve, 500))
-      
-      // Store session
-      localStorage.setItem('user_session', JSON.stringify({
+      // Create Supabase account
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
-        name: formData.name,
-        tier: formData.tier,
-      }))
-      
-      router.push('/dashboard')
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+            investor_tier: formData.tier,
+          },
+        },
+      })
+
+      if (authError) {
+        setError(authError.message || 'Registration failed. Please try again.')
+        return
+      }
+
+      // Create user profile in database
+      if (authData.user) {
+        const { error: profileError } = await supabase
+          .from('users')
+          .insert([{
+            id: authData.user.id,
+            email: formData.email,
+            full_name: formData.name,
+            investor_tier: formData.tier,
+          }])
+
+        if (profileError) {
+          setError('Profile creation failed. Please contact support.')
+          return
+        }
+
+        // Create wallet for user
+        await supabase
+          .from('wallet_balances')
+          .insert([{
+            user_id: authData.user.id,
+            available_balance: 0,
+            pending_balance: 0,
+            bonus_balance: 0,
+            total_balance: 0,
+          }])
+
+        // Create portfolio for user
+        await supabase
+          .from('portfolios')
+          .insert([{
+            user_id: authData.user.id,
+            total_invested: 0,
+            current_value: 0,
+            profit_loss: 0,
+            roi_percentage: 0,
+          }])
+
+        // Redirect to dashboard
+        router.push('/dashboard')
+      }
     } catch (err) {
       setError('Registration failed. Please try again.')
     } finally {
