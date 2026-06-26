@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { ArrowRight, TrendingUp, BarChart3, Users, Zap, Shield, Smartphone } from 'lucide-react'
 
 export default function LandingPage() {
@@ -10,12 +11,16 @@ export default function LandingPage() {
       <nav className="fixed top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-white font-bold">
-                P
-              </div>
-              <span className="font-bold text-lg text-foreground">PrimeAI</span>
-            </div>
+            <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <Image
+                src="/logo.png"
+                alt="PrimeFx Invest"
+                width={32}
+                height={32}
+                className="object-contain"
+              />
+              <span className="font-bold text-lg text-foreground">PrimeFx</span>
+            </Link>
             <div className="hidden md:flex items-center gap-8">
               <Link href="#features" className="text-sm hover:text-primary transition-colors">
                 Features

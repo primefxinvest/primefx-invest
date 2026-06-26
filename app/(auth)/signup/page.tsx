@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react'
@@ -75,8 +76,15 @@ export default function SignupPage() {
     <div className="bg-card border border-border rounded-lg shadow-lg p-8">
       {/* Logo */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary mb-3">
-          <div className="w-6 h-6 bg-white rounded-full" />
+        <div className="flex justify-center mb-4">
+          <Image
+            src="/logo.png"
+            alt="PrimeFx Invest"
+            width={64}
+            height={64}
+            className="object-contain"
+            priority
+          />
         </div>
         <h1 className="text-2xl font-bold">PrimeFx Invest</h1>
         <p className="text-muted-foreground text-sm mt-1">Create your investment account</p>

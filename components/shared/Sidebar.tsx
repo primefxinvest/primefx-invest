@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   Home,
@@ -52,13 +53,22 @@ export default function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 border-r border-border bg-sidebar shadow-sm">
       {/* Logo */}
-      <div className="flex items-center gap-2 border-b border-border p-6">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-white font-bold">P</div>
-        <div className="flex flex-col">
-          <span className="font-bold text-foreground">PrimeFx</span>
-          <span className="text-xs text-muted-foreground">INVEST</span>
+      <Link href="/dashboard" className="block border-b border-border p-6 hover:opacity-80 transition-opacity">
+        <div className="flex items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt="PrimeFx Invest"
+            width={40}
+            height={40}
+            className="object-contain"
+            priority
+          />
+          <div className="flex flex-col">
+            <span className="font-bold text-foreground">PrimeFx</span>
+            <span className="text-xs text-muted-foreground">INVEST</span>
+          </div>
         </div>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-6">
