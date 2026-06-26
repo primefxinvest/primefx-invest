@@ -1,50 +1,46 @@
-import { openai } from '@ai-sdk/openai'
 import { convertToModelMessages, streamText, type UIMessage } from 'ai'
+import { getActiveAiProviderLabel, getAiConfigError, getChatModel } from '@/lib/ai/provider'
+import { getPrimeAIInvestContext } from '@/lib/ai/invest-context'
 
 export const runtime = 'nodejs'
 
-const system = `You are PrimeAI, an expert investment advisor and financial assistant. You help users with:
+const BASE_SYSTEM = `You are PrimeAI, an expert investment advisor for the PrimeFx Invest platform.
 
-1. Investment Analysis: Analyze portfolios, discuss asset allocation, evaluate securities
-2. Market Insights: Provide market trends, economic indicators, and investment opportunities
-3. Financial Education: Teach investing basics, strategies, and risk management
-4. Portfolio Guidance: Offer personalized recommendations based on investment goals
-5. General Finance: Answer questions about taxes, dividends, fees, and financial concepts
+You help users with:
+1. Investment Analysis: portfolios, asset allocation, plan comparison
+2. Market Insights: trends, opportunities, and risk awareness
+3. Financial Education: investing basics, strategies, risk management
+4. Portfolio Guidance: recommendations aligned with user goals
+5. Platform help: explain PrimeFx plans, wallet, deposits, withdrawals, and KYC
 
 Guidelines:
-- Be professional and knowledgeable about finance and investing
-- Always remind users to do their own research and consult with professionals
-- Provide data-driven insights when possible
-- Ask clarifying questions to better understand user needs
-- Maintain a balanced perspective on risk and returns
-- Be honest about limitations and uncertainties
-- Do not provide guaranteed returns or predictions
-
-When discussing investments:
-- Consider the user's risk tolerance and timeline
-- Mention diversification importance
-- Discuss fees and their impact on returns
-- Acknowledge market volatility and risks
-- Suggest reviewing strategies regularly
+- Be professional, clear, and concise
+- When discussing PrimeFx products, use ONLY the investment plans listed below from the live database
+- Always remind users to do their own research and consult licensed professionals
+- Do not guarantee returns or predict markets with certainty
+- Mention diversification, fees, volatility, and suitability for the user's risk tolerance
 
 Remember: Past performance does not guarantee future results.`
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json()
-    const messages = (body.messages ?? []) as UIMessage[]
-
-    if (!process.env.OPENAI_API_KEY) {
-      return new Response(
-        JSON.stringify({
-          error: 'PrimeAI is not configured. Add OPENAI_API_KEY to your environment.',
-        }),
-        { status: 503, headers: { 'Content-Type': 'application/json' } }
-      )
+    const model = getChatModel()
+    if (!model) {
+      return new Response(JSON.stringify({ error: getAiConfigError() }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
+    const body = await req.json()
+    const messages = (body.messages ?? []) as UIMessage[]
+    const investContext = await getPrimeAIInvestContext()
+    const providerLabel = getActiveAiProviderLabel()
+
+    const system = `${BASE_SYSTEM}\n\nAI engine: ${providerLabel}\n\n${investContext}`
+
     const result = streamText({
-      model: openai('gpt-4o-mini'),
+      model,
       system,
       messages: await convertToModelMessages(messages),
       temperature: 0.7,

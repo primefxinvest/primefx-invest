@@ -5,38 +5,39 @@ export default function LandingFooter() {
   return (
     <footer className="border-t border-gray-200 bg-white py-12">
       <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
-          <div>
-            <div className="mb-4">
-              <Logo href="/" size={36} />
-            </div>
-            <p className="text-sm text-gray-500">
-              AI-powered investment platform for smarter, safer wealth growth.
-            </p>
+        <div className="mb-8">
+          <div className="mb-4">
+            <Logo href="/" size={36} />
           </div>
+          <p className="max-w-sm text-sm text-gray-500">
+            AI-powered investment platform for smarter, safer wealth growth.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 sm:gap-8">
           <div>
-            <h4 className="mb-4 text-sm font-semibold text-gray-900">Product</h4>
-            <ul className="space-y-2 text-sm text-gray-500">
-              <li><Link href="#features" className="hover:text-gray-900 transition-colors">Features</Link></li>
-              <li><Link href="#pricing" className="hover:text-gray-900 transition-colors">Pricing</Link></li>
-              <li><Link href="/legal#compliance" className="hover:text-gray-900 transition-colors">Security</Link></li>
+            <h4 className="mb-3 text-xs font-semibold text-gray-900 sm:mb-4 sm:text-sm">Product</h4>
+            <ul className="space-y-2 text-xs text-gray-500 sm:text-sm">
+              <li><Link href="#features" className="transition-colors hover:text-gray-900">Features</Link></li>
+              <li><Link href="#pricing" className="transition-colors hover:text-gray-900">Pricing</Link></li>
+              <li><Link href="/legal#compliance" className="transition-colors hover:text-gray-900">Security</Link></li>
             </ul>
           </div>
           <div>
-            <h4 className="mb-4 text-sm font-semibold text-gray-900">Company</h4>
-            <ul className="space-y-2 text-sm text-gray-500">
-              <li><Link href="/about" className="hover:text-gray-900 transition-colors">About</Link></li>
-              <li><Link href="/contact" className="hover:text-gray-900 transition-colors">Contact</Link></li>
-              <li><Link href="/academy" className="hover:text-gray-900 transition-colors">Academy</Link></li>
-              <li><Link href="/community" className="hover:text-gray-900 transition-colors">Community</Link></li>
+            <h4 className="mb-3 text-xs font-semibold text-gray-900 sm:mb-4 sm:text-sm">Company</h4>
+            <ul className="space-y-2 text-xs text-gray-500 sm:text-sm">
+              <li><Link href="/about" className="transition-colors hover:text-gray-900">About</Link></li>
+              <li><Link href="/contact" className="transition-colors hover:text-gray-900">Contact</Link></li>
+              <li><Link href="/academy" className="transition-colors hover:text-gray-900">Academy</Link></li>
+              <li><Link href="/community" className="transition-colors hover:text-gray-900">Community</Link></li>
             </ul>
           </div>
           <div>
-            <h4 className="mb-4 text-sm font-semibold text-gray-900">Legal</h4>
-            <ul className="space-y-2 text-sm text-gray-500">
-              <li><Link href="/privacy" className="hover:text-gray-900 transition-colors">Privacy</Link></li>
-              <li><Link href="/terms" className="hover:text-gray-900 transition-colors">Terms</Link></li>
-              <li><Link href="/legal" className="hover:text-gray-900 transition-colors">Legal Center</Link></li>
+            <h4 className="mb-3 text-xs font-semibold text-gray-900 sm:mb-4 sm:text-sm">Legal</h4>
+            <ul className="space-y-2 text-xs text-gray-500 sm:text-sm">
+              <li><Link href="/privacy" className="transition-colors hover:text-gray-900">Privacy</Link></li>
+              <li><Link href="/terms" className="transition-colors hover:text-gray-900">Terms</Link></li>
+              <li><Link href="/legal" className="transition-colors hover:text-gray-900">Legal Center</Link></li>
             </ul>
           </div>
         </div>

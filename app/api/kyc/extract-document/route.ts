@@ -1,5 +1,5 @@
-import { openai } from '@ai-sdk/openai'
 import { generateObject } from 'ai'
+import { getAiConfigError, getVisionModel } from '@/lib/ai/provider'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import {
   kycExtractedFieldsSchema,
@@ -34,11 +34,9 @@ Return only what is clearly visible. Use null for fields you cannot read.
 
 export async function POST(req: Request) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
-      return Response.json(
-        { error: 'Document scanning is not configured. Add OPENAI_API_KEY to enable auto-fill.' },
-        { status: 503 }
-      )
+    const model = getVisionModel()
+    if (!model) {
+      return Response.json({ error: getAiConfigError() }, { status: 503 })
     }
 
     const supabase = await createServerSupabaseClient()
@@ -69,7 +67,7 @@ export async function POST(req: Request) {
     const prompt = documentKind === 'id_front' ? ID_PROMPT : ADDRESS_PROMPT
 
     const { object } = await generateObject({
-      model: openai('gpt-4o-mini'),
+      model,
       schema: kycExtractedFieldsSchema,
       messages: [
         {

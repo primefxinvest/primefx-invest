@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import {
   Bot,
-  ChevronRight,
   CirclePlay,
   Headphones,
   LayoutGrid,
@@ -13,6 +12,7 @@ import {
   Table2,
   Wallet,
 } from 'lucide-react'
+import { HowItWorksSteps } from '@/components/ui/steps'
 import { AsyncState } from '@/components/shared/data-state'
 import { PlanCardsSkeleton } from '@/components/shared/skeletons'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
@@ -161,19 +161,19 @@ export default function InvestPage() {
           <KycFinancialBanner />
 
           {/* Feature highlights */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {featureHighlights.map((feature) => {
               const Icon = feature.icon
               return (
                 <div
                   key={feature.title}
-                  className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+                  className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4"
                 >
-                  <div className={`mb-3 flex h-9 w-9 items-center justify-center rounded-lg ${feature.iconBg}`}>
-                    <Icon className="h-4 w-4" />
+                  <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg sm:mb-3 sm:h-9 sm:w-9 ${feature.iconBg}`}>
+                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   </div>
-                  <h3 className="text-sm font-semibold text-gray-900">{feature.title}</h3>
-                  <p className="mt-1 text-xs leading-relaxed text-gray-500">{feature.description}</p>
+                  <h3 className="text-xs font-semibold text-gray-900 sm:text-sm">{feature.title}</h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-gray-500 sm:text-xs">{feature.description}</p>
                 </div>
               )
             })}
@@ -224,14 +224,14 @@ export default function InvestPage() {
               emptyTitle="No investment plans"
               emptyDescription="Plans will appear here once they are configured in your account."
               skeleton={
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
                   <PlanCardsSkeleton count={4} />
                 </div>
               }
               compact
             >
             {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-5 xl:grid-cols-4">
                 {investmentPlans.map((plan, index) => (
                   <InvestPlanCard
                     key={plan.id}
@@ -268,19 +268,8 @@ export default function InvestPage() {
             className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
           >
             <h2 className="text-lg font-bold text-gray-900">How It Works</h2>
-            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
-              {howItWorksSteps.map((step, idx) => (
-                <div key={step.number} className="relative text-center">
-                  <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-[#0052ff] text-sm font-bold text-white">
-                    {step.number}
-                  </div>
-                  <h3 className="text-sm font-semibold text-gray-900">{step.title}</h3>
-                  <p className="mt-1 text-xs text-gray-500">{step.description}</p>
-                  {idx < howItWorksSteps.length - 1 && (
-                    <ChevronRight className="absolute -right-3 top-4 hidden h-5 w-5 text-gray-300 lg:block" />
-                  )}
-                </div>
-              ))}
+            <div className="mt-6">
+              <HowItWorksSteps steps={howItWorksSteps} />
             </div>
           </div>
         </div>

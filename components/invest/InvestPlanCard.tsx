@@ -25,7 +25,7 @@ export default function InvestPlanCard({ plan, index = 0, selected, onSelect, on
         if (e.key === 'Enter' || e.key === ' ') onSelect(plan)
       }}
       className={cn(
-        'relative flex cursor-pointer flex-col rounded-2xl border-2 p-5 transition-all',
+        'relative flex cursor-pointer flex-col rounded-2xl border-2 p-3 transition-all sm:p-5',
         theme.card,
         selected && 'shadow-lg'
       )}
@@ -45,14 +45,14 @@ export default function InvestPlanCard({ plan, index = 0, selected, onSelect, on
         <Icon className="h-5 w-5" />
       </div>
 
-      <h3 className="text-lg font-bold text-gray-900">{plan.name}</h3>
+      <h3 className="text-sm font-bold text-gray-900 sm:text-lg">{plan.name}</h3>
 
-      <div className="mt-4">
-        <p className={cn('text-3xl font-bold', theme.roiColor)}>{plan.weeklyRoi}</p>
-        <p className="text-xs text-gray-500">{plan.weeklyRoiLabel ?? 'Weekly Return'}</p>
+      <div className="mt-3 sm:mt-4">
+        <p className={cn('text-xl font-bold sm:text-3xl', theme.roiColor)}>{plan.weeklyRoi}</p>
+        <p className="text-[10px] text-gray-500 sm:text-xs">{plan.weeklyRoiLabel ?? 'Weekly Return'}</p>
       </div>
 
-      <div className="mt-5 space-y-2.5 border-t border-gray-100 pt-5 text-sm">
+      <div className="mt-3 space-y-2 border-t border-gray-100 pt-3 text-xs sm:mt-5 sm:space-y-2.5 sm:pt-5 sm:text-sm">
         <Row label="Minimum" value={plan.minInvestment} />
         <Row label="Duration" value={plan.duration} />
         <Row label="Payout" value={plan.payout} />
@@ -66,7 +66,7 @@ export default function InvestPlanCard({ plan, index = 0, selected, onSelect, on
           e.stopPropagation()
           onInvest(plan)
         }}
-        className={cn('mt-5 w-full rounded-xl py-2.5 text-sm font-semibold transition-colors', theme.button)}
+        className={cn('mt-3 w-full rounded-xl py-2 text-xs font-semibold transition-colors sm:mt-5 sm:py-2.5 sm:text-sm', theme.button)}
       >
         Invest Now
       </button>

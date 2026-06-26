@@ -2,41 +2,7 @@
 
 import { useState } from 'react'
 import { Plus, Minus } from 'lucide-react'
-
-const faqs = [
-  {
-    q: 'Is PrimeAI Invest safe and secure?',
-    a: 'Yes. We use 256-bit SSL encryption, cold storage wallets, two-factor authentication, and are fully compliant with global financial regulations.',
-  },
-  {
-    q: 'What is the minimum investment amount?',
-    a: 'You can start with as little as $50 on our Starter Plan. Higher-tier plans have higher minimums but offer greater return potential.',
-  },
-  {
-    q: 'How often can I withdraw my profits?',
-    a: 'Withdrawals are processed every 7 days on all plans. You can also access your capital anytime with no lock-in periods.',
-  },
-  {
-    q: 'How does the AI investment system work?',
-    a: 'Our proprietary AI analyzes thousands of market signals in real time and executes trades through our expert management team to optimize your portfolio.',
-  },
-  {
-    q: 'What returns can I realistically expect?',
-    a: 'Returns vary by plan and market conditions. Our Starter Plan targets 8–15% monthly ROI, while Elite plans can reach 40–60%. Past performance does not guarantee future results.',
-  },
-  {
-    q: 'Do I need investment experience to get started?',
-    a: 'Not at all. PrimeFx Invest is designed for everyone — from complete beginners to seasoned investors. Our platform handles everything for you.',
-  },
-  {
-    q: 'What payment methods do you accept?',
-    a: 'We accept bank transfers, credit/debit cards, and major cryptocurrencies including Bitcoin and Ethereum.',
-  },
-  {
-    q: 'Is there a mobile app available?',
-    a: 'Yes! Our mobile app is available on both iOS and Android, giving you full access to your portfolio, deposits, withdrawals, and support on the go.',
-  },
-]
+import { LANDING_FAQS } from '@/lib/seo/faqs'
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
@@ -61,8 +27,8 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function FAQSection() {
-  const leftFaqs = faqs.slice(0, 4)
-  const rightFaqs = faqs.slice(4)
+  const leftFaqs = LANDING_FAQS.slice(0, 4)
+  const rightFaqs = LANDING_FAQS.slice(4)
 
   return (
     <section className="bg-gray-50 py-20">
@@ -79,15 +45,15 @@ export default function FAQSection() {
           </div>
 
           <div>
-            {leftFaqs.map((faq) => (
-              <FAQItem key={faq.q} q={faq.q} a={faq.a} />
-            ))}
+              {leftFaqs.map((faq) => (
+                <FAQItem key={faq.question} q={faq.question} a={faq.answer} />
+              ))}
           </div>
 
           <div>
-            {rightFaqs.map((faq) => (
-              <FAQItem key={faq.q} q={faq.q} a={faq.a} />
-            ))}
+              {rightFaqs.map((faq) => (
+                <FAQItem key={faq.question} q={faq.question} a={faq.answer} />
+              ))}
           </div>
         </div>
       </div>

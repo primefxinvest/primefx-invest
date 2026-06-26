@@ -128,8 +128,8 @@ function PrimeAIChat() {
 
       <div className="text-center text-xs text-muted-foreground">
         <p>
-          PrimeAI uses advanced AI to provide investment insights. Always verify recommendations
-          independently.
+          PrimeAI uses Google Gemini (or OpenAI if configured) with live investment plan data from
+          your platform. Always verify recommendations independently.
         </p>
       </div>
     </div>
