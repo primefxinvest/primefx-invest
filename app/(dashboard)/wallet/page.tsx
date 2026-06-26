@@ -192,5 +192,3 @@ export default function WalletPage() {
     </div>
   )
 }
-
-import { Gift } from 'lucide-react'
