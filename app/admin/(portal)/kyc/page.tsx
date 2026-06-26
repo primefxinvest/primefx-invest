@@ -1,12 +1,12 @@
 import { AdminKycView } from '@/components/admin/AdminKycView'
 import { AdminServiceRoleBanner } from '@/components/admin/AdminServiceRoleBanner'
 import { requireAdminModule } from '@/lib/admin/auth'
-import { getAdminUsers } from '@/lib/admin/queries'
+import { getAdminKycQueue } from '@/lib/admin/queries'
 import { withAdminData } from '@/lib/admin/safe-query'
 
 export default async function AdminKycPage() {
   await requireAdminModule('kyc_aml_compliance')
-  const { data, error, configured } = await withAdminData(getAdminUsers, [])
+  const { data, error, configured } = await withAdminData(getAdminKycQueue, [])
 
   return (
     <>
@@ -16,7 +16,7 @@ export default async function AdminKycPage() {
           {error}
         </div>
       ) : null}
-      <AdminKycView users={data} />
+      <AdminKycView queue={data} />
     </>
   )
 }

@@ -34,17 +34,30 @@ export function useFinancialKycAccess() {
       })
 
     const refresh = () => {
-      getFinancialKycAccess().then((result) => {
-        if (active) {
-          setAccess({ ...result, loading: false })
-        }
-      })
+      getFinancialKycAccess()
+        .then((result) => {
+          if (active) {
+            setAccess({ ...result, loading: false })
+          }
+        })
+        .catch(() => {
+          if (active) {
+            setAccess({ ...defaultAccess, loading: false })
+          }
+        })
     }
 
     window.addEventListener('primefx:profile-updated', refresh)
 
+    const timeoutId = window.setTimeout(() => {
+      if (active) {
+        setAccess((current) => (current.loading ? { ...current, loading: false } : current))
+      }
+    }, 10_000)
+
     return () => {
       active = false
+      window.clearTimeout(timeoutId)
       window.removeEventListener('primefx:profile-updated', refresh)
     }
   }, [])

@@ -33,6 +33,35 @@ export interface AdminContext {
   isBootstrap: boolean
 }
 
+export interface AdminKycQueueRow {
+  submission_id: string
+  user_id: string
+  email: string
+  full_name: string | null
+  id_type: string
+  id_number: string
+  country: string
+  review_status: string
+  kyc_status: string | null
+  submitted_at: string | null
+}
+
+export interface AdminKycSubmissionDetail {
+  id: string
+  id_type: string
+  id_number: string
+  country: string
+  review_status: string
+  submitted_at: string | null
+  reviewed_at: string | null
+  document_urls: {
+    documentFront: string | null
+    documentBack: string | null
+    selfie: string | null
+    proofOfAddress: string | null
+  }
+}
+
 export interface AdminUserRow {
   id: string
   email: string
@@ -122,6 +151,7 @@ export interface AdminUserDetail {
   }
   activity: AdminUserActivityRow[]
   payment_methods: AdminUserPaymentMethodRow[]
+  kyc_submission: AdminKycSubmissionDetail | null
 }
 
 export interface AdminWalletRow {

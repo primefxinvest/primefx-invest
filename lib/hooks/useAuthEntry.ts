@@ -32,15 +32,31 @@ export function useAuthEntry(): AuthEntryState {
     let active = true
 
     async function resolve() {
-      const { data: user, error } = await getCurrentUser()
-      if (!active) return
+      try {
+        const result = await Promise.race([
+          getCurrentUser(),
+          new Promise<{ data: null; error: Error }>((resolve) =>
+            setTimeout(() => resolve({ data: null, error: new Error('timeout') }), 10_000)
+          ),
+        ])
+        if (!active) return
 
-      const isAuthenticated = Boolean(user && !error)
-      setState({
-        loading: false,
-        isAuthenticated,
-        ...GUEST_STATE,
-      })
+        const { data: user, error } = result
+        const isAuthenticated = Boolean(user && !error)
+        setState({
+          loading: false,
+          isAuthenticated,
+          ...GUEST_STATE,
+        })
+      } catch {
+        if (active) {
+          setState({
+            loading: false,
+            isAuthenticated: false,
+            ...GUEST_STATE,
+          })
+        }
+      }
     }
 
     resolve()

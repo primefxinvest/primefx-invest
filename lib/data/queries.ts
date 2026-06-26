@@ -1,4 +1,4 @@
-import { getCurrentUser } from '@/lib/supabase'
+import { getCurrentUser, supabase } from '@/lib/supabase'
 import {
   getInvestmentPlans,
   getPaymentMethods,
@@ -277,17 +277,23 @@ export async function fetchWalletTransactions(): Promise<TransactionItem[]> {
 
   return data.map((tx) => {
     const amount = toNumber(tx.amount)
-    const type = normalizeTransactionType(tx.type)
+    const rawType = String(tx.type ?? '')
+    const type = normalizeTransactionType(rawType)
+    const isCredit = isCreditTransactionType(rawType)
+    const signedAmount = isCredit ? Math.abs(amount) : -Math.abs(amount)
     const created = new Date(tx.created_at)
     return {
       id: tx.id,
       type,
       description: tx.description ?? type,
-      amount: formatCurrency(amount, { signed: true }),
+      amount: formatCurrency(signedAmount, { signed: true }),
+      amountValue: signedAmount,
+      isCredit,
       date: formatDate(tx.created_at),
       time: created.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-      status: capitalize(tx.status ?? 'Pending') as TransactionItem['status'],
+      status: capitalize(tx.status ?? 'Pending'),
       referenceId: tx.reference_id ?? `TXN-${tx.id.slice(0, 8).toUpperCase()}`,
+      createdAt: tx.created_at as string,
     }
   })
 }
@@ -537,6 +543,41 @@ export async function fetchNotifications(): Promise<NotificationItem[]> {
   const userId = await requireUserId()
   if (!userId) return []
 
+  try {
+    const { data, error } = await supabase
+      .from('user_notifications')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    if (!error && data?.length) {
+      return data.map((row) => {
+        const type = String(row.type ?? 'general')
+        const notificationType: NotificationItem['type'] =
+          type === 'wallet' ||
+          type === 'investment' ||
+          type === 'security' ||
+          type === 'reward' ||
+          type === 'general'
+            ? (type as NotificationItem['type'])
+            : 'general'
+
+        return {
+          id: row.id as string,
+          title: row.title as string,
+          message: row.message as string,
+          time: formatRelativeTime(row.created_at as string),
+          read: Boolean(row.read_at),
+          type: notificationType,
+          createdAt: row.created_at as string,
+        }
+      })
+    }
+  } catch {
+    // Table may not exist before migration 009
+  }
+
   const { data } = await getUserTransactions(userId)
   if (!data?.length) return []
 
@@ -547,16 +588,28 @@ export async function fetchNotifications(): Promise<NotificationItem[]> {
     time: formatRelativeTime(tx.created_at),
     read: (tx.status ?? '').toLowerCase() !== 'pending',
     type: notificationType(tx.type),
+    createdAt: tx.created_at as string,
   }))
 }
 
 function normalizeTransactionType(type?: string | null) {
   const value = (type ?? 'deposit').toLowerCase()
-  if (value.includes('withdraw')) return 'Withdraw'
-  if (value.includes('profit') || value.includes('investment')) return 'Profit'
+  if (value.includes('withdraw')) return 'Withdrawal'
+  if (value.includes('investment')) return 'Investment'
+  if (value.includes('profit')) return 'Profit'
   if (value.includes('bonus') || value.includes('referral')) return 'Bonus'
   if (value.includes('transfer')) return 'Transfer'
   return 'Deposit'
+}
+
+function isCreditTransactionType(type?: string | null) {
+  const value = (type ?? '').toLowerCase()
+  return (
+    value.includes('deposit') ||
+    value.includes('bonus') ||
+    value.includes('profit') ||
+    value.includes('referral')
+  )
 }
 
 function capitalize(value: string) {
@@ -580,7 +633,8 @@ function formatPaymentLabel(type?: string | null) {
 
 function notificationTitle(type?: string | null) {
   const value = (type ?? '').toLowerCase()
-  if (value.includes('profit') || value.includes('investment')) return 'Investment payout received'
+  if (value.includes('investment')) return 'Investment confirmed'
+  if (value.includes('profit')) return 'Investment payout received'
   if (value.includes('bonus') || value.includes('referral')) return 'Referral bonus earned'
   if (value.includes('withdraw')) return 'Withdrawal processed'
   if (value.includes('deposit')) return 'Deposit confirmed'

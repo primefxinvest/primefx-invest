@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { getMfaStatus } from '@/lib/auth/mfa'
+import { requireServerMfaEnabled } from '@/lib/auth/mfa-server'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { getDepositCurrencies, getWithdrawalCurrencies } from '@/lib/payments/config'
@@ -66,9 +66,9 @@ export async function initiateWithdrawal(input: {
   const user = await requireUser()
 
   if (INVESTOR_RULES.security.twoFactorRequiredForWithdrawal) {
-    const mfa = await getMfaStatus()
-    if (!mfa.enabled) {
-      return { success: false, error: 'Enable two-factor authentication before withdrawing funds.' }
+    const mfa = await requireServerMfaEnabled(user.id)
+    if (!mfa.allowed) {
+      return { success: false, error: mfa.error }
     }
   }
 

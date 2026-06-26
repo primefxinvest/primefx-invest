@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import type {
   AdminAuditLogRow,
   AdminDashboardMetrics,
+  AdminKycQueueRow,
   AdminPlanRow,
   AdminTransactionRow,
   AdminUserDetail,
@@ -11,6 +12,7 @@ import type {
   AdminWalletRow,
 } from './types'
 import { getAdminUserMfaSummary } from '@/lib/auth/mfa-admin'
+import { signKycDocumentPaths } from '@/lib/kyc/storage'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -61,9 +63,42 @@ export async function getAdminUsers(search?: string): Promise<AdminUserRow[]> {
   return (data ?? []).map(mapUser)
 }
 
-export async function getAdminKycQueue(): Promise<AdminUserRow[]> {
-  const users = await getAdminUsers()
-  return users.filter((u) => u.kyc_status === 'Pending')
+export async function getAdminKycQueue(): Promise<AdminKycQueueRow[]> {
+  const db = getDb()
+  const { data, error } = await db
+    .from('kyc_submissions')
+    .select(
+      `
+      id,
+      user_id,
+      id_type,
+      id_number,
+      country,
+      review_status,
+      submitted_at,
+      users ( email, full_name, kyc_status )
+    `
+    )
+    .eq('review_status', 'submitted')
+    .order('submitted_at', { ascending: false })
+
+  if (error) throw new Error(error.message)
+
+  return (data ?? []).map((row) => {
+    const user = row.users as Record<string, unknown> | null
+    return {
+      submission_id: String(row.id),
+      user_id: String(row.user_id),
+      email: String(user?.email ?? '—'),
+      full_name: (user?.full_name as string) ?? null,
+      id_type: String(row.id_type),
+      id_number: String(row.id_number),
+      country: String(row.country),
+      review_status: String(row.review_status),
+      kyc_status: (user?.kyc_status as string) ?? null,
+      submitted_at: (row.submitted_at as string) ?? null,
+    }
+  })
 }
 
 export async function getAdminUserDetail(userId: string): Promise<AdminUserDetail | null> {
@@ -111,6 +146,7 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     activityRes,
     paymentMethodsRes,
     mfaSummary,
+    kycRes,
   ] = await Promise.all([
     db.from('wallet_balances').select('*').eq('user_id', userId).maybeSingle(),
     db.from('portfolios').select('*').eq('user_id', userId).maybeSingle(),
@@ -144,6 +180,7 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
       .eq('user_id', userId)
       .order('created_at', { ascending: false }),
     getAdminUserMfaSummary([userId]),
+    db.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
   ])
 
   if (walletRes.error) throw new Error(walletRes.error.message)
@@ -159,6 +196,28 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
   if (paymentMethodsRes.error && !paymentMethodsRes.error.message.includes('schema cache')) {
     throw new Error(paymentMethodsRes.error.message)
   }
+  if (kycRes.error && !kycRes.error.message.includes('schema cache')) {
+    throw new Error(kycRes.error.message)
+  }
+
+  const kycRow = kycRes.data
+  const kycSubmission = kycRow
+    ? {
+        id: String(kycRow.id),
+        id_type: String(kycRow.id_type),
+        id_number: String(kycRow.id_number),
+        country: String(kycRow.country),
+        review_status: String(kycRow.review_status),
+        submitted_at: (kycRow.submitted_at as string) ?? null,
+        reviewed_at: (kycRow.reviewed_at as string) ?? null,
+        document_urls: await signKycDocumentPaths({
+          documentFront: (kycRow.document_front_path as string) ?? null,
+          documentBack: (kycRow.document_back_path as string) ?? null,
+          selfie: (kycRow.selfie_path as string) ?? null,
+          proofOfAddress: (kycRow.proof_of_address_path as string) ?? null,
+        }),
+      }
+    : null
 
   const walletRow = walletRes.data
   const portfolioRow = portfolioRes.data
@@ -253,6 +312,7 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
       is_primary: Boolean(row.is_primary),
       created_at: String(row.created_at ?? ''),
     })),
+    kyc_submission: kycSubmission,
   }
 }
 

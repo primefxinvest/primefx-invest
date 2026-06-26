@@ -2,11 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Globe, Moon, DollarSign, Lock, Bell, Eye, Smartphone, LogOut, ChevronRight, Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { getCurrentUser } from '@/lib/supabase'
 import { getMfaStatus, type MfaStatus } from '@/lib/auth/mfa'
 import TwoFactorModal from '@/components/settings/TwoFactorModal'
 import ChangePasswordModal from '@/components/settings/ChangePasswordModal'
 import { CustomSelect } from '@/components/ui/custom-select'
+import {
+  isPushNotificationsEnabled,
+  requestPushPermission,
+  setPushNotificationsEnabled,
+} from '@/lib/notifications/push-client'
 import { cn } from '@/lib/utils'
 
 const LANGUAGE_OPTIONS = [
@@ -45,6 +51,7 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState('auto')
   const [currency, setCurrency] = useState('usd')
   const [profileVisibility, setProfileVisibility] = useState('public')
+  const [pushEnabled, setPushEnabled] = useState(false)
 
   const loadMfaStatus = useCallback(async () => {
     setLoadingMfa(true)
@@ -57,9 +64,28 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadMfaStatus()
+    setPushEnabled(isPushNotificationsEnabled())
     window.addEventListener('primefx:profile-updated', loadMfaStatus)
     return () => window.removeEventListener('primefx:profile-updated', loadMfaStatus)
   }, [loadMfaStatus])
+
+  const handlePushToggle = async (enabled: boolean) => {
+    if (enabled) {
+      const result = await requestPushPermission()
+      if (!result.granted) {
+        toast.error('Push notifications unavailable', { description: result.error })
+        setPushEnabled(false)
+        return
+      }
+      setPushEnabled(true)
+      toast.success('Push notifications enabled')
+      return
+    }
+
+    setPushNotificationsEnabled(false)
+    setPushEnabled(false)
+    toast.success('Push notifications disabled')
+  }
 
   return (
     <div className="space-y-8">
@@ -193,17 +219,28 @@ export default function SettingsPage() {
         <h2 className="mb-6 text-lg font-semibold text-foreground">Notification Preferences</h2>
         <div className="space-y-4">
           {[
-            { label: 'Email Notifications', desc: 'Receive updates via email' },
-            { label: 'Push Notifications', desc: 'Browser push notifications' },
-            { label: 'Investment Alerts', desc: 'Alerts for investment updates' },
-            { label: 'Security Alerts', desc: 'Important account security alerts' },
+            { label: 'Email Notifications', desc: 'Receive updates via email', enabled: true, disabled: true },
+            {
+              label: 'Push Notifications',
+              desc: 'Browser alerts for deposits, withdrawals, and investments',
+              enabled: pushEnabled,
+              onChange: handlePushToggle,
+            },
+            { label: 'Investment Alerts', desc: 'Alerts for investment updates', enabled: true, disabled: true },
+            { label: 'Security Alerts', desc: 'Important account security alerts', enabled: true, disabled: true },
           ].map((notif) => (
             <div key={notif.label} className="flex items-center justify-between rounded-lg border border-border p-4">
               <div>
                 <p className="font-semibold text-foreground">{notif.label}</p>
                 <p className="text-sm text-muted-foreground">{notif.desc}</p>
               </div>
-              <input type="checkbox" className="h-5 w-5" defaultChecked />
+              <input
+                type="checkbox"
+                className="h-5 w-5"
+                checked={notif.enabled}
+                disabled={notif.disabled}
+                onChange={(e) => notif.onChange?.(e.target.checked)}
+              />
             </div>
           ))}
         </div>

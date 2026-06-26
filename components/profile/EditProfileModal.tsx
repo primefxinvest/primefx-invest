@@ -174,17 +174,17 @@ export default function EditProfileModal({
           <div className="space-y-5 overflow-y-auto px-6 py-5">
             <section className="rounded-xl border border-gray-200 bg-gray-50/60 p-4">
               <div className="flex items-center gap-4">
-                <div className="relative shrink-0">
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-white bg-white shadow-sm">
                   <img
                     src={avatarPreview || getDefaultAvatarUrl(profile.fullName)}
                     alt="Profile preview"
-                    className="h-20 w-20 rounded-full border-4 border-white bg-white object-cover shadow-sm"
+                    className="h-full w-full rounded-full object-cover"
                   />
-                  {uploadingAvatar && (
+                  {uploadingAvatar ? (
                     <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
                       <Loader2 className="h-5 w-5 animate-spin text-white" />
                     </div>
-                  )}
+                  ) : null}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-gray-900">Profile Photo</p>
@@ -228,7 +228,7 @@ export default function EditProfileModal({
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                   Choose Avatar
                 </p>
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                <div className="grid grid-cols-4 gap-3 sm:grid-cols-8">
                   {AVATAR_PRESETS.map((preset) => {
                     const url = getPresetAvatarUrl(preset.id)
                     const isSelected = selectedPreset === preset.id && !usingCustomPhoto
@@ -240,20 +240,22 @@ export default function EditProfileModal({
                         onClick={() => handlePresetSelect(preset.id)}
                         disabled={loading || uploadingAvatar}
                         className={cn(
-                          'relative rounded-full p-0.5 transition-all hover:scale-105',
-                          isSelected ? 'ring-2 ring-[#0052ff] ring-offset-2' : 'ring-1 ring-gray-200'
+                          'relative h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white transition-transform hover:scale-105 disabled:opacity-60',
+                          isSelected
+                            ? 'border-2 border-[#0052ff] shadow-md shadow-blue-500/20'
+                            : 'border-2 border-gray-200 hover:border-gray-300'
                         )}
                       >
                         <img
                           src={url}
                           alt={preset.label}
-                          className="h-10 w-10 rounded-full bg-white object-cover"
+                          className="h-full w-full rounded-full object-cover"
                         />
-                        {isSelected && (
-                          <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#0052ff] text-white">
+                        {isSelected ? (
+                          <span className="absolute bottom-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-[#0052ff] text-white ring-2 ring-white">
                             <CheckCircle2 className="h-3 w-3" />
                           </span>
-                        )}
+                        ) : null}
                       </button>
                     )
                   })}

@@ -41,10 +41,13 @@ export interface TransactionItem {
   type: string
   description?: string
   amount: string
+  amountValue: number
+  isCredit: boolean
   date: string
   time?: string
   status: string
   referenceId?: string
+  createdAt?: string
 }
 
 export interface WalletData {
@@ -103,7 +106,8 @@ export interface NotificationItem {
   message: string
   time: string
   read: boolean
-  type: 'payout' | 'market' | 'reward' | 'wallet' | 'security'
+  type: 'payout' | 'market' | 'reward' | 'wallet' | 'security' | 'investment' | 'general'
+  createdAt?: string
 }
 
 export interface PaymentMethod {

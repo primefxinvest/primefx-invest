@@ -1,5 +1,7 @@
 'use server'
 
+import { notifyKycStatusChange } from '@/lib/notifications/service'
+
 import { revalidatePath } from 'next/cache'
 import { adminReenableUserMfa, adminResetUserMfa } from '@/lib/auth/mfa-admin'
 import {
@@ -180,6 +182,15 @@ export async function updateUserKycStatus(
 
   if (error) throw new Error(error.message)
 
+  await db
+    .from('kyc_submissions')
+    .update({
+      review_status: status === 'Verified' ? 'verified' : status === 'Rejected' ? 'rejected' : 'submitted',
+      reviewed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+
   await logAdminAction({
     context,
     module: 'kyc_aml_compliance',
@@ -190,8 +201,13 @@ export async function updateUserKycStatus(
     reasonCode: reasonCode ?? undefined,
   })
 
+  if (status === 'Verified' || status === 'Rejected') {
+    await notifyKycStatusChange(userId, status)
+  }
+
   revalidatePath('/admin/kyc')
   revalidatePath('/admin/users')
+  revalidatePath(`/admin/users/${userId}`)
   return { success: true }
 }
 

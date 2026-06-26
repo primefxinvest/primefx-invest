@@ -10,6 +10,7 @@ import {
   User,
   Wallet,
 } from 'lucide-react'
+import { AdminKycDocumentsSection } from '@/components/admin/AdminKycDocumentsSection'
 import type { AdminUserDetail } from '@/lib/admin/types'
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from '@/lib/data/format'
 import { getDefaultAvatarUrl } from '@/lib/profile/avatar'
@@ -66,7 +67,7 @@ function SectionCard({
 }
 
 export function AdminUserDetailView({ detail }: { detail: AdminUserDetail }) {
-  const { profile, mfa, wallet, portfolio, investments, transactions, referrals, activity, payment_methods } =
+  const { profile, mfa, wallet, portfolio, investments, transactions, referrals, activity, payment_methods, kyc_submission } =
     detail
 
   const mfaLabel = mfa.bypassed
@@ -232,6 +233,10 @@ export function AdminUserDetailView({ detail }: { detail: AdminUserDetail }) {
           ) : null}
         </SectionCard>
       </div>
+
+      <SectionCard title="KYC documents" description="Submitted identity verification files">
+        <AdminKycDocumentsSection submission={kyc_submission} />
+      </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SectionCard title="Wallet">

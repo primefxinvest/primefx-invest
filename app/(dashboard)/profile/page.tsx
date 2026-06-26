@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Calendar, CheckCircle, Edit2, Shield, AlertCircle } from 'lucide-react'
 import EditProfileModal from '@/components/profile/EditProfileModal'
+import { KycSubmissionPanel } from '@/components/kyc/KycSubmissionPanel'
 import { ErrorState } from '@/components/shared/data-state'
 import { ProfileSkeleton } from '@/components/shared/skeletons'
 import { getProfileActivity, getUserProfile, logProfileActivity } from '@/lib/profile/actions'
@@ -26,8 +27,10 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
 
-  const loadProfile = useCallback(async () => {
-    setLoading(true)
+  const loadProfile = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true)
+    }
     setError(null)
     try {
       const [profileData, activityData] = await Promise.all([
@@ -39,7 +42,9 @@ export default function ProfilePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load profile')
     } finally {
-      setLoading(false)
+      if (!options?.silent) {
+        setLoading(false)
+      }
     }
   }, [])
 
@@ -51,8 +56,8 @@ export default function ProfilePage() {
       if (authUser) {
         const sessionKey = `primefx_login_logged_${authUser.id}`
         if (typeof sessionStorage !== 'undefined' && !sessionStorage.getItem(sessionKey)) {
-          await logProfileActivity(authUser.id, 'Login', detectDevice())
           sessionStorage.setItem(sessionKey, '1')
+          void logProfileActivity(authUser.id, 'Login', detectDevice())
         }
       }
       await loadProfile()
@@ -61,13 +66,16 @@ export default function ProfilePage() {
     init()
 
     const handleUpdate = () => {
-      loadProfile()
+      loadProfile({ silent: true })
     }
 
     window.addEventListener('primefx:profile-updated', handleUpdate)
+    const handleOpenEdit = () => setEditOpen(true)
+    window.addEventListener('primefx:open-edit-profile', handleOpenEdit)
     return () => {
       active = false
       window.removeEventListener('primefx:profile-updated', handleUpdate)
+      window.removeEventListener('primefx:open-edit-profile', handleOpenEdit)
     }
   }, [loadProfile])
 
@@ -136,6 +144,8 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+
+      <KycSubmissionPanel profile={profile} />
 
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
         <h2 className="mb-6 text-lg font-semibold text-foreground">Personal Information</h2>

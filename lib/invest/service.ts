@@ -3,6 +3,7 @@ import 'server-only'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { getKycBlockReason } from '@/lib/investor/kyc'
 import { generatePaymentReference } from '@/lib/payments/reference'
+import { notifyInvestmentCreated } from '@/lib/notifications/service'
 import {
   assertSufficientBalance,
   creditInvestorWallet,
@@ -202,6 +203,8 @@ export async function executeInvestment(
       .from('investment_plans')
       .update({ investor_count: nextInvestorCount })
       .eq('id', input.planId)
+
+    await notifyInvestmentCreated(input.userId, String(plan.name), amount, referenceId)
 
     return {
       success: true,

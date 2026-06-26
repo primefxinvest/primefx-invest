@@ -1,5 +1,6 @@
 import { CheckCircle2, AlertTriangle, Settings2 } from 'lucide-react'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { AdminSecurityCard } from '@/components/admin/AdminSecurityCard'
 import type { PlatformSettingsSnapshot } from '@/lib/admin/platform-settings'
 import { cn } from '@/lib/utils'
 
@@ -53,6 +54,8 @@ export function AdminSettingsView({ settings }: { settings: PlatformSettingsSnap
         title="Platform Settings"
         description="Super Admin configuration for payments, database access, and platform operations."
       />
+
+      <AdminSecurityCard />
 
       <SettingsCard title="Admin access" description="Your current admin session and access mode.">
         <ConfigRow label="Signed in as" value={settings.adminEmail} />

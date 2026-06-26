@@ -15,6 +15,7 @@ import {
   assertSufficientBalance,
   completeTransaction,
   creditInvestorWallet,
+  debitInvestorWallet,
   getPaymentByOrderId,
   recordDepositPayment,
   recordWithdrawalPayment,
@@ -22,6 +23,13 @@ import {
 } from './wallet-ledger'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
+import {
+  notifyDepositCreated,
+  notifyDepositCompleted,
+  notifyDepositFailed,
+  notifyWithdrawalSubmitted,
+  notifyWithdrawalCompleted,
+} from '@/lib/notifications/service'
 
 export async function createDepositPayment(input: {
   userId: string
@@ -81,6 +89,8 @@ export async function createDepositPayment(input: {
         },
       })
 
+      await notifyDepositCreated(input.userId, amount, orderId)
+
       return {
         success: true,
         paymentId,
@@ -115,6 +125,8 @@ export async function createDepositPayment(input: {
         flow: 'invoice',
       },
     })
+
+    await notifyDepositCreated(input.userId, amount, orderId)
 
     return {
       success: true,
@@ -180,6 +192,8 @@ export async function createWithdrawalPayment(input: {
       metadata: { payoutId: payout.id },
     })
 
+    await notifyWithdrawalSubmitted(input.userId, amount, orderId)
+
     return { success: true, paymentId, orderId }
   } catch (err) {
     return {
@@ -193,20 +207,34 @@ export async function completeDepositFromWebhook(orderId: string) {
   const payment = await getPaymentByOrderId(orderId)
   if (!payment || payment.status === 'completed') return
 
-  await creditInvestorWallet(payment.investor_id, Number(payment.amount_usd))
+  const amount = Number(payment.amount_usd)
+  const userId = String(payment.investor_id)
+
+  await creditInvestorWallet(userId, amount)
   await completeTransaction(orderId, 'Completed')
   await updatePaymentStatus(orderId, 'completed')
+  await notifyDepositCompleted(userId, amount, orderId)
 }
 
 export async function failDepositFromWebhook(
   orderId: string,
   status: 'failed' | 'expired' | 'cancelled' | 'refunded'
 ) {
+  const payment = await getPaymentByOrderId(orderId)
   await updatePaymentStatus(orderId, status)
   await completeTransaction(orderId, status === 'cancelled' ? 'Cancelled' : 'Failed')
+
+  if (payment) {
+    await notifyDepositFailed(String(payment.investor_id), Number(payment.amount_usd), orderId)
+  }
 }
 
 export async function completeWithdrawalFromWebhook(orderId: string) {
+  const payment = await getPaymentByOrderId(orderId)
   await updatePaymentStatus(orderId, 'completed')
   await completeTransaction(orderId, 'Completed')
+
+  if (payment) {
+    await notifyWithdrawalCompleted(String(payment.investor_id), Number(payment.amount_usd), orderId)
+  }
 }

@@ -23,23 +23,32 @@ function TwoFactorVerifyForm() {
     let active = true
 
     async function checkSession() {
-      const { data: user } = await getCurrentUser()
-      if (!active) return
+      try {
+        const { data: user } = await getCurrentUser()
+        if (!active) return
 
-      if (!user) {
-        router.replace('/login')
-        return
+        if (!user) {
+          router.replace('/login')
+          return
+        }
+
+        const mfa = await Promise.race([
+          needsMfaChallenge(),
+          new Promise<{ required: boolean }>((resolve) =>
+            setTimeout(() => resolve({ required: false }), 10_000)
+          ),
+        ])
+        if (!active) return
+
+        if (!mfa.required) {
+          router.replace(redirectTo.startsWith('/') ? redirectTo : '/dashboard')
+          return
+        }
+
+        setChecking(false)
+      } catch {
+        if (active) setChecking(false)
       }
-
-      const mfa = await needsMfaChallenge()
-      if (!active) return
-
-      if (!mfa.required) {
-        router.replace(redirectTo.startsWith('/') ? redirectTo : '/dashboard')
-        return
-      }
-
-      setChecking(false)
     }
 
     checkSession()

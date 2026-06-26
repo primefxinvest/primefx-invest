@@ -10,13 +10,18 @@ import { logProfileActivity } from '@/lib/profile/actions'
 const LOCAL_2FA_PREFIX = 'primefx_2fa_'
 
 async function isMfaBypassedForUser(userId: string): Promise<boolean> {
-  const { data } = await supabase
-    .from('users')
-    .select('mfa_disabled_at')
-    .eq('id', userId)
-    .maybeSingle()
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .select('mfa_disabled_at')
+      .eq('id', userId)
+      .maybeSingle()
 
-  return Boolean(data?.mfa_disabled_at)
+    if (error) return false
+    return Boolean(data?.mfa_disabled_at)
+  } catch {
+    return false
+  }
 }
 
 export type MfaProvider = 'supabase' | 'local'
@@ -258,35 +263,39 @@ export async function needsMfaChallenge(): Promise<{
   factorId?: string
   provider?: MfaProvider
 }> {
-  const { data: authUser } = await getCurrentUser()
-  if (authUser && (await isMfaBypassedForUser(authUser.id))) {
+  try {
+    const { data: authUser } = await getCurrentUser()
+    if (authUser && (await isMfaBypassedForUser(authUser.id))) {
+      return { required: false }
+    }
+
+    try {
+      const { data: aal, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+      if (!error && aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
+        const { data: factors } = await supabase.auth.mfa.listFactors()
+        const verified = factors?.totp?.find((factor) => factor.status === 'verified')
+        if (verified) {
+          return { required: true, factorId: verified.id, provider: 'supabase' }
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    if (authUser) {
+      const local = getLocalMfa(authUser.id)
+      if (local?.enabled) {
+        if (isMfaSessionVerified(authUser.id)) {
+          return { required: false }
+        }
+        return { required: true, provider: 'local' }
+      }
+    }
+
+    return { required: false }
+  } catch {
     return { required: false }
   }
-
-  try {
-    const { data: aal, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-    if (!error && aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2') {
-      const { data: factors } = await supabase.auth.mfa.listFactors()
-      const verified = factors?.totp?.find((factor) => factor.status === 'verified')
-      if (verified) {
-        return { required: true, factorId: verified.id, provider: 'supabase' }
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  if (authUser) {
-    const local = getLocalMfa(authUser.id)
-    if (local?.enabled) {
-      if (isMfaSessionVerified(authUser.id)) {
-        return { required: false }
-      }
-      return { required: true, provider: 'local' }
-    }
-  }
-
-  return { required: false }
 }
 
 export async function verifyMfaLogin(code: string): Promise<{ success: boolean; error?: string }> {
