@@ -9,8 +9,7 @@ export function Toaster(props: ToasterProps) {
       position="top-right"
       expand={false}
       closeButton
-      closeButtonPosition="right"
-      className="primefx-toaster font-sans"
+      className="primefx-toaster font-sans [&_[data-close-button]]:right-3 [&_[data-close-button]]:left-auto"
       offset={{ top: '4.5rem', right: '1rem' }}
       gap={10}
       visibleToasts={4}

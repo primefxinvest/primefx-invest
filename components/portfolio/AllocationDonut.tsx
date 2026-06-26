@@ -8,7 +8,7 @@ import { chartTooltipWrapperProps } from '@/lib/charts/theme'
 interface AllocationItem {
   name: string
   value: number
-  amount: string
+  amount?: string
   color: string
 }
 
@@ -57,7 +57,7 @@ export default function AllocationDonut({ data, totalValue }: AllocationDonutPro
             </div>
             <div className="text-right">
               <span className="text-[13px] font-semibold text-slate-900">{item.value}%</span>
-              <span className="ml-2 text-[12px] text-slate-400">{item.amount}</span>
+              <span className="ml-2 text-[12px] text-slate-400">{item.amount ?? '—'}</span>
             </div>
           </div>
         ))}

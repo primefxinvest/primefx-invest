@@ -648,8 +648,10 @@ export async function fetchPortfolioInvestments() {
 
 function mapInvestmentRow(investment: Record<string, unknown>) {
   const plan = investment.investment_plans as { name?: string; risk_level?: string } | undefined
-  const invested = toNumber(investment.amount)
-  const current = toNumber(investment.current_value ?? investment.amount)
+  const invested = toNumber(investment.amount as string | number | null | undefined)
+  const current = toNumber(
+    (investment.current_value ?? investment.amount) as string | number | null | undefined
+  )
   const roi = invested > 0 ? ((current - invested) / invested) * 100 : 0
 
   return {
@@ -667,8 +669,10 @@ function mapInvestmentRow(investment: Record<string, unknown>) {
 
 function mapCompletedInvestmentRow(investment: Record<string, unknown>) {
   const plan = investment.investment_plans as { name?: string } | undefined
-  const invested = toNumber(investment.amount)
-  const finalValue = toNumber(investment.current_value ?? investment.amount)
+  const invested = toNumber(investment.amount as string | number | null | undefined)
+  const finalValue = toNumber(
+    (investment.current_value ?? investment.amount) as string | number | null | undefined
+  )
   const profit = finalValue - invested
 
   return {

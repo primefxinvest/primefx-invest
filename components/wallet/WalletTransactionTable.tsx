@@ -28,13 +28,23 @@ const typeIcons = {
   Withdrawal: Upload,
   Transfer: Send,
   Bonus: Gift,
-}
+} as const
 
 const typeColors = {
   Deposit: 'bg-emerald-100 text-emerald-600',
   Withdrawal: 'bg-red-100 text-red-600',
   Transfer: 'bg-blue-100 text-blue-600',
   Bonus: 'bg-purple-100 text-purple-600',
+} as const
+
+type KnownTxType = keyof typeof typeIcons
+
+function getTransactionIcon(type: string) {
+  return typeIcons[type as KnownTxType] ?? Download
+}
+
+function getTransactionColor(type: string) {
+  return typeColors[type as KnownTxType] ?? 'bg-gray-100 text-gray-600'
 }
 
 export default function WalletTransactionTable() {
@@ -139,7 +149,7 @@ export default function WalletTransactionTable() {
             </thead>
             <tbody>
               {filtered.map((tx) => {
-              const Icon = typeIcons[tx.type]
+              const Icon = getTransactionIcon(tx.type)
               const isPositive = tx.amount.startsWith('+')
 
               return (
@@ -150,7 +160,7 @@ export default function WalletTransactionTable() {
                   </td>
                   <td className="py-3.5 pr-4">
                     <div className="flex items-center gap-2">
-                      <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg', typeColors[tx.type])}>
+                      <div className={cn('flex h-8 w-8 items-center justify-center rounded-lg', getTransactionColor(tx.type))}>
                         <Icon className="h-4 w-4" />
                       </div>
                       <span className="text-xs font-medium text-gray-900">{tx.type}</span>
@@ -178,14 +188,18 @@ export default function WalletTransactionTable() {
                     </span>
                   </td>
                   <td className="py-3.5">
-                    <button
-                      type="button"
-                      onClick={() => copyReference(tx.referenceId)}
-                      className="inline-flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-[#0052ff]"
-                    >
-                      {tx.referenceId}
-                      <Copy className="h-3 w-3" />
-                    </button>
+                    {tx.referenceId ? (
+                      <button
+                        type="button"
+                        onClick={() => copyReference(tx.referenceId!)}
+                        className="inline-flex items-center gap-1.5 text-xs font-mono text-gray-500 hover:text-[#0052ff]"
+                      >
+                        {tx.referenceId}
+                        <Copy className="h-3 w-3" />
+                      </button>
+                    ) : (
+                      <span className="text-xs text-gray-400">—</span>
+                    )}
                   </td>
                 </tr>
               )

@@ -14,8 +14,12 @@ export default function AdminUnauthorizedPage() {
         </div>
         <h1 className="text-2xl font-bold text-foreground">Access Denied</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          You do not have admin privileges for PrimeFx Invest. Contact a Super Admin to request
-          access via the <code className="text-xs">admin_profiles</code> table.
+          This area is restricted to authorized PrimeFx staff. Your account does not have permission
+          to open the admin portal.
+        </p>
+        <p className="mt-3 text-sm text-muted-foreground">
+          If you need admin access for your organization, please contact your PrimeFx account
+          administrator or our support team.
         </p>
         <div className="mt-6 flex flex-col gap-3">
           <Link
@@ -23,6 +27,12 @@ export default function AdminUnauthorizedPage() {
             className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
           >
             Return to Dashboard
+          </Link>
+          <Link
+            href="/contact"
+            className="rounded-lg border border-border px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+          >
+            Contact Support
           </Link>
           <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground">
             Sign in with a different account

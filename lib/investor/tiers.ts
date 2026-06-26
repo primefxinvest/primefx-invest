@@ -1,5 +1,7 @@
 import type { InvestorFeature, InvestorTierConfig, InvestorTierKey } from './types'
 
+export type { InvestorFeature, InvestorTierConfig, InvestorTierKey } from './types'
+
 export const INVESTOR_TIER_ORDER: InvestorTierKey[] = ['starter', 'growth', 'prime', 'elite']
 
 export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
