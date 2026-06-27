@@ -44,7 +44,7 @@ export default function InvestPlanCard({
         if (e.key === 'Enter' || e.key === ' ') onSelect(plan)
       }}
       className={cn(
-        'relative flex cursor-pointer flex-col rounded-2xl border p-4 transition-all sm:p-5',
+        'relative flex h-full cursor-pointer flex-col rounded-2xl border p-4 transition-all sm:p-5',
         theme.card,
         selected && 'shadow-lg'
       )}

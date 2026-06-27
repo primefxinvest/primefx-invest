@@ -115,6 +115,52 @@ export function getPlanTheme(plan: InvestmentPlan, index = 0): PlanTheme {
   return planThemes[key] ?? planThemes['1']
 }
 
+export interface LandingPlanTheme {
+  icon: LucideIcon
+  card: string
+  iconBg: string
+  riskColor: string
+  buttonClass: string
+}
+
+const landingPlanThemes: Record<keyof typeof planThemes, Omit<LandingPlanTheme, 'icon'>> = {
+  '1': {
+    card: 'border-emerald-200 bg-emerald-50/50',
+    iconBg: 'bg-emerald-100 text-emerald-600',
+    riskColor: 'bg-emerald-100 text-emerald-700',
+    buttonClass: 'border-emerald-500 text-emerald-600 hover:bg-emerald-50',
+  },
+  '2': {
+    card: 'border-blue-200 bg-blue-50/50',
+    iconBg: 'bg-blue-100 text-[#0052ff]',
+    riskColor: 'bg-blue-100 text-blue-700',
+    buttonClass: 'border-[#0052ff] text-[#0052ff] hover:bg-blue-50',
+  },
+  '3': {
+    card: 'border-purple-300 bg-purple-50/50 ring-2 ring-purple-400',
+    iconBg: 'bg-purple-100 text-purple-600',
+    riskColor: 'bg-purple-100 text-purple-700',
+    buttonClass: 'border-purple-500 text-purple-600 hover:bg-purple-50',
+  },
+  '4': {
+    card: 'border-orange-200 bg-orange-50/50',
+    iconBg: 'bg-orange-100 text-orange-600',
+    riskColor: 'bg-orange-100 text-orange-700',
+    buttonClass: 'border-orange-500 text-orange-600 hover:bg-orange-50',
+  },
+}
+
+export function getLandingPlanTheme(plan: InvestmentPlan, index = 0): LandingPlanTheme {
+  const key = planThemeByName[plan.name] ?? (['1', '2', '3', '4'][index % 4] as keyof typeof planThemes)
+  const base = planThemes[key] ?? planThemes['1']
+  const landing = landingPlanThemes[key] ?? landingPlanThemes['1']
+
+  return {
+    icon: base.icon,
+    ...landing,
+  }
+}
+
 export const trustFeatures = [
   { label: 'No Hidden Fees', icon: 'fees' },
   { label: 'Withdraw Anytime', icon: 'withdraw' },

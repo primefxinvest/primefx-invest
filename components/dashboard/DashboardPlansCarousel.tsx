@@ -6,14 +6,15 @@ import { ChevronRight } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
 import { PlanCardsSkeleton } from '@/components/shared/skeletons'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
-import { fetchInvestmentPlans } from '@/lib/data/queries'
+import { loadInvestmentPlans } from '@/lib/invest/plan-actions'
 import { cn } from '@/lib/utils'
 
 function riskLabel(plan: { riskLevel: string; popular?: boolean }) {
   if (plan.riskLevel === 'Low') return 'Low Risk'
   if (plan.riskLevel === 'Medium') return 'Medium Risk'
-  if (plan.riskLevel === 'High') return 'Very High Risk'
-  return 'High Risk'
+  if (plan.riskLevel === 'Very High') return 'Very High Risk'
+  if (plan.riskLevel === 'High') return 'High Risk'
+  return `${plan.riskLevel} Risk`
 }
 
 function getPlanStyle(plan: { popular?: boolean; riskLevel: string }) {
@@ -36,7 +37,7 @@ function getPlanStyle(plan: { popular?: boolean; riskLevel: string }) {
 }
 
 export default function DashboardPlansCarousel() {
-  const { data: plans, loading, error, reload } = useAsyncData(() => fetchInvestmentPlans(), [])
+  const { data: plans, loading, error, reload } = useAsyncData(() => loadInvestmentPlans(), [])
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
 
@@ -106,8 +107,8 @@ export default function DashboardPlansCarousel() {
                   )}
 
                   <h3 className="text-sm font-bold text-gray-900">{plan.name}</h3>
-                  <p className="mt-2 text-xl font-bold text-gray-900">{plan.roiRange}</p>
-                  <p className="text-[10px] text-gray-500">{plan.monthlyRoi}</p>
+                  <p className="mt-2 text-xl font-bold text-gray-900">{plan.weeklyRoi}</p>
+                  <p className="text-[10px] text-gray-500">{plan.weeklyRoiLabel}</p>
 
                   <span
                     className={cn(

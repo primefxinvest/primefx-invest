@@ -4,13 +4,13 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Crown } from 'lucide-react'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
-import { fetchInvestmentPlans } from '@/lib/data/queries'
+import { loadInvestmentPlans } from '@/lib/invest/plan-actions'
 import { getCurrentUser } from '@/lib/supabase'
 import { getUpgradeOffer, type UpgradeOffer } from '@/lib/invest/upgrade'
 
 export default function SidebarUpgradeCard() {
   const [offer, setOffer] = useState<UpgradeOffer | null>(null)
-  const { data: plans = [] } = useAsyncData(() => fetchInvestmentPlans(), [])
+  const { data: plans = [] } = useAsyncData(() => loadInvestmentPlans(), [])
 
   useEffect(() => {
     let active = true

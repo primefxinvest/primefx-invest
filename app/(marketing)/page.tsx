@@ -1,9 +1,10 @@
-'use client'
-
+import { Suspense } from 'react'
 import HeroSection from '@/components/landing/HeroSection'
 import WhyChooseSection from '@/components/landing/sections/WhyChooseSection'
 import JourneySection from '@/components/landing/sections/JourneySection'
-import InvestmentPlansSection from '@/components/landing/sections/InvestmentPlansSection'
+import InvestmentPlansSection, {
+  InvestmentPlansSectionSkeleton,
+} from '@/components/landing/sections/InvestmentPlansSection'
 import PerformanceSection from '@/components/landing/sections/PerformanceSection'
 import SecuritySection from '@/components/landing/sections/SecuritySection'
 import TestimonialsSection from '@/components/landing/sections/TestimonialsSection'
@@ -18,7 +19,9 @@ export default function LandingPage() {
       <HeroSection />
       <WhyChooseSection />
       <JourneySection />
-      <InvestmentPlansSection />
+      <Suspense fallback={<InvestmentPlansSectionSkeleton />}>
+        <InvestmentPlansSection />
+      </Suspense>
       <PerformanceSection />
       <SecuritySection />
       <TestimonialsSection />

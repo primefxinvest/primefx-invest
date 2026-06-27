@@ -97,34 +97,33 @@ interface HowItWorksStepsProps {
   className?: string
 }
 
-/** Centered vertical steps for the invest "How it works" section (mobile-friendly). */
+/** Compact steps for the invest "How it works" section. */
 export function HowItWorksSteps({ steps, className }: HowItWorksStepsProps) {
   return (
     <Steps.Root
       count={steps.length}
       defaultStep={steps.length - 1}
-      orientation="vertical"
       linear={false}
       className={cn('w-full', className)}
     >
-      <Steps.List className="flex flex-col gap-8 sm:gap-10">
+      <Steps.List className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-5 lg:gap-3">
         {steps.map((step, index) => (
           <Steps.Item
             key={step.number}
             index={index}
-            className="relative flex flex-col items-center text-center"
+            className="flex flex-col items-center text-center lg:min-w-0"
           >
-            <Steps.Trigger className="flex w-full max-w-md flex-col items-center gap-2 rounded-lg text-center">
-              <Steps.Indicator className="flex h-11 w-11 items-center justify-center rounded-full bg-[#0052ff] text-sm font-bold text-white">
+            <Steps.Trigger className="flex w-full flex-col items-center gap-1.5 rounded-md px-1 py-1 text-center">
+              <Steps.Indicator className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#0052ff] text-xs font-bold text-white">
                 {step.number}
               </Steps.Indicator>
-              <span className="text-sm font-semibold text-gray-900 sm:text-base">{step.title}</span>
-              <span className="text-xs leading-relaxed text-gray-500 sm:text-sm">{step.description}</span>
+              <span className="text-xs font-semibold leading-tight text-gray-900 sm:text-sm">
+                {step.title}
+              </span>
+              <span className="text-[11px] leading-snug text-gray-500 sm:text-xs">
+                {step.description}
+              </span>
             </Steps.Trigger>
-            <Steps.Separator
-              hidden={index === steps.length - 1}
-              className="mt-6 h-8 w-0.5 bg-gray-200 sm:mt-8"
-            />
           </Steps.Item>
         ))}
       </Steps.List>

@@ -11,6 +11,7 @@ import {
   getWallet,
   getMarketAssets,
 } from '@/lib/db/supabase'
+import { mapDbPlansToInvestmentPlans, PLAN_UI_META } from '@/lib/invest/plan-mapper'
 import { formatCurrency, formatDate, formatDateTime, formatPercent, formatRelativeTime, toNumber } from '@/lib/data/format'
 import type {
   AssetAllocationItem,
@@ -29,36 +30,6 @@ import type {
   WalletData,
 } from '@/lib/data/types'
 
-const PLAN_UI_META: Record<
-  string,
-  { badge: string; roiRange: string; popular?: boolean; assetClass: string; color: string }
-> = {
-  'Starter Plan': {
-    badge: 'FOR BEGINNERS',
-    roiRange: '8% - 15%',
-    assetClass: 'Forex',
-    color: '#0052ff',
-  },
-  'Growth Plan': {
-    badge: 'GROW YOUR WEALTH',
-    roiRange: '15% - 25%',
-    assetClass: 'Crypto',
-    color: '#8b5cf6',
-  },
-  'Prime Plan': {
-    badge: 'BEST VALUE',
-    roiRange: '25% - 40%',
-    popular: true,
-    assetClass: 'Stocks',
-    color: '#8b5cf6',
-  },
-  'Elite Plan': {
-    badge: 'PREMIUM ACCESS',
-    roiRange: '40% - 60%',
-    assetClass: 'Commodities',
-    color: '#f97316',
-  },
-}
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -74,36 +45,7 @@ export async function fetchInvestmentPlans(): Promise<InvestmentPlan[]> {
     return []
   }
 
-  return data.map((plan) => {
-    const meta = PLAN_UI_META[plan.name] ?? {
-      badge: 'INVESTMENT PLAN',
-      roiRange: `${toNumber(plan.weekly_roi) * 4}%+`,
-      assetClass: 'Mixed',
-      color: '#0052ff',
-    }
-    const minAmount = toNumber(plan.minimum_investment)
-
-    return {
-      id: plan.id,
-      name: plan.name,
-      weeklyRoi: `${toNumber(plan.weekly_roi)}%`,
-      weeklyRoiLabel: 'Target Weekly Return',
-      roiRange: meta.roiRange,
-      monthlyRoi: 'Monthly ROI',
-      riskLevel: plan.risk_level,
-      minInvestment: formatCurrency(minAmount),
-      minAmount,
-      duration: plan.duration === 'Flexible' ? 'No Lock Period' : (plan.duration ?? 'No Lock Period'),
-      payout:
-        plan.payout_frequency === 'Every 7 Days'
-          ? 'Weekly Distribution'
-          : (plan.payout_frequency ?? 'Weekly Distribution'),
-      capitalAccess: 'Withdraw Anytime',
-      investors: `${toNumber(plan.investor_count).toLocaleString()}+`,
-      badge: meta.badge,
-      popular: meta.popular,
-    }
-  })
+  return mapDbPlansToInvestmentPlans(data)
 }
 
 export async function fetchPortfolioMetrics(): Promise<PortfolioMetrics> {

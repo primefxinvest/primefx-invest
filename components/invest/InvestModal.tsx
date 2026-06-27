@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 import { processInvestment } from '@/lib/invest/actions'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
+import { getKycBlockReason } from '@/lib/investor/kyc'
 
 import { fetchWalletData } from '@/lib/data/queries'
 import { formatCurrency } from '@/lib/data/format'

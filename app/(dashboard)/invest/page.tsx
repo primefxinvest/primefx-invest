@@ -17,7 +17,8 @@ import { HowItWorksSteps } from '@/components/ui/steps'
 import { AsyncState } from '@/components/shared/data-state'
 import { PlanCardsSkeleton } from '@/components/shared/skeletons'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
-import { fetchInvestmentPlans, fetchMarketOverview } from '@/lib/data/queries'
+import { loadInvestmentPlans } from '@/lib/invest/plan-actions'
+import { fetchMarketOverview } from '@/lib/data/queries'
 import type { InvestmentPlan } from '@/lib/invest/plan-config'
 import { howItWorksSteps } from '@/lib/invest/plan-config'
 import InvestPlanCard from '@/components/invest/InvestPlanCard'
@@ -65,7 +66,7 @@ const featureHighlights = [
 export default function InvestPage() {
   const searchParams = useSearchParams()
   const { data: investmentPlans = [], loading: plansLoading, error: plansError, reload: reloadPlans } =
-    useAsyncData(() => fetchInvestmentPlans(), [])
+    useAsyncData(() => loadInvestmentPlans(), [])
   const { data: marketOverview = [], loading: marketLoading, error: marketError, reload: reloadMarket } =
     useAsyncData(() => fetchMarketOverview(), [])
   const recommendedPlan =
@@ -137,14 +138,13 @@ export default function InvestPage() {
         onSuccess={handleInvestSuccess}
       />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_300px]">
-        {/* Main column */}
-        <div className="min-w-0 space-y-6">
-          {/* Header */}
+      <div className="space-y-6">
+        {/* Intro — full width */}
+        <div className="space-y-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Invest</h1>
-              <p className="mt-1 text-sm text-gray-500">
+              <p className="mt-1 max-w-2xl text-sm text-gray-500">
                 Choose the perfect plan that matches your goals. AI-powered strategies for consistent growth.
               </p>
             </div>
@@ -159,29 +159,30 @@ export default function InvestPage() {
           </div>
 
           <KycFinancialBanner />
+        </div>
 
-          {/* Feature highlights */}
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            {featureHighlights.map((feature) => {
-              const Icon = feature.icon
-              return (
-                <div
-                  key={feature.title}
-                  className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4"
-                >
-                  <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg sm:mb-3 sm:h-9 sm:w-9 ${feature.iconBg}`}>
-                    <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  </div>
-                  <h3 className="text-xs font-semibold text-gray-900 sm:text-sm">{feature.title}</h3>
-                  <p className="mt-1 text-[11px] leading-relaxed text-gray-500 sm:text-xs">{feature.description}</p>
+        {/* Feature highlights — full width */}
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {featureHighlights.map((feature) => {
+            const Icon = feature.icon
+            return (
+              <div
+                key={feature.title}
+                className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4"
+              >
+                <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg sm:mb-3 sm:h-9 sm:w-9 ${feature.iconBg}`}>
+                  <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </div>
-              )
-            })}
-          </div>
+                <h3 className="text-xs font-semibold text-gray-900 sm:text-sm">{feature.title}</h3>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-500 sm:text-xs">{feature.description}</p>
+              </div>
+            )
+          })}
+        </div>
 
-          {/* Investment plans */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-            <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        {/* Investment plans — full page width */}
+        <div className="w-full overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
+          <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-bold tracking-wide text-[#0052ff]">
                   <Star className="h-3 w-3 fill-[#0052ff]" />
@@ -230,73 +231,75 @@ export default function InvestPage() {
               emptyTitle="No investment plans"
               emptyDescription="Plans will appear here once they are configured in your account."
               skeleton={
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
                   <PlanCardsSkeleton count={4} />
                 </div>
               }
               compact
             >
-            {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 xl:grid-cols-4">
-                {investmentPlans.map((plan, index) => (
-                  <InvestPlanCard
-                    key={plan.id}
-                    plan={plan}
-                    index={index}
-                    selected={selectedPlanId === plan.id}
-                    onSelect={(p) => setSelectedPlanId(p.id)}
-                    onInvest={openInvestModal}
-                  />
-                ))}
-              </div>
-            ) : (
-              <PlanCompareView plans={investmentPlans} onInvest={openInvestModal} />
-            )}
+              {viewMode === 'grid' ? (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+                  {investmentPlans.map((plan, index) => (
+                    <InvestPlanCard
+                      key={plan.id}
+                      plan={plan}
+                      index={index}
+                      selected={selectedPlanId === plan.id}
+                      onSelect={(p) => setSelectedPlanId(p.id)}
+                      onInvest={openInvestModal}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <PlanCompareView plans={investmentPlans} onInvest={openInvestModal} />
+              )}
             </AsyncState>
-          </div>
-
-          <TrustFeaturesBar />
-
-          {recommendedPlan && (
-          <div ref={recommendationRef}>
-            <AIRecommendationBanner
-              recommendedPlan={recommendedPlan}
-              onGetRecommendation={scrollToRecommendation}
-              onInvestRecommended={() => openInvestModal(recommendedPlan)}
-            />
-          </div>
-          )}
-
-          {/* How it works */}
-          <div
-            ref={howItWorksRef}
-            id="how-it-works"
-            className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
-          >
-            <h2 className="text-lg font-bold text-gray-900">How It Works</h2>
-            <div className="mt-6">
-              <HowItWorksSteps steps={howItWorksSteps} />
-            </div>
-          </div>
         </div>
 
-        {/* Right sidebar */}
-        <aside className="space-y-4">
-          <InvestPrimeAIWidget />
-          <AsyncState
-            loading={marketLoading}
-            error={marketError}
-            onRetry={reloadMarket}
-            isEmpty={!marketOverview.length}
-            emptyTitle="No market data"
-            emptyDescription="Market prices will appear once assets are configured."
-            skeleton={<PlanCardsSkeleton count={1} />}
-            compact
-          >
-            <MarketOverviewWidget markets={marketOverview} />
-          </AsyncState>
-          <WhyInvestWidget />
-        </aside>
+        <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
+          <div className="min-w-0 space-y-6">
+            <TrustFeaturesBar />
+
+            {recommendedPlan && (
+            <div ref={recommendationRef}>
+              <AIRecommendationBanner
+                recommendedPlan={recommendedPlan}
+                onGetRecommendation={scrollToRecommendation}
+                onInvestRecommended={() => openInvestModal(recommendedPlan)}
+              />
+            </div>
+            )}
+
+            {/* How it works */}
+            <div
+              ref={howItWorksRef}
+              id="how-it-works"
+              className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6"
+            >
+              <h2 className="text-lg font-bold text-gray-900">How It Works</h2>
+              <div className="mt-4">
+                <HowItWorksSteps steps={howItWorksSteps} />
+              </div>
+            </div>
+          </div>
+
+          <aside className="space-y-4 xl:sticky xl:top-6">
+            <InvestPrimeAIWidget />
+            <AsyncState
+              loading={marketLoading}
+              error={marketError}
+              onRetry={reloadMarket}
+              isEmpty={!marketOverview.length}
+              emptyTitle="No market data"
+              emptyDescription="Market prices will appear once assets are configured."
+              skeleton={<PlanCardsSkeleton count={1} />}
+              compact
+            >
+              <MarketOverviewWidget markets={marketOverview} />
+            </AsyncState>
+            <WhyInvestWidget />
+          </aside>
+        </div>
       </div>
     </>
   )
