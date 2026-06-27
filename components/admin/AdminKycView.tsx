@@ -16,7 +16,7 @@ export function AdminKycView({ queue }: { queue: AdminKycQueueRow[] }) {
   const router = useRouter()
   const [search, setSearch] = useState('')
   const [pending, startTransition] = useTransition()
-  const { prompt, ActionDialog } = useActionDialog()
+  const { prompt, confirm, ActionDialog } = useActionDialog()
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -30,10 +30,25 @@ export function AdminKycView({ queue }: { queue: AdminKycQueueRow[] }) {
     )
   }, [search, queue])
 
-  const handleApprove = (userId: string) => {
+  const handleApprove = async (userId: string) => {
+    const confirmed = await confirm({
+      title: 'Approve KYC',
+      description: 'Mark this user as KYC verified? They will be able to deposit, invest, and withdraw.',
+      confirmLabel: 'Approve',
+    })
+    if (!confirmed) return
+
+    const comment = await prompt({
+      title: 'KYC review comment',
+      description: 'Optional internal note about this approval.',
+      label: 'Comment (optional)',
+      required: false,
+      confirmLabel: 'Save',
+    })
+
     startTransition(async () => {
       try {
-        await updateUserKycStatus(userId, 'Verified')
+        await updateUserKycStatus(userId, 'Verified', undefined, comment || undefined)
         toast.success('KYC approved')
         router.refresh()
       } catch (err) {
@@ -45,16 +60,24 @@ export function AdminKycView({ queue }: { queue: AdminKycQueueRow[] }) {
   const handleReject = async (userId: string) => {
     const reason = await prompt({
       title: 'Reject KYC',
-      label: 'Rejection reason code',
+      label: 'Rejection reason',
       required: true,
-      requiredMessage: 'KYC rejections must include a documented reason code.',
-      confirmLabel: 'Reject',
+      requiredMessage: 'KYC rejections must include a documented reason.',
+      confirmLabel: 'Continue',
     })
     if (!reason) return
 
+    const comment = await prompt({
+      title: 'KYC review comment',
+      description: 'Optional additional internal note about this rejection.',
+      label: 'Comment (optional)',
+      required: false,
+      confirmLabel: 'Reject',
+    })
+
     startTransition(async () => {
       try {
-        await updateUserKycStatus(userId, 'Rejected', reason)
+        await updateUserKycStatus(userId, 'Rejected', reason, comment || undefined)
         toast.success('KYC rejected')
         router.refresh()
       } catch (err) {

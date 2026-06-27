@@ -155,10 +155,28 @@ export async function deleteInvestmentPlan(planId: string) {
   return { success: true }
 }
 
+async function appendUserAdminNote(
+  db: ReturnType<typeof getDb>,
+  userId: string,
+  entry: string
+) {
+  const { data: before } = await db.from('users').select('admin_notes').eq('id', userId).single()
+  const merged = [before?.admin_notes, entry].filter(Boolean).join('\n')
+
+  const { error } = await db
+    .from('users')
+    .update({ admin_notes: merged, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+
+  if (error) throw new Error(error.message)
+  return merged
+}
+
 export async function updateUserKycStatus(
   userId: string,
   status: 'Verified' | 'Rejected' | 'Pending',
-  reasonCode?: string
+  reasonCode?: string,
+  comment?: string
 ) {
   const context = await getContext()
   assertModuleAccess(context, 'kyc_aml_compliance')
@@ -175,7 +193,7 @@ export async function updateUserKycStatus(
     .from('users')
     .update({
       kyc_status: status,
-      kyc_rejection_reason: status === 'Rejected' ? reasonCode : null,
+      kyc_rejection_reason: status === 'Rejected' ? reasonCode?.trim() : null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', userId)
@@ -191,19 +209,59 @@ export async function updateUserKycStatus(
     })
     .eq('user_id', userId)
 
+  const trimmedComment = comment?.trim()
+  if (trimmedComment) {
+    const noteParts = [`[${new Date().toISOString()}] [KYC] Status set to ${status}`]
+    if (reasonCode?.trim()) noteParts.push(`Reason: ${reasonCode.trim()}`)
+    noteParts.push(trimmedComment)
+    await appendUserAdminNote(db, userId, noteParts.join(' — '))
+  }
+
   await logAdminAction({
     context,
     module: 'kyc_aml_compliance',
     action: `kyc_${status.toLowerCase()}`,
     targetUserId: userId,
     beforeState: before as Record<string, unknown>,
-    afterState: { kyc_status: status, kyc_rejection_reason: reasonCode ?? null },
+    afterState: {
+      kyc_status: status,
+      kyc_rejection_reason: reasonCode ?? null,
+      kyc_comment: trimmedComment ?? null,
+    },
     reasonCode: reasonCode ?? undefined,
   })
 
   if (status === 'Verified' || status === 'Rejected') {
     await notifyKycStatusChange(userId, status)
   }
+
+  revalidatePath('/admin/kyc')
+  revalidatePath('/admin/users')
+  revalidatePath(`/admin/users/${userId}`)
+  return { success: true }
+}
+
+export async function addKycReviewNote(userId: string, note: string) {
+  const context = await getContext()
+  assertModuleAccess(context, 'kyc_aml_compliance')
+
+  const trimmed = note.trim()
+  if (!trimmed) throw new Error('KYC review notes cannot be empty.')
+
+  const db = getDb()
+  const merged = await appendUserAdminNote(
+    db,
+    userId,
+    `[${new Date().toISOString()}] [KYC] ${trimmed}`
+  )
+
+  await logAdminAction({
+    context,
+    module: 'kyc_aml_compliance',
+    action: 'kyc_note_added',
+    targetUserId: userId,
+    afterState: { admin_notes: merged },
+  })
 
   revalidatePath('/admin/kyc')
   revalidatePath('/admin/users')
@@ -307,6 +365,7 @@ export async function addAdminNote(userId: string, note: string) {
   })
 
   revalidatePath('/admin/users')
+  revalidatePath(`/admin/users/${userId}`)
   return { success: true }
 }
 

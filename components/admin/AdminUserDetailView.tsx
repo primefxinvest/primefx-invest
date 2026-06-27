@@ -11,6 +11,7 @@ import {
   Wallet,
 } from 'lucide-react'
 import { AdminKycDocumentsSection } from '@/components/admin/AdminKycDocumentsSection'
+import { AdminKycReviewControls } from '@/components/admin/AdminKycReviewControls'
 import type { AdminUserDetail } from '@/lib/admin/types'
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from '@/lib/data/format'
 import { getDefaultAvatarUrl } from '@/lib/profile/avatar'
@@ -231,6 +232,11 @@ export function AdminUserDetailView({ detail }: { detail: AdminUserDetail }) {
               <p className="mt-2 whitespace-pre-wrap text-sm text-amber-900">{profile.admin_notes}</p>
             </div>
           ) : null}
+          <AdminKycReviewControls
+            userId={profile.id}
+            kycStatus={profile.kyc_status}
+            kycRejectionReason={profile.kyc_rejection_reason}
+          />
         </SectionCard>
       </div>
 

@@ -2,11 +2,12 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { Ban, Eye, KeyRound, Loader2, Search, Shield } from 'lucide-react'
+import { Ban, Eye, KeyRound, Loader2, MessageSquarePlus, Search, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import {
   addAdminNote,
+  addKycReviewNote,
   adminDisableUserMfa,
   adminEnableUserMfaRequirement,
   updateUserAccountStatus,
@@ -17,6 +18,7 @@ import { formatDate } from '@/lib/data/format'
 import { cn } from '@/lib/utils'
 import { CustomSelect } from '@/components/ui/custom-select'
 import { useActionDialog } from '@/lib/hooks/useActionDialog'
+import { KYC_STATUS_OPTIONS, useKycStatusChange } from '@/lib/hooks/useKycStatusChange'
 
 const TIERS = ['Starter', 'Growth', 'Prime', 'Elite']
 
@@ -32,6 +34,12 @@ export function AdminUsersView({
   const [search, setSearch] = useState('')
   const [pending, startTransition] = useTransition()
   const { prompt, ActionDialog } = useActionDialog()
+  const {
+    changeKycStatus,
+    normalizeKycStatus,
+    pending: kycPending,
+    ActionDialog: KycActionDialog,
+  } = useKycStatusChange()
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
@@ -88,6 +96,25 @@ export function AdminUsersView({
         toast.success('Note added')
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to add note')
+      }
+    })
+  }
+
+  const handleKycNote = async (userId: string) => {
+    const note = await prompt({
+      title: 'Add KYC review comment',
+      label: 'Internal KYC comment',
+      required: true,
+      confirmLabel: 'Add comment',
+    })
+    if (!note) return
+
+    startTransition(async () => {
+      try {
+        await addKycReviewNote(userId, note)
+        toast.success('KYC comment added')
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to add KYC comment')
       }
     })
   }
@@ -201,7 +228,17 @@ export function AdminUsersView({
                         className="min-w-[6.5rem]"
                       />
                     </td>
-                    <td className="px-6 py-4 text-sm">{user.kyc_status}</td>
+                    <td className="px-6 py-4">
+                      <CustomSelect
+                        value={normalizeKycStatus(user.kyc_status)}
+                        disabled={pending || kycPending}
+                        onValueChange={(status) => changeKycStatus(user.id, user.kyc_status, status)}
+                        size="sm"
+                        options={[...KYC_STATUS_OPTIONS]}
+                        placeholder="KYC"
+                        className="min-w-[6.5rem]"
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <span
                         className={cn(
@@ -239,9 +276,18 @@ export function AdminUsersView({
                         <button
                           type="button"
                           disabled={pending}
+                          onClick={() => handleKycNote(user.id)}
+                          className="rounded-lg p-2 hover:bg-background"
+                          title="Add KYC comment"
+                        >
+                          <MessageSquarePlus className="h-4 w-4 text-primary" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={pending}
                           onClick={() => handleNote(user.id)}
                           className="rounded-lg p-2 hover:bg-background"
-                          title="Add note"
+                          title="Add admin note"
                         >
                           <Shield className="h-4 w-4 text-muted-foreground" />
                         </button>
@@ -290,6 +336,7 @@ export function AdminUsersView({
       </div>
 
       <ActionDialog />
+      <KycActionDialog />
     </div>
   )
 }
