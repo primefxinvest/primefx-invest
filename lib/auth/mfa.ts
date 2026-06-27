@@ -1,5 +1,5 @@
 import { getCurrentUser, supabase } from '@/lib/supabase'
-import { createTotpSetup, verifyTotpCode } from '@/lib/auth/totp'
+import { buildTotpUri, createTotpSetup, verifyTotpCode } from '@/lib/auth/totp'
 import {
   clearMfaSessionVerified,
   isMfaSessionVerified,
@@ -125,9 +125,8 @@ export async function startMfaEnrollment(email: string): Promise<{
         enrollment: {
           provider: 'supabase',
           factorId: data.id,
-          qrCode: data.totp.qr_code,
           secret: data.totp.secret,
-          uri: data.totp.uri,
+          uri: buildTotpUri(email, data.totp.secret),
         },
       }
     }

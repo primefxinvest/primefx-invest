@@ -41,9 +41,9 @@ export default function AppCTASection() {
                 </div>
               </div>
 
-              {/* Phone */}
-              <div className="flex justify-center md:justify-end">
-                <PhoneMockup />
+              {/* Phone — top half visible, bottom cropped */}
+              <div className="relative flex min-h-[280px] items-end justify-center overflow-hidden md:min-h-[300px] md:justify-end">
+                <PhoneMockup half />
               </div>
             </div>
           </div>

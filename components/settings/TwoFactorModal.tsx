@@ -171,6 +171,9 @@ export default function TwoFactorModal({
                   <p className="mt-3 text-xs text-gray-500">
                     Scan this QR code with your authenticator app
                   </p>
+                  <p className="mt-1 text-xs font-medium text-gray-700">
+                    PrimeFx Invest · {userEmail}
+                  </p>
                   <div className="mt-3 flex items-center justify-center gap-2">
                     <code className="rounded bg-white px-2 py-1 text-xs text-gray-700">
                       {enrollment.secret}

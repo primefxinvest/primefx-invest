@@ -2,20 +2,25 @@ import * as OTPAuth from 'otpauth'
 
 const ISSUER = 'PrimeFx Invest'
 
-export function createTotpSetup(email: string) {
-  const secret = new OTPAuth.Secret({ size: 20 })
+export function buildTotpUri(email: string, secret: string) {
   const totp = new OTPAuth.TOTP({
     issuer: ISSUER,
     label: email,
     algorithm: 'SHA1',
     digits: 6,
     period: 30,
-    secret,
+    secret: OTPAuth.Secret.fromBase32(secret),
   })
+
+  return totp.toString()
+}
+
+export function createTotpSetup(email: string) {
+  const secret = new OTPAuth.Secret({ size: 20 })
 
   return {
     secret: secret.base32,
-    uri: totp.toString(),
+    uri: buildTotpUri(email, secret.base32),
   }
 }
 
