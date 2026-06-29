@@ -6,7 +6,7 @@ import { getAdminUsers } from '@/lib/admin/queries'
 import { withAdminData } from '@/lib/admin/safe-query'
 
 export default async function AdminUsersPage() {
-  await requireAdminModule('user_management')
+  const adminContext = await requireAdminModule('user_management')
   const { data, error, configured } = await withAdminData(getAdminUsers, [])
 
   const mfaSummary =
@@ -22,7 +22,12 @@ export default async function AdminUsersPage() {
           {error}
         </div>
       ) : null}
-      <AdminUsersView users={data} mfaSummary={mfaSummary} dataReady={configured && !error} />
+      <AdminUsersView
+        users={data}
+        mfaSummary={mfaSummary}
+        dataReady={configured && !error}
+        currentAdminUserId={adminContext.userId}
+      />
     </>
   )
 }

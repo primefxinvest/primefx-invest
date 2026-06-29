@@ -14,6 +14,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
+import { walletDepositCta, walletTransferCta } from '@/components/wallet/layout/WalletSidePanels'
 import { TableSkeleton } from '@/components/shared/skeletons'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchWalletTransactions } from '@/lib/data/queries'
@@ -78,6 +79,9 @@ export default function WalletTransactionTable() {
     toast.info('Filters', { description: 'Advanced filters coming soon.' })
   }
 
+  const isTrulyEmpty = walletTransactions.length === 0
+  const hasFilter = activeTab !== 'All'
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -130,8 +134,23 @@ export default function WalletTransactionTable() {
         error={error}
         onRetry={reload}
         isEmpty={filtered.length === 0}
-        emptyTitle="No transactions found"
-        emptyDescription="Your wallet activity will appear here once you deposit or invest."
+        emptyTitle={isTrulyEmpty ? 'No transactions yet' : 'No matching transactions'}
+        emptyDescription={
+          isTrulyEmpty
+            ? 'Fund your wallet or send a transfer to start building your history.'
+            : hasFilter
+              ? 'Try a different tab or view all transactions.'
+              : 'No transactions match this filter yet.'
+        }
+        emptyAction={
+          isTrulyEmpty ? (
+            <div className="flex flex-wrap justify-center gap-2">
+              {walletDepositCta()}
+              {walletTransferCta()}
+            </div>
+          ) : undefined
+        }
+        errorTitle="Could not load transactions"
         skeleton={<TableSkeleton rows={5} cols={6} />}
         compact
       >

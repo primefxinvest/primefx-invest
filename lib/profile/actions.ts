@@ -16,6 +16,8 @@ const emptyProfile: UserProfile = {
   avatarUrl: getDefaultAvatarUrl('user'),
   tier: 'Investor',
   kycStatus: 'Pending',
+  isVerified: false,
+  verificationStatus: 'pending',
   twoFactorEnabled: false,
   memberSince: '—',
   emailVerified: false,
@@ -154,9 +156,21 @@ export async function getUserProfile(): Promise<UserProfile> {
     (metadata.kyc_status as string | undefined) ??
     'Pending'
 
-  const kycStatus =
-    kycRaw === 'Verified' || kycRaw === 'Rejected' || kycRaw === 'Pending'
-      ? kycRaw
+  const isVerified = Boolean(dbUser?.is_verified) || kycRaw === 'Verified'
+  const verificationRaw = String(
+    (dbUser?.verification_status as string | undefined) ?? 'pending'
+  ).toLowerCase()
+  const verificationStatus =
+    verificationRaw === 'approved' ||
+    verificationRaw === 'declined' ||
+    verificationRaw === 'expired'
+      ? verificationRaw
+      : 'pending'
+
+  const kycStatus: UserProfile['kycStatus'] = isVerified
+    ? 'Verified'
+    : verificationStatus === 'declined' || kycRaw === 'Rejected'
+      ? 'Rejected'
       : 'Pending'
 
   const mfaStatus = await getMfaStatus()
@@ -188,6 +202,8 @@ export async function getUserProfile(): Promise<UserProfile> {
       getDefaultAvatarUrl(authUser.id),
     tier: formatTierLabel(tier),
     kycStatus,
+    isVerified,
+    verificationStatus,
     twoFactorEnabled: mfaStatus.enabled,
     memberSince: formatMemberSince(
       (dbUser?.created_at as string | undefined) ?? authUser.created_at

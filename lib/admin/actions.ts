@@ -9,7 +9,12 @@ import {
   settleRejectedTransaction,
 } from '@/lib/payments/wallet-ledger'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
-import { assertModuleAccess, assertNotSelfTarget, getAdminContext } from './auth'
+import {
+  assertModuleAccess,
+  getAdminContext,
+  rejectSelfTarget,
+  type AdminMutationResult,
+} from './auth'
 import { logAdminAction } from './audit'
 import { DUAL_APPROVAL_THRESHOLD } from './permissions'
 import type { AccountStatus, AdminPlanRow } from './types'
@@ -30,10 +35,14 @@ async function getContext() {
   return context
 }
 
-export async function adminDisableUserMfa(userId: string, reason: string) {
+export async function adminDisableUserMfa(
+  userId: string,
+  reason: string
+): Promise<AdminMutationResult> {
   const context = await getContext()
   assertModuleAccess(context, 'user_management')
-  assertNotSelfTarget(context, userId)
+  const selfReject = rejectSelfTarget(context, userId)
+  if (selfReject) return selfReject
 
   await adminResetUserMfa(userId, reason)
 
@@ -50,10 +59,13 @@ export async function adminDisableUserMfa(userId: string, reason: string) {
   return { success: true }
 }
 
-export async function adminEnableUserMfaRequirement(userId: string) {
+export async function adminEnableUserMfaRequirement(
+  userId: string
+): Promise<AdminMutationResult> {
   const context = await getContext()
   assertModuleAccess(context, 'user_management')
-  assertNotSelfTarget(context, userId)
+  const selfReject = rejectSelfTarget(context, userId)
+  if (selfReject) return selfReject
 
   await adminReenableUserMfa(userId)
 
@@ -180,7 +192,6 @@ export async function updateUserKycStatus(
 ) {
   const context = await getContext()
   assertModuleAccess(context, 'kyc_aml_compliance')
-  assertNotSelfTarget(context, userId)
 
   if (status === 'Rejected' && !reasonCode?.trim()) {
     throw new Error('KYC rejections must include a documented reason code.')
@@ -273,10 +284,11 @@ export async function updateUserAccountStatus(
   userId: string,
   status: AccountStatus,
   reason?: string
-) {
+): Promise<AdminMutationResult> {
   const context = await getContext()
   assertModuleAccess(context, 'user_management')
-  assertNotSelfTarget(context, userId)
+  const selfReject = rejectSelfTarget(context, userId)
+  if (selfReject) return selfReject
 
   if ((status === 'suspended' || status === 'banned') && !reason?.trim()) {
     throw new Error('User bans and suspensions must be logged with justification.')
@@ -311,10 +323,14 @@ export async function updateUserAccountStatus(
   return { success: true }
 }
 
-export async function updateUserInvestorTier(userId: string, tier: string) {
+export async function updateUserInvestorTier(
+  userId: string,
+  tier: string
+): Promise<AdminMutationResult> {
   const context = await getContext()
   assertModuleAccess(context, 'user_management')
-  assertNotSelfTarget(context, userId)
+  const selfReject = rejectSelfTarget(context, userId)
+  if (selfReject) return selfReject
 
   const db = getDb()
   const { data: before } = await db.from('users').select('*').eq('id', userId).single()

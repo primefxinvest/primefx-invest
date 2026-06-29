@@ -1,12 +1,18 @@
 'use server'
 
 import { createAdminSupabaseClient, getServiceRoleKeyIssue } from '@/lib/supabase/admin-server'
+import {
+  ensureUserReferralCode,
+  normalizeReferralCode,
+  recordReferralForNewUser,
+} from '@/lib/referral/server'
 
 export async function bootstrapUserProfile(input: {
   userId: string
   email: string
   fullName: string
   investorTier: string
+  referralCode?: string | null
 }): Promise<{ success: boolean; error?: string }> {
   const admin = createAdminSupabaseClient()
   const keyIssue = getServiceRoleKeyIssue()
@@ -19,6 +25,8 @@ export async function bootstrapUserProfile(input: {
           : 'Server profile setup is not configured. Add the real SUPABASE_SERVICE_ROLE_KEY to .env and run migration 005_signup_bootstrap.sql.',
     }
   }
+
+  const referralCode = normalizeReferralCode(input.referralCode)
 
   const { error: userError } = await admin.from('users').upsert(
     {
@@ -33,6 +41,8 @@ export async function bootstrapUserProfile(input: {
   if (userError) {
     return { success: false, error: userError.message }
   }
+
+  await ensureUserReferralCode(input.userId, input.fullName)
 
   const { error: walletError } = await admin.from('wallet_balances').upsert(
     {
@@ -64,6 +74,8 @@ export async function bootstrapUserProfile(input: {
       return { success: false, error: portfolioError.message }
     }
   }
+
+  await recordReferralForNewUser(input.userId, referralCode)
 
   return { success: true }
 }

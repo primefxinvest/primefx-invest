@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ArrowDownLeft, ArrowUpRight, Gift, Send } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
+import { StatusCardGrid } from '@/components/shared/status-cards'
 import { MetricCardsSkeleton } from '@/components/shared/skeletons'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchWalletActivitySummary } from '@/lib/data/queries'
@@ -68,10 +69,11 @@ export default function WalletActivitySummary() {
         loading={loading}
         error={error}
         onRetry={reload}
+        errorTitle="Could not load activity summary"
         skeleton={<MetricCardsSkeleton count={4} />}
         compact
       >
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <StatusCardGrid columns={4}>
           {items.map((item) => {
             const Icon = item.icon
             const data = summary?.[item.key]
@@ -79,25 +81,25 @@ export default function WalletActivitySummary() {
             return (
               <div
                 key={item.key}
-                className="rounded-xl border border-gray-100 bg-gray-50/50 p-4"
+                className="rounded-xl border border-gray-100 bg-gray-50/50 p-3 sm:p-4"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <p className="text-xs text-gray-500">{item.label}</p>
-                    <p className="mt-1 text-lg font-bold text-gray-900">{data?.value ?? '$0.00'}</p>
-                    <p className={cn('mt-1 text-[11px] font-semibold', item.trendColor)}>
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] text-gray-500 sm:text-xs">{item.label}</p>
+                    <p className="mt-1 text-base font-bold text-gray-900 sm:text-lg">{data?.value ?? '$0.00'}</p>
+                    <p className={cn('mt-0.5 text-[10px] font-semibold sm:text-[11px]', item.trendColor)}>
                       {data?.change ?? '0%'}{' '}
                       <span className="font-normal text-gray-400">vs last month</span>
                     </p>
                   </div>
-                  <div className={cn('flex h-9 w-9 items-center justify-center rounded-lg', item.iconBg)}>
+                  <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-9 sm:w-9', item.iconBg)}>
                     <Icon className="h-4 w-4" />
                   </div>
                 </div>
               </div>
             )
           })}
-        </div>
+        </StatusCardGrid>
       </AsyncState>
     </div>
   )

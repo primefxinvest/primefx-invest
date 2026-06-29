@@ -18,7 +18,7 @@ export function AdminShell({ context, children }: AdminShellProps) {
 
   return (
     <div className="flex h-screen bg-background">
-      <div className="flex w-64 flex-col border-r border-border bg-card">
+      <div className="flex w-72 shrink-0 flex-col border-r border-border bg-card">
         <div className="border-b border-border p-6">
           <Logo href="/admin" tagline="ADMIN" size={40} />
         </div>
@@ -30,8 +30,8 @@ export function AdminShell({ context, children }: AdminShellProps) {
             href="/dashboard"
             className="flex items-center gap-3 rounded-lg px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-gray-100 hover:text-foreground"
           >
-            <LogOut className="h-5 w-5" />
-            <span>Back to App</span>
+            <LogOut className="h-5 w-5 shrink-0" />
+            <span className="whitespace-nowrap">Back to App</span>
           </Link>
         </div>
       </div>

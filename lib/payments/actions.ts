@@ -52,6 +52,9 @@ export async function initiateDeposit(input: {
 
   if (result.success) {
     revalidatePath('/wallet')
+    revalidatePath('/wallet/deposit')
+    revalidatePath('/wallet/withdraw')
+    revalidatePath('/wallet/transfer')
     revalidatePath('/transactions')
   }
 
@@ -86,6 +89,9 @@ export async function initiateWithdrawal(input: {
 
   if (result.success) {
     revalidatePath('/wallet')
+    revalidatePath('/wallet/deposit')
+    revalidatePath('/wallet/withdraw')
+    revalidatePath('/wallet/transfer')
     revalidatePath('/transactions')
   }
 

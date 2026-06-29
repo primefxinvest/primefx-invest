@@ -52,8 +52,8 @@ export function AdminNav({ tier, pathname }: AdminNavProps) {
                 : 'text-muted-foreground hover:bg-gray-100 hover:text-foreground'
             )}
           >
-            <Icon className="h-5 w-5" />
-            <span>{label}</span>
+            <Icon className="h-5 w-5 shrink-0" />
+            <span className="whitespace-nowrap">{label}</span>
           </Link>
         )
       })}

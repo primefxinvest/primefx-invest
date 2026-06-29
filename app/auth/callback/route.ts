@@ -1,25 +1,13 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { bootstrapUserProfile } from '@/lib/auth/bootstrap-profile'
-import { getSupabaseAnonKey, getSupabaseUrl } from '@/lib/supabase/config'
-
-function createCallbackClient(request: NextRequest, response: NextResponse) {
-  return createServerClient(getSupabaseUrl(), getSupabaseAnonKey(), {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll()
-      },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options)
-        })
-      },
-    },
-  })
-}
+import { sanitizeRedirectPath } from '@/lib/auth/session'
+import {
+  createRouteHandlerSupabaseClient,
+  getRequestOrigin,
+} from '@/lib/supabase/route-handler'
 
 function loginErrorRedirect(request: NextRequest, code: string, message?: string) {
-  const loginUrl = new URL('/login', request.url)
+  const loginUrl = new URL('/login', getRequestOrigin(request))
   loginUrl.searchParams.set('error', code)
   if (message) {
     loginUrl.searchParams.set('message', message.slice(0, 240))
@@ -28,7 +16,7 @@ function loginErrorRedirect(request: NextRequest, code: string, message?: string
 }
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url)
+  const { searchParams } = request.nextUrl
   const providerError = searchParams.get('error')
   const providerErrorDescription = searchParams.get('error_description')
 
@@ -41,16 +29,17 @@ export async function GET(request: NextRequest) {
   }
 
   const code = searchParams.get('code')
-  const redirect = searchParams.get('redirect')
-  const nextPath = redirect?.startsWith('/') ? redirect : '/dashboard'
+  const nextPath = sanitizeRedirectPath(searchParams.get('redirect'))
 
   if (!code) {
     return loginErrorRedirect(request, 'oauth_missing_code')
   }
 
-  const successUrl = new URL(nextPath, request.url)
-  const response = NextResponse.redirect(successUrl)
-  const supabase = createCallbackClient(request, response)
+  const successUrl = new URL(nextPath, getRequestOrigin(request))
+  const { supabase, applyCookiesTo } = createRouteHandlerSupabaseClient(
+    request,
+    () => NextResponse.redirect(successUrl)
+  )
 
   const { error } = await supabase.auth.exchangeCodeForSession(code)
 
@@ -80,5 +69,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return response
+  return applyCookiesTo(NextResponse.redirect(successUrl))
 }

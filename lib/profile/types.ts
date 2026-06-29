@@ -8,6 +8,8 @@ export interface UserProfile {
   avatarUrl: string
   tier: string
   kycStatus: 'Verified' | 'Pending' | 'Rejected'
+  isVerified: boolean
+  verificationStatus: 'pending' | 'approved' | 'declined' | 'expired'
   twoFactorEnabled: boolean
   memberSince: string
   emailVerified: boolean

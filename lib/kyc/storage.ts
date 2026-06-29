@@ -18,9 +18,11 @@ export async function signKycDocumentPaths(
     }
   }
 
+  const client = admin
+
   async function sign(path: string | null | undefined) {
     if (!path) return null
-    const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(path, 3600)
+    const { data, error } = await client.storage.from(BUCKET).createSignedUrl(path, 3600)
     if (error || !data?.signedUrl) return null
     return data.signedUrl
   }

@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { needsMfaChallenge } from '@/lib/auth/mfa'
 import { MFA_VERIFY_ROUTE } from '@/lib/auth/routes'
 import { AppSessionSkeleton } from '@/components/shared/skeletons'

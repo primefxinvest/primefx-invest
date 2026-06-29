@@ -2,6 +2,7 @@
 
 import { Wallet, Clock, Gift } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
+import { StatusCardGrid, statusCardSurfaceClass } from '@/components/shared/status-cards'
 import { MetricCardsSkeleton } from '@/components/shared/skeletons'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchWalletData } from '@/lib/data/queries'
@@ -49,30 +50,32 @@ export default function WalletBalanceCards() {
       loading={loading}
       error={error}
       onRetry={reload}
+      errorTitle="Could not load wallet balances"
       skeleton={<MetricCardsSkeleton />}
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <StatusCardGrid columns={4}>
         {balanceCards.map((card) => {
           const Icon = card.icon
           return (
-            <div
-              key={card.label}
-              className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm text-gray-500">{card.label}</p>
-                  <p className="mt-1 text-2xl font-bold text-gray-900">{card.value}</p>
-                  <p className={`mt-1 text-xs font-medium ${card.subtextColor}`}>{card.subtext}</p>
+            <div key={card.label} className={statusCardSurfaceClass}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] text-gray-500 sm:text-sm">{card.label}</p>
+                  <p className="mt-1 text-lg font-bold text-gray-900 sm:text-2xl">{card.value}</p>
+                  <p className={`mt-0.5 text-[10px] font-medium sm:text-xs ${card.subtextColor}`}>
+                    {card.subtext}
+                  </p>
                 </div>
-                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${card.iconBg}`}>
-                  <Icon className="h-5 w-5" />
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg sm:h-10 sm:w-10 sm:rounded-xl ${card.iconBg}`}
+                >
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                 </div>
               </div>
             </div>
           )
         })}
-      </div>
+      </StatusCardGrid>
     </AsyncState>
   )
 }

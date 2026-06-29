@@ -18,11 +18,41 @@ export const SITE_KEYWORDS = [
   'PrimeAI',
 ] as const
 
+const DEFAULT_SITE_URL = 'http://localhost:3000'
+
+function normalizeSiteOrigin(candidate: string | undefined): string | null {
+  const trimmed = candidate?.trim()
+  if (!trimmed) return null
+
+  let value = trimmed.replace(/\/$/, '')
+
+  if (!/^https?:\/\//i.test(value)) {
+    value = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(value)
+      ? `http://${value}`
+      : `https://${value}`
+  }
+
+  try {
+    const url = new URL(value)
+    if (!url.hostname) return null
+    return url.origin
+  } catch {
+    return null
+  }
+}
+
 export function getSiteUrl(): string {
-  const fromEnv = process.env.NEXT_PUBLIC_APP_URL?.trim()
-  if (fromEnv) return fromEnv.replace(/\/$/, '')
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
-  return 'http://localhost:3000'
+  const candidates = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+  ]
+
+  for (const candidate of candidates) {
+    const origin = normalizeSiteOrigin(candidate)
+    if (origin) return origin
+  }
+
+  return DEFAULT_SITE_URL
 }
 
 export function absoluteUrl(path = '/'): string {

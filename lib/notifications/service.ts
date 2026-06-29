@@ -92,6 +92,29 @@ export async function notifyWithdrawalCompleted(userId: string, amountUsd: numbe
   })
 }
 
+export async function notifyTransferCompleted(
+  senderId: string,
+  recipientId: string,
+  amountUsd: number,
+  referenceId: string
+) {
+  await createUserNotification({
+    userId: senderId,
+    title: 'Transfer sent',
+    message: `You sent $${amountUsd.toFixed(2)} successfully.`,
+    type: 'wallet',
+    metadata: { referenceId, amountUsd, event: 'transfer_sent' },
+  })
+
+  await createUserNotification({
+    userId: recipientId,
+    title: 'Transfer received',
+    message: `You received $${amountUsd.toFixed(2)} in your wallet.`,
+    type: 'wallet',
+    metadata: { referenceId, amountUsd, event: 'transfer_received' },
+  })
+}
+
 export async function notifyInvestmentCreated(
   userId: string,
   planName: string,

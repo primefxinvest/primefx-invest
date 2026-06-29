@@ -28,7 +28,13 @@ export const PROTECTED_ROUTE_PREFIXES = [
   '/notifications',
   '/settings',
   '/profile',
+  '/verify',
   '/admin',
+] as const
+
+export const VERIFICATION_REQUIRED_ROUTE_PREFIXES = [
+  '/wallet',
+  '/invest',
 ] as const
 
 export function isAuthRoute(pathname: string) {
@@ -41,6 +47,12 @@ export function isMfaVerifyRoute(pathname: string) {
 
 export function isProtectedRoute(pathname: string) {
   return PROTECTED_ROUTE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  )
+}
+
+export function requiresIdentityVerification(pathname: string) {
+  return VERIFICATION_REQUIRED_ROUTE_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   )
 }

@@ -89,6 +89,7 @@ export interface RewardAchievement {
 
 export interface ReferralData {
   referralLink: string
+  referralCode: string
   totalReferrals: number
   totalEarnings: string
 }

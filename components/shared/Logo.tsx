@@ -1,5 +1,6 @@
 import Image from 'next/image'
-import Link from 'next/link'
+import NextLink from 'next/link'
+import { Link as I18nLink } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
 interface LogoProps {
@@ -31,10 +32,11 @@ export default function Logo({ href, showText = true, tagline = 'INVEST', size =
   )
 
   if (href) {
+    const LinkComponent = href.startsWith('/admin') ? NextLink : I18nLink
     return (
-      <Link href={href} className="hover:opacity-90 transition-opacity">
+      <LinkComponent href={href} className="hover:opacity-90 transition-opacity">
         {content}
-      </Link>
+      </LinkComponent>
     )
   }
 

@@ -1,7 +1,5 @@
 'use client'
 
-import { supabase } from '@/lib/supabase'
-
 type AuthErrorLike = {
   message?: string
   msg?: string
@@ -27,7 +25,7 @@ export function formatGoogleAuthError(error: unknown): string {
   }
 
   if (normalized.includes('redirect') && normalized.includes('url')) {
-    return 'Google redirect URL is not configured. Add http://localhost:3000/auth/callback (and your production URL) under Supabase → Authentication → URL Configuration → Redirect URLs.'
+    return 'Google redirect URL is not configured. Add https://www.primefxinvest.com/auth/callback (and http://localhost:3000/auth/callback) under Supabase → Authentication → URL Configuration → Redirect URLs.'
   }
 
   if (
@@ -45,23 +43,13 @@ export function isGoogleAuthEnabled() {
   return process.env.NEXT_PUBLIC_GOOGLE_AUTH_ENABLED === 'true'
 }
 
-export async function signInWithGoogle(redirectTo = '/dashboard') {
+/**
+ * Starts Google OAuth on the server so the PKCE verifier is stored in cookies
+ * (required for exchangeCodeForSession in /auth/callback).
+ */
+export function signInWithGoogle(redirectTo = '/dashboard') {
   const safeRedirect = redirectTo.startsWith('/') ? redirectTo : '/dashboard'
-  const callbackUrl = new URL('/auth/callback', window.location.origin)
-  callbackUrl.searchParams.set('redirect', safeRedirect)
-
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: callbackUrl.toString(),
-      queryParams: {
-        access_type: 'online',
-        prompt: 'select_account',
-      },
-    },
-  })
-
-  if (error) {
-    throw error
-  }
+  const url = new URL('/auth/login/google', window.location.origin)
+  url.searchParams.set('redirect', safeRedirect)
+  window.location.assign(url.toString())
 }

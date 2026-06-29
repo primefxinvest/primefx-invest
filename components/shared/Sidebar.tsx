@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { Link, usePathname } from '@/i18n/navigation'
 import { logout } from '@/lib/auth/logout'
 import Logo from '@/components/shared/Logo'
 import SidebarUpgradeCard from '@/components/shared/SidebarUpgradeCard'
@@ -30,12 +30,19 @@ import {
   Scale,
   Lock,
   X,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { useInvestorTier } from '@/lib/hooks/useInvestorTier'
 import { canAccessRoute } from '@/lib/investor/tiers'
 import { INVESTOR_NAV_ITEMS } from '@/lib/investor/navigation'
+import {
+  isWalletNavActive,
+  isWalletSectionActive,
+  WALLET_NAV_ITEMS,
+} from '@/lib/wallet/navigation'
 import { fetchNotifications } from '@/lib/data/queries'
 
 const navIconMap = {
@@ -55,17 +62,38 @@ const navIconMap = {
 } as const
 
 const bottomNavItems = [
-  { href: '/notifications', label: 'Notifications', icon: Bell },
-  { href: '/profile', label: 'Profile', icon: User },
-  { href: '/settings', label: 'Settings', icon: Settings },
-  { href: '/about', label: 'About', icon: HelpCircle },
-  { href: '/legal', label: 'Legal', icon: Scale },
-]
+  { href: '/notifications', labelKey: 'notifications', icon: Bell },
+  { href: '/profile', labelKey: 'profile', icon: User },
+  { href: '/settings', labelKey: 'settings', icon: Settings },
+  { href: '/about', labelKey: 'about', icon: HelpCircle },
+  { href: '/legal', labelKey: 'legal', icon: Scale },
+] as const
+
+const SIDEBAR_LABEL_KEYS: Record<string, string> = {
+  '/dashboard': 'dashboard',
+  '/invest': 'invest',
+  '/portfolio': 'portfolio',
+  '/wallet': 'wallet',
+  '/transactions': 'transactions',
+  '/primeai': 'primeai',
+  '/academy': 'academy',
+  '/reports': 'reports',
+  '/rewards': 'rewards',
+  '/community': 'community',
+  '/referral': 'referral',
+  '/market-insights': 'marketInsights',
+  '/support': 'support',
+  '/wallet/deposit': 'deposit',
+  '/wallet/withdraw': 'withdraw',
+  '/wallet/transfer': 'transfer',
+}
 
 export default function Sidebar() {
+  const t = useTranslations('sidebar')
   const pathname = usePathname()
   const { open, close } = useMobileNav()
   const [loggingOut, setLoggingOut] = useState(false)
+  const [walletOpen, setWalletOpen] = useState(() => isWalletSectionActive(pathname))
   const { tierKey } = useInvestorTier()
   const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [])
   const unreadCount = (notifications ?? []).filter((n) => !n.read).length
@@ -73,6 +101,12 @@ export default function Sidebar() {
   useEffect(() => {
     close()
   }, [pathname, close])
+
+  useEffect(() => {
+    if (isWalletSectionActive(pathname)) {
+      setWalletOpen(true)
+    }
+  }, [pathname])
 
   const handleLogout = async () => {
     if (loggingOut) return
@@ -117,7 +151,6 @@ export default function Sidebar() {
         <div className="space-y-0.5">
           {INVESTOR_NAV_ITEMS.map((item) => {
             const Icon = navIconMap[item.href as keyof typeof navIconMap] ?? Home
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
             const locked = item.requiredTier ? !canAccessRoute(tierKey, item.href) : false
 
             if (locked) {
@@ -128,11 +161,72 @@ export default function Sidebar() {
                   className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-400"
                 >
                   <Icon className="h-5 w-5 shrink-0 opacity-50" />
-                  <span className="flex-1">{item.label}</span>
+                  <span className="flex-1">{t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}</span>
                   <Lock className="h-3.5 w-3.5 shrink-0" />
                 </div>
               )
             }
+
+            if (item.href === '/wallet') {
+              const walletActive = isWalletSectionActive(pathname)
+
+              return (
+                <div key={item.href} className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setWalletOpen((current) => !current)}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                      walletActive
+                        ? 'bg-[#0052ff] text-white shadow-sm'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    )}
+                  >
+                    <Wallet className="h-5 w-5 shrink-0" />
+                    <span className="flex-1 text-left">{t('wallet')}</span>
+                    {walletOpen ? (
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-80" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 shrink-0 opacity-80" />
+                    )}
+                  </button>
+
+                  {walletOpen ? (
+                    <div className="ml-4 space-y-0.5 border-l border-gray-200 pl-2">
+                      {WALLET_NAV_ITEMS.map((subItem) => {
+                        const subActive = isWalletNavActive(pathname, subItem.href)
+                        return (
+                          <Link key={subItem.href} href={subItem.href}>
+                            <div
+                              className={cn(
+                                'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                                subActive
+                                  ? 'bg-blue-50 text-[#0052ff]'
+                                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                              )}
+                            >
+                              {subActive ? (
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0052ff]" />
+                              ) : (
+                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-transparent" />
+                              )}
+                              {t(
+                                (SIDEBAR_LABEL_KEYS[subItem.href] ??
+                                  (subItem.href === '/wallet'
+                                    ? 'overview'
+                                    : 'transactions')) as 'overview'
+                              )}
+                            </div>
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  ) : null}
+                </div>
+              )
+            }
+
+            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
 
             return (
               <Link key={item.href} href={item.href}>
@@ -145,7 +239,7 @@ export default function Sidebar() {
                   )}
                 >
                   <Icon className="h-5 w-5 shrink-0" />
-                  <span>{item.label}</span>
+                  <span>{t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}</span>
                 </div>
               </Link>
             )
@@ -168,7 +262,7 @@ export default function Sidebar() {
                   )}
                 >
                   <Icon className="h-5 w-5 shrink-0" />
-                  <span className="flex-1">{item.label}</span>
+                  <span className="flex-1">{t(item.labelKey)}</span>
                   {item.href === '/notifications' && unreadCount > 0 && (
                     <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                       {unreadCount > 9 ? '9+' : unreadCount}
@@ -191,7 +285,7 @@ export default function Sidebar() {
           className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-60"
         >
           <LogOut className="h-5 w-5" />
-          <span>{loggingOut ? 'Logging out...' : 'Logout'}</span>
+          <span>{loggingOut ? t('loggingOut') : t('logout')}</span>
         </button>
       </div>
     </aside>

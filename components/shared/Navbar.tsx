@@ -1,13 +1,14 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useState, type ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 import { Bell, Gift, Menu, Search } from 'lucide-react'
+import { Link } from '@/i18n/navigation'
 import {
   DashboardCommandMenu,
   useDashboardCommandMenu,
 } from '@/components/shared/DashboardCommandMenu'
-import { NavbarLanguageMenu } from '@/components/shared/NavbarLanguageMenu'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { useMobileNav } from '@/components/shared/MobileNavContext'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
@@ -53,6 +54,7 @@ function NavIconButton({
 }
 
 export default function Navbar() {
+  const t = useTranslations('navbar')
   const user = useSessionUser()
   const { open, setOpen } = useDashboardCommandMenu()
   const { toggle: toggleMobileNav } = useMobileNav()
@@ -67,7 +69,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={toggleMobileNav}
-            aria-label="Open navigation menu"
+            aria-label={t('openMenu')}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
           >
             <Menu className="size-5" />
@@ -76,7 +78,7 @@ export default function Navbar() {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            aria-label="Search"
+            aria-label={t('search')}
             className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 lg:hidden"
           >
             <Search className="size-4" />
@@ -92,7 +94,7 @@ export default function Navbar() {
           >
             <Search className="size-4 shrink-0 text-gray-400" />
             <span className="min-w-0 flex-1 truncate text-sm text-gray-500">
-              Search plans, insights, reports...
+              {t('searchPlaceholder')}
             </span>
             <kbd className="hidden shrink-0 rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-400 md:inline">
               {shortcut}
@@ -101,15 +103,15 @@ export default function Navbar() {
 
           <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             <div className="flex items-center gap-0.5">
-              <NavIconButton href="/rewards" label="Rewards">
+              <NavIconButton href="/rewards" label={t('rewards')}>
                 <Gift className="size-[18px]" />
               </NavIconButton>
 
-              <NavIconButton href="/notifications" label="Notifications" badge={unreadCount}>
+              <NavIconButton href="/notifications" label={t('notifications')} badge={unreadCount}>
                 <Bell className="size-[18px]" />
               </NavIconButton>
 
-              <NavbarLanguageMenu />
+              <LanguageSwitcher />
             </div>
 
             <Link

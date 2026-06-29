@@ -10,7 +10,7 @@ function staggerDelay(index: number, step = 70) {
 
 export function MetricCardsSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className={SKELETON_CARD}>
           <div className="flex items-start justify-between gap-3">
@@ -266,7 +266,7 @@ function QuickActionsSkeleton() {
 
 function StatusCardsSkeleton({ count = 4 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
       {Array.from({ length: count }).map((_, index) => (
         <div key={index} className="rounded-xl border border-gray-200/90 bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">

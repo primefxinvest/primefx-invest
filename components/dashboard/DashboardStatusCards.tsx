@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { BookOpen, Share2, Shield, Trophy } from 'lucide-react'
+import { StatusCardGrid, statusCardSurfaceClass } from '@/components/shared/status-cards'
 import type { LearningProgress, ReferralData, RewardsData } from '@/lib/data/types'
 
 interface DashboardStatusCardsProps {
@@ -14,8 +15,8 @@ export default function DashboardStatusCards({
   learning,
 }: DashboardStatusCardsProps) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <StatusCardGrid columns={4}>
+      <div className={statusCardSurfaceClass}>
         <div className="mb-3 flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50">
             <Trophy className="h-4 w-4 text-orange-500" />
@@ -33,7 +34,7 @@ export default function DashboardStatusCards({
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className={statusCardSurfaceClass}>
         <div className="mb-3 flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50">
             <Share2 className="h-4 w-4 text-emerald-600" />
@@ -53,7 +54,7 @@ export default function DashboardStatusCards({
         </Link>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className={statusCardSurfaceClass}>
         <div className="mb-3 flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
             <BookOpen className="h-4 w-4 text-[#0052ff]" />
@@ -79,7 +80,7 @@ export default function DashboardStatusCards({
         </Link>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className={statusCardSurfaceClass}>
         <div className="mb-3 flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50">
             <Shield className="h-4 w-4 text-emerald-500" />
@@ -94,6 +95,6 @@ export default function DashboardStatusCards({
           <div className="h-full w-[92%] rounded-full bg-emerald-500" />
         </div>
       </div>
-    </div>
+    </StatusCardGrid>
   )
 }

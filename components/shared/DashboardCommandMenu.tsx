@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { Search, X } from 'lucide-react'
 import { INVESTOR_NAV_ITEMS } from '@/lib/investor/navigation'
 import { cn } from '@/lib/utils'

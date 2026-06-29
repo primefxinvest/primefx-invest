@@ -14,6 +14,7 @@ import {
   updateUserInvestorTier,
 } from '@/lib/admin/actions'
 import type { AdminUserRow } from '@/lib/admin/types'
+import { isAdminMutationFailure } from '@/lib/admin/mutation-result'
 import { formatDate } from '@/lib/data/format'
 import { cn } from '@/lib/utils'
 import { CustomSelect } from '@/components/ui/custom-select'
@@ -26,10 +27,12 @@ export function AdminUsersView({
   users,
   mfaSummary = {},
   dataReady = true,
+  currentAdminUserId,
 }: {
   users: AdminUserRow[]
   mfaSummary?: Record<string, { bypassed: boolean; factorCount: number }>
   dataReady?: boolean
+  currentAdminUserId?: string
 }) {
   const [search, setSearch] = useState('')
   const [pending, startTransition] = useTransition()
@@ -54,7 +57,11 @@ export function AdminUsersView({
   const handleTierChange = (userId: string, tier: string) => {
     startTransition(async () => {
       try {
-        await updateUserInvestorTier(userId, tier)
+        const result = await updateUserInvestorTier(userId, tier)
+        if (isAdminMutationFailure(result)) {
+          toast.error(result.error)
+          return
+        }
         toast.success('Investor tier updated')
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to update tier')
@@ -73,7 +80,11 @@ export function AdminUsersView({
 
     startTransition(async () => {
       try {
-        await updateUserAccountStatus(userId, 'suspended', reason)
+        const result = await updateUserAccountStatus(userId, 'suspended', reason)
+        if (isAdminMutationFailure(result)) {
+          toast.error(result.error)
+          return
+        }
         toast.success('Account suspended')
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to suspend account')
@@ -131,7 +142,11 @@ export function AdminUsersView({
 
     startTransition(async () => {
       try {
-        await adminDisableUserMfa(userId, reason)
+        const result = await adminDisableUserMfa(userId, reason)
+        if (isAdminMutationFailure(result)) {
+          toast.error(result.error)
+          return
+        }
         toast.success('2FA reset — user can sign in without authenticator')
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to reset 2FA')
@@ -142,7 +157,11 @@ export function AdminUsersView({
   const handleRestoreMfa = (userId: string) => {
     startTransition(async () => {
       try {
-        await adminEnableUserMfaRequirement(userId)
+        const result = await adminEnableUserMfaRequirement(userId)
+        if (isAdminMutationFailure(result)) {
+          toast.error(result.error)
+          return
+        }
         toast.success('2FA requirement restored — user can enroll again in settings')
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to restore 2FA requirement')
@@ -206,6 +225,7 @@ export function AdminUsersView({
             ) : (
               filtered.map((user) => {
                 const mfa = getMfaLabel(user)
+                const isSelf = currentAdminUserId === user.id
                 return (
                   <tr key={user.id} className="hover:bg-background">
                     <td className="px-6 py-4 text-foreground">
@@ -220,7 +240,7 @@ export function AdminUsersView({
                     <td className="px-6 py-4">
                       <CustomSelect
                         value={user.investor_tier ?? 'Starter'}
-                        disabled={pending}
+                        disabled={pending || isSelf}
                         onValueChange={(tier) => handleTierChange(user.id, tier)}
                         size="sm"
                         options={TIERS.map((tier) => ({ value: tier, label: tier }))}
@@ -294,30 +314,36 @@ export function AdminUsersView({
                         {user.mfa_disabled_at ? (
                           <button
                             type="button"
-                            disabled={pending}
+                            disabled={pending || isSelf}
                             onClick={() => handleRestoreMfa(user.id)}
-                            className="rounded-lg p-2 hover:bg-background"
-                            title="Restore 2FA requirement"
+                            className="rounded-lg p-2 hover:bg-background disabled:cursor-not-allowed disabled:opacity-40"
+                            title={
+                              isSelf
+                                ? 'You cannot change 2FA on your own account'
+                                : 'Restore 2FA requirement'
+                            }
                           >
                             <KeyRound className="h-4 w-4 text-primary" />
                           </button>
                         ) : (
                           <button
                             type="button"
-                            disabled={pending}
+                            disabled={pending || isSelf}
                             onClick={() => handleResetMfa(user.id, user.email)}
-                            className="rounded-lg p-2 hover:bg-background"
-                            title="Reset / disable 2FA"
+                            className="rounded-lg p-2 hover:bg-background disabled:cursor-not-allowed disabled:opacity-40"
+                            title={
+                              isSelf ? 'You cannot reset 2FA on your own account' : 'Reset / disable 2FA'
+                            }
                           >
                             <KeyRound className="h-4 w-4 text-amber-600" />
                           </button>
                         )}
                         <button
                           type="button"
-                          disabled={pending || user.account_status !== 'active'}
+                          disabled={pending || user.account_status !== 'active' || isSelf}
                           onClick={() => handleSuspend(user.id)}
-                          className="rounded-lg p-2 hover:bg-background"
-                          title="Suspend"
+                          className="rounded-lg p-2 hover:bg-background disabled:cursor-not-allowed disabled:opacity-40"
+                          title={isSelf ? 'You cannot suspend your own account' : 'Suspend'}
                         >
                           {pending ? (
                             <Loader2 className="h-4 w-4 animate-spin" />

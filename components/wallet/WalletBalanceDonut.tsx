@@ -28,6 +28,7 @@ export default function WalletBalanceDonut() {
         loading={loading}
         error={error}
         onRetry={reload}
+        errorTitle="Could not load balance overview"
         isEmpty={chartData.length === 0}
         emptyTitle="No balance data"
         emptyDescription="Fund your wallet to see balance distribution."

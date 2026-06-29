@@ -39,6 +39,7 @@ import {
   formatChartMonth,
 } from '@/components/admin/AdminChartTooltips'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { StatusCardGrid } from '@/components/shared/status-cards'
 import {
   chartAxisStyle,
   chartGridStyle,
@@ -94,19 +95,19 @@ function MetricCard({
   const content = (
     <div
       className={cn(
-        'group rounded-xl border border-border bg-card p-5 transition-all duration-200',
+        'group rounded-xl border border-border bg-card p-3 transition-all duration-200 sm:p-4 xl:p-5',
         href && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg',
         href && accentRing
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-2 text-2xl font-bold tracking-tight text-foreground">{value}</p>
-          {sub ? <p className="mt-1 text-xs text-muted-foreground">{sub}</p> : null}
+      <div className="flex items-start justify-between gap-2 sm:gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-[11px] text-muted-foreground sm:text-sm">{label}</p>
+          <p className="mt-1 text-lg font-bold tracking-tight text-foreground sm:mt-2 sm:text-2xl">{value}</p>
+          {sub ? <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground sm:mt-1 sm:text-xs">{sub}</p> : null}
         </div>
-        <div className="rounded-lg bg-primary/10 p-2.5 transition-colors group-hover:bg-primary/15">
-          <Icon className="h-5 w-5 text-primary" />
+        <div className="rounded-lg bg-primary/10 p-2 transition-colors group-hover:bg-primary/15 sm:p-2.5">
+          <Icon className="h-4 w-4 text-primary sm:h-5 sm:w-5" />
         </div>
       </div>
       {href ? (
@@ -248,7 +249,7 @@ export function AdminDashboardView({ metrics }: { metrics: AdminDashboardMetrics
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <StatusCardGrid columns={4}>
         <MetricCard
           label="Total Users"
           value={metrics.totalUsers.toLocaleString()}
@@ -278,7 +279,7 @@ export function AdminDashboardView({ metrics }: { metrics: AdminDashboardMetrics
           icon={BarChart3}
           href="/admin/analytics"
         />
-      </div>
+      </StatusCardGrid>
 
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-3">
         <div className="rounded-xl border border-border bg-card p-6 xl:col-span-2">
@@ -360,10 +361,8 @@ export function AdminDashboardView({ metrics }: { metrics: AdminDashboardMetrics
                     cx="50%"
                     cy="50%"
                     innerRadius={52}
-                    outerRadius={92}
+                    outerRadius={activeTierIndex !== undefined ? 100 : 92}
                     paddingAngle={3}
-                    activeIndex={activeTierIndex}
-                    activeShape={{ outerRadius: 100, stroke: '#fff', strokeWidth: 2 }}
                     onMouseEnter={(_, index) => setActiveTierIndex(index)}
                     onMouseLeave={() => setActiveTierIndex(undefined)}
                   >

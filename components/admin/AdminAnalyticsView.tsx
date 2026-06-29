@@ -30,6 +30,7 @@ import {
   formatChartMonth,
 } from '@/components/admin/AdminChartTooltips'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { StatusCardGrid, statusCardAdminSurfaceClass } from '@/components/shared/status-cards'
 import {
   chartAxisStyle,
   chartGridStyle,
@@ -138,22 +139,22 @@ export function AdminAnalyticsView({ data }: { data: AnalyticsData }) {
         description="Hover charts for details — interactive platform growth and distribution"
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <StatusCardGrid columns={4}>
         {metrics.map((metric) => {
           const Icon = metric.icon
           return (
-            <div key={metric.label} className="rounded-xl border border-border bg-card p-5">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">{metric.label}</p>
-                  <p className="mt-2 text-xl font-bold">{metric.value}</p>
+            <div key={metric.label} className={statusCardAdminSurfaceClass}>
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-[11px] text-muted-foreground sm:text-sm">{metric.label}</p>
+                  <p className="mt-1 text-lg font-bold sm:mt-2 sm:text-xl">{metric.value}</p>
                 </div>
-                <Icon className="h-7 w-7 text-primary opacity-20" />
+                <Icon className="h-5 w-5 shrink-0 text-primary opacity-30 sm:h-7 sm:w-7" />
               </div>
             </div>
           )
         })}
-      </div>
+      </StatusCardGrid>
 
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-6">
@@ -231,8 +232,6 @@ export function AdminAnalyticsView({ data }: { data: AnalyticsData }) {
                     innerRadius={58}
                     outerRadius={activeTierIndex !== undefined ? 98 : 92}
                     paddingAngle={3}
-                    activeIndex={activeTierIndex}
-                    activeShape={{ outerRadius: 104, stroke: '#fff', strokeWidth: 2 }}
                     onMouseEnter={(_, index) => setActiveTierIndex(index)}
                     onMouseLeave={() => setActiveTierIndex(undefined)}
                     animationDuration={700}

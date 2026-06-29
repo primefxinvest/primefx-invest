@@ -48,6 +48,7 @@ export default function PaymentMethodsCard() {
         loading={loading}
         error={error}
         onRetry={reload}
+        errorTitle="Could not load payment methods"
         isEmpty={paymentMethods.length === 0}
         emptyTitle="No payment methods"
         emptyDescription="Add a bank account, card, or crypto wallet to deposit and withdraw."

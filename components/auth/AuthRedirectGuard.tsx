@@ -1,7 +1,8 @@
 'use client'
 
 import { ReactNode, useEffect, useState } from 'react'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { needsMfaChallenge } from '@/lib/auth/mfa'
 import { getAuthenticatedEntryPath } from '@/lib/auth/session'

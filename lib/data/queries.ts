@@ -162,12 +162,17 @@ export async function fetchRecentTransactions(limit = 4): Promise<TransactionIte
 
   return data.slice(0, limit).map((tx) => {
     const amount = toNumber(tx.amount)
-    const type = normalizeTransactionType(tx.type)
+    const rawType = String(tx.type ?? '')
+    const type = normalizeTransactionType(rawType)
+    const isCredit = isCreditTransactionType(rawType)
+    const signedAmount = isCredit ? Math.abs(amount) : -Math.abs(amount)
     return {
       id: tx.id,
       type,
       description: tx.description ?? type,
-      amount: formatCurrency(amount, { signed: true }),
+      amount: formatCurrency(signedAmount, { signed: true }),
+      amountValue: signedAmount,
+      isCredit,
       date: formatDateTime(tx.created_at),
       status: capitalize(tx.status ?? 'Completed'),
       referenceId: tx.reference_id ?? undefined,
@@ -320,7 +325,7 @@ export async function fetchMarketOverview(): Promise<MarketItem[]> {
 export async function fetchReferralData(): Promise<ReferralData> {
   const userId = await requireUserId()
   if (!userId) {
-    return { referralLink: '', totalReferrals: 0, totalEarnings: formatCurrency(0) }
+    return { referralLink: '', referralCode: '', totalReferrals: 0, totalEarnings: formatCurrency(0) }
   }
 
   const [{ data: user }, { data: referrals }] = await Promise.all([
@@ -330,10 +335,17 @@ export async function fetchReferralData(): Promise<ReferralData> {
 
   const totalEarnings =
     referrals?.reduce((sum, row) => sum + toNumber(row.bonus_earned), 0) ?? 0
-  const slug = user?.full_name?.toLowerCase().replace(/\s+/g, '') || userId.slice(0, 8)
+
+  const referralCode =
+    (user?.referral_code as string | undefined)?.trim() ||
+    userId.slice(0, 8)
+
+  const origin =
+    typeof window !== 'undefined' ? window.location.origin : 'https://www.primefxinvest.com'
 
   return {
-    referralLink: `${typeof window !== 'undefined' ? window.location.origin : 'https://primefx.invest'}/signup?ref=${slug}`,
+    referralLink: `${origin}/signup?ref=${encodeURIComponent(referralCode)}`,
+    referralCode,
     totalReferrals: referrals?.length ?? 0,
     totalEarnings: formatCurrency(totalEarnings),
   }
@@ -553,7 +565,8 @@ function isCreditTransactionType(type?: string | null) {
     value.includes('deposit') ||
     value.includes('bonus') ||
     value.includes('profit') ||
-    value.includes('referral')
+    value.includes('referral') ||
+    value.includes('transfer_received')
   )
 }
 
@@ -602,15 +615,39 @@ export async function fetchReferralList() {
   const { data } = await getReferrals(userId)
   if (!data?.length) return []
 
-  return data.map((row) => ({
-    id: row.id as string,
-    name: `Referral ${(row.referred_user_id as string).slice(0, 8)}`,
-    email: 'Referred investor',
-    status: (row.status as string) ?? 'Active',
-    commissionEarned: toNumber(row.bonus_earned),
-    joinedDate: formatDate(row.created_at as string),
-    tradingVolume: formatCurrency(toNumber(row.bonus_earned) * 20),
-  }))
+  const referredIds = data
+    .map((row) => row.referred_user_id as string)
+    .filter(Boolean)
+
+  const referredUsers = new Map<string, { full_name?: string; email?: string }>()
+  if (referredIds.length > 0) {
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, full_name, email')
+      .in('id', referredIds)
+
+    users?.forEach((user) => {
+      referredUsers.set(user.id as string, {
+        full_name: user.full_name as string | undefined,
+        email: user.email as string | undefined,
+      })
+    })
+  }
+
+  return data.map((row) => {
+    const referredId = row.referred_user_id as string
+    const referred = referredUsers.get(referredId)
+
+    return {
+      id: row.id as string,
+      name: referred?.full_name || `Investor ${referredId.slice(0, 8)}`,
+      email: referred?.email || 'Referred investor',
+      status: (row.status as string) ?? 'Pending',
+      commissionEarned: toNumber(row.bonus_earned),
+      joinedDate: formatDate(row.created_at as string),
+      tradingVolume: formatCurrency(toNumber(row.bonus_earned) * 20),
+    }
+  })
 }
 
 export async function fetchPortfolioOverview() {

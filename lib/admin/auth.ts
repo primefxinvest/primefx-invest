@@ -94,8 +94,31 @@ export function assertModuleAccess(context: AdminContext, module: AdminModule) {
   }
 }
 
-export function assertNotSelfTarget(context: AdminContext, targetUserId: string) {
+export type AdminMutationResult =
+  | { success: true }
+  | { success: false; error: string }
+
+export function getSelfTargetError(
+  context: AdminContext,
+  targetUserId: string
+): string | undefined {
   if (context.userId === targetUserId) {
-    throw new Error('Admin actions on your own account are prohibited.')
+    return 'Admin actions on your own account are prohibited.'
+  }
+}
+
+export function rejectSelfTarget(
+  context: AdminContext,
+  targetUserId: string
+): AdminMutationResult | null {
+  const error = getSelfTargetError(context, targetUserId)
+  return error ? { success: false, error } : null
+}
+
+/** @deprecated Prefer rejectSelfTarget for server actions that return AdminMutationResult */
+export function assertNotSelfTarget(context: AdminContext, targetUserId: string) {
+  const error = getSelfTargetError(context, targetUserId)
+  if (error) {
+    throw new Error(error)
   }
 }

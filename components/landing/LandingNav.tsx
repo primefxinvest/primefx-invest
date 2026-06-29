@@ -1,22 +1,13 @@
 'use client'
 
-import Link from 'next/link'
 import { useState } from 'react'
-import { usePathname } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { Link, usePathname } from '@/i18n/navigation'
 import { Menu, X } from 'lucide-react'
 import Logo from '@/components/shared/Logo'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { useAuthEntry } from '@/lib/hooks/useAuthEntry'
 import { cn } from '@/lib/utils'
-
-const navLinks = [
-  { href: '/', label: 'Home' },
-  { href: '/invest', label: 'Invest' },
-  { href: '/about', label: 'About Us' },
-  { href: '/academy', label: 'Academy' },
-  { href: '/market-insights', label: 'Market Insights' },
-  { href: '/community', label: 'Community' },
-  { href: '/support', label: 'Support' },
-]
 
 function NavActions({
   className,
@@ -25,8 +16,8 @@ function NavActions({
   className?: string
   onNavigate?: () => void
 }) {
-  const { loading, isAuthenticated, dashboardHref, loginHref, loginLabel, signupHref, signupLabel } =
-    useAuthEntry()
+  const t = useTranslations('nav')
+  const { loading, isAuthenticated, dashboardHref, loginHref, signupHref } = useAuthEntry()
 
   if (loading) {
     return <div className={cn('h-10 w-28 animate-pulse rounded-lg bg-gray-100', className)} />
@@ -42,7 +33,7 @@ function NavActions({
           className
         )}
       >
-        Dashboard
+        {t('dashboard')}
       </Link>
     )
   }
@@ -54,85 +45,91 @@ function NavActions({
         onClick={onNavigate}
         className="hidden rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 sm:inline-flex"
       >
-        {loginLabel}
+        {t('signin')}
       </Link>
       <Link
         href={signupHref}
         onClick={onNavigate}
-        className="rounded-lg bg-[#0052ff] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/25 transition-colors hover:bg-blue-700"
+        className="inline-flex items-center justify-center rounded-lg bg-[#0052ff] px-4 py-2 text-sm font-semibold text-white shadow-md shadow-blue-500/25 transition-colors hover:bg-blue-700"
       >
-        {signupLabel}
+        {t('signup')}
       </Link>
     </div>
   )
 }
 
 export default function LandingNav() {
+  const t = useTranslations('landing')
   const pathname = usePathname()
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [open, setOpen] = useState(false)
 
-  const isActive = (href: string) => {
-    if (href === '/') return pathname === '/'
-    return pathname === href || pathname.startsWith(`${href}/`)
-  }
+  const navLinks = [
+    { href: '/', label: t('home') },
+    { href: '/invest', label: t('invest') },
+    { href: '/about', label: t('aboutUs') },
+    { href: '/academy', label: t('academy') },
+    { href: '/market-insights', label: t('marketInsights') },
+    { href: '/community', label: t('community') },
+    { href: '/support', label: t('support') },
+  ]
 
   return (
-    <nav className="fixed top-0 z-50 w-full border-b border-gray-200/80 bg-white/95 backdrop-blur-md">
-      <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between gap-4">
-          <Logo href="/" size={36} className="shrink-0" />
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-200/80 bg-white/90 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <Logo href="/" size={36} />
 
-          <div className="hidden items-center gap-1 xl:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className={cn(
+                'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href))
+                  ? 'bg-blue-50 text-[#0052ff]'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              )}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="hidden items-center gap-3 lg:flex">
+          <LanguageSwitcher />
+          <NavActions />
+        </div>
+
+        <button
+          type="button"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 lg:hidden"
+          onClick={() => setOpen((value) => !value)}
+          aria-label={open ? 'Close menu' : 'Open menu'}
+        >
+          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </div>
+
+      {open ? (
+        <div className="border-t border-gray-200 bg-white px-4 py-4 lg:hidden">
+          <nav className="flex flex-col gap-1">
             {navLinks.map((link) => (
               <Link
-                key={link.label}
+                key={link.href}
                 href={link.href}
-                className={cn(
-                  'px-3 py-2 text-sm font-medium transition-colors',
-                  isActive(link.href) ? 'text-[#0052ff]' : 'text-gray-600 hover:text-gray-900'
-                )}
+                onClick={() => setOpen(false)}
+                className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 {link.label}
               </Link>
             ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <NavActions className="hidden sm:flex" />
-            <button
-              type="button"
-              className="rounded-lg p-2 text-gray-600 hover:bg-gray-100 xl:hidden"
-              onClick={() => setMobileOpen(!mobileOpen)}
-              aria-label="Toggle menu"
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
+          </nav>
+          <div className="mt-4 flex flex-col gap-3 border-t border-gray-100 pt-4">
+            <LanguageSwitcher variant="compact" />
+            <NavActions onNavigate={() => setOpen(false)} />
           </div>
         </div>
-
-        {mobileOpen ? (
-          <div className="border-t border-gray-100 py-4 xl:hidden">
-            <div className="flex flex-col gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  href={link.href}
-                  className={cn(
-                    'rounded-lg px-3 py-2 text-sm font-medium',
-                    isActive(link.href)
-                      ? 'bg-blue-50 text-[#0052ff]'
-                      : 'text-gray-600 hover:bg-gray-50'
-                  )}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {link.label}
-                </Link>
-              ))}
-              <NavActions className="mt-2 w-full flex-col sm:hidden" onNavigate={() => setMobileOpen(false)} />
-            </div>
-          </div>
-        ) : null}
-      </div>
-    </nav>
+      ) : null}
+    </header>
   )
 }

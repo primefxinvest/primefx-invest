@@ -63,6 +63,12 @@ export async function getAdminUsers(search?: string): Promise<AdminUserRow[]> {
   return (data ?? []).map(mapUser)
 }
 
+function unwrapJoinedUser(users: unknown): Record<string, unknown> | null {
+  if (!users) return null
+  if (Array.isArray(users)) return (users[0] as Record<string, unknown> | undefined) ?? null
+  return users as Record<string, unknown>
+}
+
 export async function getAdminKycQueue(): Promise<AdminKycQueueRow[]> {
   const db = getDb()
   const { data, error } = await db
@@ -85,7 +91,7 @@ export async function getAdminKycQueue(): Promise<AdminKycQueueRow[]> {
   if (error) throw new Error(error.message)
 
   return (data ?? []).map((row) => {
-    const user = row.users as Record<string, unknown> | null
+    const user = unwrapJoinedUser(row.users)
     return {
       submission_id: String(row.id),
       user_id: String(row.user_id),
