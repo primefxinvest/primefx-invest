@@ -1,7 +1,8 @@
 'use client'
 
 import { useId, useState } from 'react'
-import Link from 'next/link'
+import { useTranslations } from 'next-intl'
+import { Link } from '@/i18n/navigation'
 import { ArrowRight } from 'lucide-react'
 import {
   Area,
@@ -38,11 +39,11 @@ const chartData = [
   { month: 'Dec', primeai: 185, sp500: 120 },
 ]
 
-const stats = [
-  { value: '+24.8%', label: 'Average Annual Return', color: 'text-emerald-500' },
-  { value: '92%', label: 'Win Rate', color: 'text-[#0052ff]' },
-  { value: '$250M+', label: 'Total Assets Managed', color: 'text-emerald-500' },
-  { value: '120K+', label: 'Active Investors', color: 'text-[#0052ff]' },
+const statValues = [
+  { value: '+24.8%', color: 'text-emerald-500' },
+  { value: '92%', color: 'text-[#0052ff]' },
+  { value: '$250M+', color: 'text-emerald-500' },
+  { value: '120K+', color: 'text-[#0052ff]' },
 ]
 
 const liveMarkets = [
@@ -53,31 +54,32 @@ const liveMarkets = [
   { name: 'Tesla', price: '$248.50', change: '+1.87%', up: true },
 ]
 
-const timeframes = ['1M', '6M', '1Y', '2Y', 'All Time']
-
 export default function PerformanceSection() {
+  const t = useTranslations('landing.performance')
   const [timeframe, setTimeframe] = useState('1Y')
   const gradientId = useId().replace(/:/g, '')
+  const timeframes = t.raw('timeframes') as string[]
+
+  const stats = [
+    { ...statValues[0], label: t('statReturn') },
+    { ...statValues[1], label: t('statWinRate') },
+    { ...statValues[2], label: t('statAum') },
+    { ...statValues[3], label: t('statInvestors') },
+  ]
 
   return (
     <section className="bg-gray-50 py-20">
       <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
-          {/* Left text + stats */}
           <div className="lg:col-span-3">
-            <p className="text-xs font-semibold tracking-widest text-[#0052ff]">MARKET PERFORMANCE</p>
-            <h2 className="mt-3 text-2xl font-bold text-gray-900">
-              Consistent Returns. Proven Performance.
-            </h2>
-            <p className="mt-4 text-sm leading-relaxed text-gray-600">
-              Our AI-driven strategies have consistently outperformed traditional market benchmarks
-              year over year.
-            </p>
+            <p className="text-xs font-semibold tracking-widest text-[#0052ff]">{t('eyebrow')}</p>
+            <h2 className="mt-3 text-2xl font-bold text-gray-900">{t('title')}</h2>
+            <p className="mt-4 text-sm leading-relaxed text-gray-600">{t('subtitle')}</p>
             <Link
               href="/market-insights"
               className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#0052ff] hover:underline"
             >
-              View Full Performance Report
+              {t('viewReport')}
               <ArrowRight className="h-4 w-4" />
             </Link>
 
@@ -91,11 +93,10 @@ export default function PerformanceSection() {
             </div>
           </div>
 
-          {/* Chart */}
           <div className="lg:col-span-6">
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <h3 className="text-sm font-semibold text-gray-900">Performance Comparison</h3>
+                <h3 className="text-sm font-semibold text-gray-900">{t('comparison')}</h3>
                 <div className="flex gap-1">
                   {timeframes.map((tf) => (
                     <button
@@ -138,7 +139,7 @@ export default function PerformanceSection() {
                   <Area
                     type="monotone"
                     dataKey="primeai"
-                    name="PrimeAI's Average Return"
+                    name={t('primeaiReturn')}
                     stroke="#0052ff"
                     strokeWidth={2.5}
                     fill={`url(#${gradientId})`}
@@ -148,7 +149,7 @@ export default function PerformanceSection() {
                   <Line
                     type="monotone"
                     dataKey="sp500"
-                    name="S&P 500 Average"
+                    name={t('sp500')}
                     stroke="#9ca3af"
                     strokeWidth={2}
                     strokeDasharray="5 5"
@@ -160,11 +161,10 @@ export default function PerformanceSection() {
             </div>
           </div>
 
-          {/* Live markets sidebar */}
           <div className="lg:col-span-3">
             <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="text-sm font-bold text-gray-900">Live Market Opportunities</h3>
-              <p className="mt-1 text-xs text-gray-500">Real-time price movements</p>
+              <h3 className="text-sm font-bold text-gray-900">{t('liveMarkets')}</h3>
+              <p className="mt-1 text-xs text-gray-500">{t('liveMarketsSubtitle')}</p>
               <div className="mt-4 space-y-3">
                 {liveMarkets.map((market) => (
                   <div
@@ -187,7 +187,7 @@ export default function PerformanceSection() {
                 href="/market-insights"
                 className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#0052ff] hover:underline"
               >
-                View All Opportunities
+                {t('viewOpportunities')}
                 <ArrowRight className="h-3 w-3" />
               </Link>
             </div>

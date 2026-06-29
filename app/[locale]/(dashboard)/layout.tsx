@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { ReactNode } from 'react'
+import { getTranslations } from 'next-intl/server'
 import { getLocale } from 'next-intl/server'
 import AppLayout from '@/components/shared/AppLayout'
 import { buildPageMetadata } from '@/lib/seo/metadata'
@@ -9,12 +10,15 @@ import type { AppLocale } from '@/i18n/routing'
 
 export const dynamic = 'force-dynamic'
 
-export const metadata: Metadata = buildPageMetadata({
-  noIndex: true,
-  title: 'Investor Dashboard',
-  description: 'Private investor dashboard for PrimeFx Invest.',
-  path: '/dashboard',
-})
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta')
+  return buildPageMetadata({
+    noIndex: true,
+    title: t('dashboardTitle'),
+    description: t('dashboardDescription'),
+    path: '/dashboard',
+  })
+}
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createServerSupabaseClient()

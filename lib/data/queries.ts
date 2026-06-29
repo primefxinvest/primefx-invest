@@ -608,6 +608,16 @@ function notificationType(type?: string | null): NotificationItem['type'] {
 }
 
 // Portfolio page exports
+export async function fetchReferralProgramOverview() {
+  const [referralData, referrals] = await Promise.all([fetchReferralData(), fetchReferralList()])
+  const { buildReferralProgramOverview } = await import('@/lib/referral/analytics')
+  return {
+    referralData,
+    referrals,
+    overview: buildReferralProgramOverview(referrals, referralData.totalReferrals),
+  }
+}
+
 export async function fetchReferralList() {
   const userId = await requireUserId()
   if (!userId) return []

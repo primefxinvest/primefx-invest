@@ -1,4 +1,7 @@
-import Link from 'next/link'
+'use client'
+
+import { Link } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { ArrowRight } from 'lucide-react'
 
 function Sparkline({ up, id }: { up: boolean; id: string }) {
@@ -37,15 +40,17 @@ interface MarketItem {
 }
 
 export default function MarketOverviewWidget({ markets }: { markets: MarketItem[] }) {
+  const t = useTranslations('dashboard')
+
   return (
     <div className="h-fit rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-900">Market Overview</h3>
+        <h3 className="text-sm font-bold text-gray-900">{t('marketOverview')}</h3>
         <Link
           href="/market-insights"
           className="flex items-center gap-0.5 text-xs font-semibold text-[#0052ff] hover:underline"
         >
-          View All <ArrowRight className="h-3 w-3" />
+          {t('viewAll')} <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
 

@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import Link from 'next/link'
+import { useTranslations } from 'next-intl'
+import { Link } from '@/i18n/navigation'
 import { ChevronRight } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
 import { PlanCardsSkeleton } from '@/components/shared/skeletons'
@@ -9,12 +10,14 @@ import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { loadInvestmentPlans } from '@/lib/invest/plan-actions'
 import { cn } from '@/lib/utils'
 
-function riskLabel(plan: { riskLevel: string; popular?: boolean }) {
-  if (plan.riskLevel === 'Low') return 'Low Risk'
-  if (plan.riskLevel === 'Medium') return 'Medium Risk'
-  if (plan.riskLevel === 'Very High') return 'Very High Risk'
-  if (plan.riskLevel === 'High') return 'High Risk'
-  return `${plan.riskLevel} Risk`
+function useRiskLabel(t: ReturnType<typeof useTranslations<'dashboard'>>) {
+  return (plan: { riskLevel: string }) => {
+    if (plan.riskLevel === 'Low') return t('riskLow')
+    if (plan.riskLevel === 'Medium') return t('riskMedium')
+    if (plan.riskLevel === 'Very High') return t('riskVeryHigh')
+    if (plan.riskLevel === 'High') return t('riskHigh')
+    return t('riskGeneric', { level: plan.riskLevel })
+  }
 }
 
 function getPlanStyle(plan: { popular?: boolean; riskLevel: string }) {
@@ -37,6 +40,8 @@ function getPlanStyle(plan: { popular?: boolean; riskLevel: string }) {
 }
 
 export default function DashboardPlansCarousel() {
+  const t = useTranslations('dashboard')
+  const riskLabel = useRiskLabel(t)
   const { data: plans, loading, error, reload } = useAsyncData(() => loadInvestmentPlans(), [])
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -54,12 +59,12 @@ export default function DashboardPlansCarousel() {
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-bold text-gray-900">Top Investment Plans</h2>
+        <h2 className="text-sm font-bold text-gray-900">{t('topPlans')}</h2>
         <Link
           href="/invest"
           className="flex items-center gap-0.5 text-xs font-semibold text-[#0052ff] hover:underline"
         >
-          View All Plans
+          {t('viewAllPlans')}
           <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       </div>
@@ -69,11 +74,11 @@ export default function DashboardPlansCarousel() {
         error={error}
         onRetry={reload}
         isEmpty={!plans?.length}
-        emptyTitle="No investment plans"
-        emptyDescription="Plans will appear here once they are available in your account."
+        emptyTitle={t('noPlansTitle')}
+        emptyDescription={t('noPlansDesc')}
         emptyAction={
           <Link href="/invest" className="text-sm font-semibold text-[#0052ff] hover:underline">
-            View Invest page
+            {t('viewInvestPage')}
           </Link>
         }
         skeleton={<PlanCardsSkeleton />}
@@ -102,7 +107,7 @@ export default function DashboardPlansCarousel() {
                 >
                   {plan.popular && (
                     <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-purple-600 px-2.5 py-0.5 text-[9px] font-bold text-white">
-                      Most Popular
+                      {t('mostPopular')}
                     </span>
                   )}
 
@@ -120,14 +125,15 @@ export default function DashboardPlansCarousel() {
                   </span>
 
                   <p className="mt-3 text-[11px] text-gray-500">
-                    Min. <span className="font-semibold text-gray-800">{plan.minInvestment}</span>
+                    {t('minShort')}{' '}
+                    <span className="font-semibold text-gray-800">{plan.minInvestment}</span>
                   </p>
 
                   <Link
                     href={`/invest?plan=${plan.id}`}
                     className="mt-4 block w-full rounded-lg bg-[#0052ff] py-2 text-center text-[11px] font-semibold text-white transition-colors hover:bg-blue-700"
                   >
-                    Invest Now
+                    {t('investNow')}
                   </Link>
                 </div>
               )
@@ -144,7 +150,7 @@ export default function DashboardPlansCarousel() {
                   'h-1.5 rounded-full transition-all',
                   activeIndex === idx ? 'w-4 bg-[#0052ff]' : 'w-1.5 bg-gray-300'
                 )}
-                aria-label={`Go to ${plan.name}`}
+                aria-label={t('goToPlan', { name: plan.name })}
               />
             ))}
           </div>

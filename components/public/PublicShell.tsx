@@ -4,9 +4,9 @@ import { ReactNode } from 'react'
 
 export function PublicShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-white text-gray-900">
+    <div className="min-h-screen overflow-x-hidden bg-white text-gray-900">
       <LandingNav />
-      <main className="pt-16">{children}</main>
+      <main className="min-w-0 overflow-x-hidden pt-16">{children}</main>
       <LandingFooter />
     </div>
   )

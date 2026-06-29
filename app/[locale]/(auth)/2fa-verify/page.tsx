@@ -1,19 +1,22 @@
 'use client'
 
 import { Suspense, useEffect, useState } from 'react'
-import Link from 'next/link'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { Link, useRouter } from '@/i18n/navigation'
+import { useSearchParams } from 'next/navigation'
 import { Loader2, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 import Logo from '@/components/shared/Logo'
 import { logout } from '@/lib/auth/logout'
 import { needsMfaChallenge, verifyMfaLogin } from '@/lib/auth/mfa'
 import { getCurrentUser } from '@/lib/supabase'
+import { sanitizeRedirectPath } from '@/lib/auth/session'
 
 function TwoFactorVerifyForm() {
+  const t = useTranslations('auth')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirect') || '/dashboard'
+  const redirectTo = sanitizeRedirectPath(searchParams.get('redirect'))
   const [mfaCode, setMfaCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [checking, setChecking] = useState(true)
@@ -41,7 +44,7 @@ function TwoFactorVerifyForm() {
         if (!active) return
 
         if (!mfa.required) {
-          router.replace(redirectTo.startsWith('/') ? redirectTo : '/dashboard')
+          router.replace(redirectTo)
           return
         }
 
@@ -59,11 +62,11 @@ function TwoFactorVerifyForm() {
   }, [router, redirectTo])
 
   const finishVerification = () => {
-    toast.success('Verification successful', {
-      description: 'Welcome back to PrimeFx Invest.',
+    toast.success(t('mfaVerificationSuccess'), {
+      description: t('mfaWelcomeBack'),
     })
     router.refresh()
-    router.push(redirectTo.startsWith('/') ? redirectTo : '/dashboard')
+    router.push(redirectTo)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -74,13 +77,13 @@ function TwoFactorVerifyForm() {
     try {
       const result = await verifyMfaLogin(mfaCode)
       if (!result.success) {
-        setError(result.error ?? 'Invalid verification code.')
+        setError(result.error ?? t('mfaInvalidCode'))
         setLoading(false)
         return
       }
       finishVerification()
     } catch {
-      setError('Verification failed. Please try again.')
+      setError(t('mfaVerificationFailed'))
       setLoading(false)
     }
   }
@@ -104,10 +107,8 @@ function TwoFactorVerifyForm() {
         <div className="mb-4 flex justify-center">
           <Logo showText={false} size={64} />
         </div>
-        <h1 className="text-2xl font-bold">Two-Factor Verification</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Enter the code from your authenticator app to continue.
-        </p>
+        <h1 className="text-2xl font-bold">{t('mfaTitle')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('mfaSubtitle')}</p>
       </div>
 
       {error ? (
@@ -122,17 +123,14 @@ function TwoFactorVerifyForm() {
             <Shield className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">Authenticator code</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Open Google Authenticator, Authy, or your TOTP app and enter the 6-digit code for
-              PrimeFx Invest.
-            </p>
+            <p className="text-sm font-semibold text-foreground">{t('mfaAuthenticatorCode')}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('mfaAuthenticatorHelp')}</p>
           </div>
         </div>
 
         <div>
           <label htmlFor="mfaCode" className="mb-2 block text-sm font-medium">
-            Verification Code
+            {t('mfaCodeLabel')}
           </label>
           <input
             id="mfaCode"
@@ -155,10 +153,10 @@ function TwoFactorVerifyForm() {
           {loading ? (
             <>
               <Loader2 size={18} className="animate-spin" />
-              Verifying...
+              {t('mfaVerifying')}
             </>
           ) : (
-            'Verify & Continue'
+            t('mfaVerifyContinue')
           )}
         </button>
       </form>
@@ -170,12 +168,12 @@ function TwoFactorVerifyForm() {
           disabled={loading}
           className="text-muted-foreground transition-colors hover:text-foreground"
         >
-          Sign out and use a different account
+          {t('mfaSignOutDifferent')}
         </button>
         <p className="text-center text-muted-foreground">
-          Lost access to your authenticator?{' '}
+          {t('mfaLostAuthenticator')}{' '}
           <Link href="/contact" className="font-semibold text-primary hover:underline">
-            Contact support
+            {t('mfaContactSupport')}
           </Link>
         </p>
       </div>
@@ -184,11 +182,13 @@ function TwoFactorVerifyForm() {
 }
 
 export default function TwoFactorVerifyPage() {
+  const tCommon = useTranslations('common')
+
   return (
     <Suspense
       fallback={
         <div className="flex min-h-[280px] items-center justify-center rounded-lg border border-border bg-card p-8 text-center text-sm text-muted-foreground shadow-lg">
-          Loading...
+          {tCommon('loading')}
         </div>
       }
     >

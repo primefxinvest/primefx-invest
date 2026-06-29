@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { ReactNode, Suspense } from 'react'
 import { Loader2 } from 'lucide-react'
+import { getTranslations } from 'next-intl/server'
 import { AuthLayoutNav } from '@/components/auth/AuthLayoutNav'
 import AuthRedirectGuard from '@/components/auth/AuthRedirectGuard'
 import { buildPageMetadata } from '@/lib/seo/metadata'
@@ -13,12 +14,16 @@ function AuthLoadingCard() {
   )
 }
 
-export const metadata: Metadata = buildPageMetadata({
-  noIndex: true,
-  title: 'Account Access',
-  description: 'Sign in or create your PrimeFx Invest account.',
-  path: '/login',
-})
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('auth')
+
+  return buildPageMetadata({
+    noIndex: true,
+    title: t('layoutTitle'),
+    description: t('layoutDescription'),
+    path: '/login',
+  })
+}
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (

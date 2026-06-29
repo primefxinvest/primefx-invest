@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { InvestmentPlan } from '@/lib/invest/plan-config'

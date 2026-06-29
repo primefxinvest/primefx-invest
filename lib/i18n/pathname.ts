@@ -1,5 +1,14 @@
 import { routing, type AppLocale } from '@/i18n/routing'
 
+export const LOCALE_EXEMPT_PREFIXES = ['/api', '/admin', '/auth'] as const
+
+export function shouldSkipLocalePrefix(pathname: string): boolean {
+  const normalized = stripLocalePrefix(pathname.startsWith('/') ? pathname : `/${pathname}`)
+  return LOCALE_EXEMPT_PREFIXES.some(
+    (prefix) => normalized === prefix || normalized.startsWith(`${prefix}/`)
+  )
+}
+
 export function getLocaleFromPathname(pathname: string): AppLocale {
   const segment = pathname.split('/')[1]
   if (routing.locales.includes(segment as AppLocale)) {
@@ -9,20 +18,27 @@ export function getLocaleFromPathname(pathname: string): AppLocale {
 }
 
 export function stripLocalePrefix(pathname: string): string {
-  const segments = pathname.split('/')
-  const maybeLocale = segments[1]
+  let result = pathname.startsWith('/') ? pathname : `/${pathname}`
 
-  if (routing.locales.includes(maybeLocale as AppLocale)) {
-    const rest = segments.slice(2).join('/')
-    return rest ? `/${rest}` : '/'
+  while (true) {
+    const segments = result.split('/')
+    const maybeLocale = segments[1]
+
+    if (routing.locales.includes(maybeLocale as AppLocale)) {
+      const rest = segments.slice(2).join('/')
+      result = rest ? `/${rest}` : '/'
+      continue
+    }
+
+    break
   }
 
-  return pathname
+  return result
 }
 
 export function localizePath(path: string, locale: AppLocale): string {
-  const normalized = path.startsWith('/') ? path : `/${path}`
-  if (locale === routing.defaultLocale) {
+  const normalized = stripLocalePrefix(path.startsWith('/') ? path : `/${path}`)
+  if (locale === routing.defaultLocale || shouldSkipLocalePrefix(normalized)) {
     return normalized
   }
   return normalized === '/' ? `/${locale}` : `/${locale}${normalized}`

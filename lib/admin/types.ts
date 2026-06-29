@@ -66,6 +66,7 @@ export interface AdminUserRow {
   id: string
   email: string
   full_name: string | null
+  avatar_url: string | null
   investor_tier: string | null
   kyc_status: string | null
   kyc_level: string | null

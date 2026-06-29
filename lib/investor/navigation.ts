@@ -11,7 +11,6 @@ export const INVESTOR_NAV_ITEMS: InvestorNavItem[] = [
   { href: '/invest', label: 'Invest' },
   { href: '/portfolio', label: 'Portfolio' },
   { href: '/wallet', label: 'Wallet' },
-  { href: '/transactions', label: 'Transactions' },
   { href: '/primeai', label: 'PrimeAI' },
   { href: '/academy', label: 'Academy' },
   { href: '/reports', label: 'Reports', requiredTier: 'prime' },

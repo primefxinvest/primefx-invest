@@ -1,6 +1,7 @@
 'use client'
 
 import type { LucideIcon } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { AlertCircle, Inbox, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -56,6 +57,11 @@ export function ErrorState({
   className,
   compact = false,
 }: ErrorStateProps) {
+  const t = useTranslations('errors')
+  const tCommon = useTranslations('common')
+  const resolvedTitle = title ?? t('genericError')
+  const resolvedDescription = description ?? t('loadErrorDescription')
+
   return (
     <div
       className={cn(
@@ -67,8 +73,8 @@ export function ErrorState({
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-500">
         <AlertCircle className="h-6 w-6" />
       </div>
-      <h3 className="mt-4 text-sm font-semibold text-gray-900">{title}</h3>
-      <p className="mt-1 max-w-sm text-sm text-gray-600">{description}</p>
+      <h3 className="mt-4 text-sm font-semibold text-gray-900">{resolvedTitle}</h3>
+      <p className="mt-1 max-w-sm text-sm text-gray-600">{resolvedDescription}</p>
       {onRetry ? (
         <button
           type="button"
@@ -76,7 +82,7 @@ export function ErrorState({
           className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-50"
         >
           <RefreshCw className="h-4 w-4" />
-          Try again
+          {tCommon('tryAgain')}
         </button>
       ) : null}
     </div>
@@ -105,7 +111,7 @@ export function AsyncState({
   onRetry,
   isEmpty,
   emptyIcon,
-  emptyTitle = 'No data yet',
+  emptyTitle,
   emptyDescription,
   emptyAction,
   skeleton,
@@ -114,6 +120,9 @@ export function AsyncState({
   compact,
   children,
 }: AsyncStateProps) {
+  const t = useTranslations('errors')
+  const resolvedEmptyTitle = emptyTitle ?? t('noDataYet')
+
   if (loading) {
     return <div className={className}>{skeleton}</div>
   }
@@ -134,7 +143,7 @@ export function AsyncState({
     return (
       <EmptyState
         icon={emptyIcon}
-        title={emptyTitle}
+        title={resolvedEmptyTitle}
         description={emptyDescription}
         action={emptyAction}
         className={className}

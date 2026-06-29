@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { Bell, CheckCheck, Wallet, Shield, TrendingUp, Gift } from 'lucide-react'
 import { toast } from 'sonner'
 import { AsyncState } from '@/components/shared/data-state'

@@ -1,6 +1,7 @@
 'use client'
 
 import { ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 
 interface MetricCardProps {
   icon: ReactNode
@@ -19,6 +20,7 @@ export default function MetricCard({
   trendColor = 'green',
   iconBg = 'bg-blue-50 text-[#0052ff]',
 }: MetricCardProps) {
+  const t = useTranslations('dashboard')
   const trendColorMap = {
     green: 'text-emerald-500',
     red: 'text-red-500',
@@ -33,7 +35,7 @@ export default function MetricCard({
           <p className="mt-1 text-lg font-bold text-gray-900 sm:text-2xl">{value}</p>
           {trend && (
             <p className={`mt-0.5 text-[10px] font-semibold sm:mt-1 sm:text-xs ${trendColorMap[trendColor]}`}>
-              {trend} <span className="font-normal text-gray-400">from last month</span>
+              {trend} <span className="font-normal text-gray-400">{t('fromLastMonth')}</span>
             </p>
           )}
         </div>

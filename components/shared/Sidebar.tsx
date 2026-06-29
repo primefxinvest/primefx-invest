@@ -13,7 +13,6 @@ import {
   TrendingUp,
   PieChart,
   Wallet,
-  History,
   Zap,
   BookOpen,
   FileText,
@@ -43,6 +42,7 @@ import {
   isWalletSectionActive,
   WALLET_NAV_ITEMS,
 } from '@/lib/wallet/navigation'
+import { useReferralProgramEnabled } from '@/lib/hooks/useReferralProgramEnabled'
 import { fetchNotifications } from '@/lib/data/queries'
 
 const navIconMap = {
@@ -50,7 +50,6 @@ const navIconMap = {
   '/invest': TrendingUp,
   '/portfolio': PieChart,
   '/wallet': Wallet,
-  '/transactions': History,
   '/primeai': Zap,
   '/academy': BookOpen,
   '/reports': FileText,
@@ -74,7 +73,6 @@ const SIDEBAR_LABEL_KEYS: Record<string, string> = {
   '/invest': 'invest',
   '/portfolio': 'portfolio',
   '/wallet': 'wallet',
-  '/transactions': 'transactions',
   '/primeai': 'primeai',
   '/academy': 'academy',
   '/reports': 'reports',
@@ -83,9 +81,15 @@ const SIDEBAR_LABEL_KEYS: Record<string, string> = {
   '/referral': 'referral',
   '/market-insights': 'marketInsights',
   '/support': 'support',
+  '/wallet/transfer': 'transfer',
+}
+
+const WALLET_SUB_LABEL_KEYS: Record<string, string> = {
+  '/wallet': 'overview',
   '/wallet/deposit': 'deposit',
   '/wallet/withdraw': 'withdraw',
   '/wallet/transfer': 'transfer',
+  '/transactions': 'transactions',
 }
 
 export default function Sidebar() {
@@ -95,6 +99,8 @@ export default function Sidebar() {
   const [loggingOut, setLoggingOut] = useState(false)
   const [walletOpen, setWalletOpen] = useState(() => isWalletSectionActive(pathname))
   const { tierKey } = useInvestorTier()
+  const { enabled: referralProgramEnabled, loading: referralProgramLoading } =
+    useReferralProgramEnabled()
   const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [])
   const unreadCount = (notifications ?? []).filter((n) => !n.read).length
 
@@ -114,7 +120,7 @@ export default function Sidebar() {
     const result = await logout()
     if (!result.success) {
       setLoggingOut(false)
-      toast.error('Logout failed', { description: result.error })
+      toast.error(t('logoutFailed'), { description: result.error })
     }
   }
 
@@ -123,7 +129,7 @@ export default function Sidebar() {
       {open ? (
         <button
           type="button"
-          aria-label="Close navigation menu"
+          aria-label={t('closeMenu')}
           className="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-[1px] lg:hidden"
           onClick={close}
         />
@@ -140,7 +146,7 @@ export default function Sidebar() {
           <button
             type="button"
             onClick={close}
-            aria-label="Close menu"
+            aria-label={t('closeNavMenu')}
             className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
           >
             <X className="h-5 w-5" />
@@ -151,9 +157,11 @@ export default function Sidebar() {
         <div className="space-y-0.5">
           {INVESTOR_NAV_ITEMS.map((item) => {
             const Icon = navIconMap[item.href as keyof typeof navIconMap] ?? Home
-            const locked = item.requiredTier ? !canAccessRoute(tierKey, item.href) : false
+            const tierLocked = item.requiredTier ? !canAccessRoute(tierKey, item.href) : false
+            const referralLocked =
+              item.href === '/referral' && !referralProgramLoading && !referralProgramEnabled
 
-            if (locked) {
+            if (tierLocked) {
               return (
                 <div
                   key={item.href}
@@ -164,6 +172,27 @@ export default function Sidebar() {
                   <span className="flex-1">{t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}</span>
                   <Lock className="h-3.5 w-3.5 shrink-0" />
                 </div>
+              )
+            }
+
+            if (referralLocked) {
+              const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
+              return (
+                <Link key={item.href} href={item.href}>
+                  <div
+                    title="Referral program is locked by admin"
+                    className={cn(
+                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                      active
+                        ? 'bg-violet-50 text-violet-700'
+                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                    )}
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    <span className="flex-1">{t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}</span>
+                    <Lock className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+                  </div>
+                </Link>
               )
             }
 
@@ -210,12 +239,7 @@ export default function Sidebar() {
                               ) : (
                                 <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-transparent" />
                               )}
-                              {t(
-                                (SIDEBAR_LABEL_KEYS[subItem.href] ??
-                                  (subItem.href === '/wallet'
-                                    ? 'overview'
-                                    : 'transactions')) as 'overview'
-                              )}
+                              {t(WALLET_SUB_LABEL_KEYS[subItem.href] as 'overview')}
                             </div>
                           </Link>
                         )

@@ -37,6 +37,7 @@ function mapUser(row: Record<string, unknown>): AdminUserRow {
     id: String(row.id),
     email: String(row.email ?? ''),
     full_name: (row.full_name as string) ?? null,
+    avatar_url: (row.avatar_url as string) ?? null,
     investor_tier: (row.investor_tier as string) ?? 'Starter',
     kyc_status: normalizeKycStatus((row.kyc_status as string) ?? null),
     kyc_level: (row.kyc_level as string) ?? 'basic',

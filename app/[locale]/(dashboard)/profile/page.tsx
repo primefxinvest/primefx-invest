@@ -1,11 +1,11 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Calendar, CheckCircle, Edit2, Shield, AlertCircle } from 'lucide-react'
 import EditProfileModal from '@/components/profile/EditProfileModal'
 import { VerifyIdentityButton } from '@/components/VerifyIdentityButton'
-import { KycSubmissionPanel } from '@/components/kyc/KycSubmissionPanel'
+import { DiditVerificationPanel } from '@/components/verification/DiditVerificationPanel'
 import { ErrorState } from '@/components/shared/data-state'
 import { ProfileSkeleton } from '@/components/shared/skeletons'
 import { getProfileActivity, getUserProfile, logProfileActivity } from '@/lib/profile/actions'
@@ -26,6 +26,7 @@ export default function ProfilePage() {
   const t = useTranslations('profile')
   const tVerification = useTranslations('verification')
   const tCommon = useTranslations('common')
+  const locale = useLocale()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [activities, setActivities] = useState<ProfileActivity[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,7 +46,7 @@ export default function ProfilePage() {
       setProfile(profileData)
       setActivities(activityData)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load profile')
+      setError(err instanceof Error ? err.message : t('loadProfileFailed'))
     } finally {
       if (!options?.silent) {
         setLoading(false)
@@ -149,7 +150,7 @@ export default function ProfilePage() {
               {profile.twoFactorEnabled && (
                 <div className="flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
                   <Shield className="h-4 w-4" />
-                  2FA Enabled
+                  {t('twoFactorEnabled')}
                 </div>
               )}
             </div>
@@ -157,53 +158,53 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <KycSubmissionPanel profile={profile} />
+      <DiditVerificationPanel profile={profile} />
 
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h2 className="mb-6 text-lg font-semibold text-foreground">Personal Information</h2>
+        <h2 className="mb-6 text-lg font-semibold text-foreground">{t('personalInformation')}</h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div>
-            <label className="text-sm font-semibold text-muted-foreground">Full Name</label>
+            <label className="text-sm font-semibold text-muted-foreground">{t('fullName')}</label>
             <p className="mt-2 text-foreground">{profile.fullName}</p>
           </div>
           <div>
-            <label className="text-sm font-semibold text-muted-foreground">Email Address</label>
+            <label className="text-sm font-semibold text-muted-foreground">{t('emailAddress')}</label>
             <div className="mt-2 flex items-center gap-2">
               <p className="text-foreground">{profile.email}</p>
               {profile.emailVerified && <CheckCircle className="h-4 w-4 text-emerald-500" />}
             </div>
           </div>
           <div>
-            <label className="text-sm font-semibold text-muted-foreground">Phone Number</label>
+            <label className="text-sm font-semibold text-muted-foreground">{t('phoneNumber')}</label>
             <p className="mt-2 text-foreground">{profile.phone || '—'}</p>
           </div>
           <div>
-            <label className="text-sm font-semibold text-muted-foreground">Date of Birth</label>
+            <label className="text-sm font-semibold text-muted-foreground">{t('dateOfBirth')}</label>
             <p className="mt-2 text-foreground">{profile.dateOfBirth || '—'}</p>
           </div>
           <div className="md:col-span-2">
-            <label className="text-sm font-semibold text-muted-foreground">Address</label>
+            <label className="text-sm font-semibold text-muted-foreground">{t('address')}</label>
             <p className="mt-2 text-foreground">{profile.address || '—'}</p>
           </div>
         </div>
       </div>
 
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h2 className="mb-6 text-lg font-semibold text-foreground">Account Status</h2>
+        <h2 className="mb-6 text-lg font-semibold text-foreground">{t('accountStatus')}</h2>
         <div className="space-y-4">
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div>
-              <p className="font-semibold text-foreground">Account Type</p>
+              <p className="font-semibold text-foreground">{t('accountType')}</p>
               <p className="text-sm text-muted-foreground">{profile.tier}</p>
             </div>
             <span className="inline-block rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
-              Active
+              {t('active')}
             </span>
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div>
-              <p className="font-semibold text-foreground">KYC Verification</p>
-              <p className="text-sm text-muted-foreground">Identity verification status</p>
+              <p className="font-semibold text-foreground">{t('kycVerification')}</p>
+              <p className="text-sm text-muted-foreground">{t('kycVerificationStatus')}</p>
             </div>
             <span
               className={cn(
@@ -220,7 +221,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex items-center justify-between rounded-lg border border-border p-4">
             <div>
-              <p className="font-semibold text-foreground">Member Since</p>
+              <p className="font-semibold text-foreground">{t('memberSince')}</p>
               <p className="text-sm text-muted-foreground">{profile.memberSince}</p>
             </div>
             <Calendar className="h-5 w-5 text-muted-foreground" />
@@ -229,22 +230,22 @@ export default function ProfilePage() {
       </div>
 
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h2 className="mb-6 text-lg font-semibold text-foreground">Activity History</h2>
+        <h2 className="mb-6 text-lg font-semibold text-foreground">{t('activityHistory')}</h2>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary text-left">
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Action</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Source</th>
-                <th className="px-4 py-3 font-semibold text-muted-foreground">Date</th>
-                <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Time</th>
+                <th className="px-4 py-3 font-semibold text-muted-foreground">{t('action')}</th>
+                <th className="px-4 py-3 font-semibold text-muted-foreground">{t('source')}</th>
+                <th className="px-4 py-3 font-semibold text-muted-foreground">{t('date')}</th>
+                <th className="px-4 py-3 text-right font-semibold text-muted-foreground">{t('time')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {activities.length === 0 ? (
                 <tr>
                   <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
-                    No activity recorded yet.
+                    {t('noActivity')}
                   </td>
                 </tr>
               ) : (
@@ -253,7 +254,7 @@ export default function ProfilePage() {
                     <td className="px-4 py-3 font-semibold text-foreground">{activity.action}</td>
                     <td className="px-4 py-3 text-muted-foreground">{activity.device}</td>
                     <td className="px-4 py-3 text-foreground">
-                      {new Intl.DateTimeFormat('en-US', {
+                      {new Intl.DateTimeFormat(locale, {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',

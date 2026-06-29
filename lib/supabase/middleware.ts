@@ -170,7 +170,7 @@ export async function updateSession(request: NextRequest, intlResponse?: NextRes
 
     if (isProtectedRoute(pathname)) {
 
-      loginUrl.searchParams.set('redirect', rawPathname)
+      loginUrl.searchParams.set('redirect', pathname)
 
     }
 
@@ -192,7 +192,7 @@ export async function updateSession(request: NextRequest, intlResponse?: NextRes
 
       verifyUrl.pathname = localizePath(MFA_VERIFY_ROUTE, locale)
 
-      verifyUrl.searchParams.set('redirect', rawPathname)
+      verifyUrl.searchParams.set('redirect', pathname)
 
       return NextResponse.redirect(verifyUrl)
 
@@ -234,7 +234,7 @@ export async function updateSession(request: NextRequest, intlResponse?: NextRes
 
       verifyUrl.pathname = localizePath('/verify', locale)
 
-      verifyUrl.searchParams.set('redirect', rawPathname)
+      verifyUrl.searchParams.set('redirect', pathname)
 
       return NextResponse.redirect(verifyUrl)
 

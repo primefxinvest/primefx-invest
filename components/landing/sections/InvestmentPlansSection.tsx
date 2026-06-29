@@ -1,5 +1,6 @@
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { ArrowRight } from 'lucide-react'
+import { getTranslations } from 'next-intl/server'
 import { cn } from '@/lib/utils'
 import { fetchPublicInvestmentPlans } from '@/lib/invest/public-plans'
 import {
@@ -49,6 +50,7 @@ function InvestmentPlansSectionSkeleton() {
 export { InvestmentPlansSectionSkeleton }
 
 export default async function InvestmentPlansSection() {
+  const t = await getTranslations('landing.plans')
   const plans = await fetchPublicInvestmentPlans()
 
   return (
@@ -56,28 +58,21 @@ export default async function InvestmentPlansSection() {
       <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-4">
           <div className="lg:col-span-1">
-            <p className="text-xs font-semibold tracking-widest text-[#0052ff]">INVESTMENT PLANS</p>
-            <h2 className="mt-3 text-2xl font-bold text-gray-900 sm:text-3xl">
-              Plans Built For Every Investor
-            </h2>
-            <p className="mt-4 text-sm leading-relaxed text-gray-600">
-              Whether you&apos;re just starting out or managing a large portfolio, we have a plan
-              tailored to your risk appetite and financial goals.
-            </p>
+            <p className="text-xs font-semibold tracking-widest text-[#0052ff]">{t('eyebrow')}</p>
+            <h2 className="mt-3 text-2xl font-bold text-gray-900 sm:text-3xl">{t('title')}</h2>
+            <p className="mt-4 text-sm leading-relaxed text-gray-600">{t('subtitle')}</p>
             <Link
               href="/invest"
               className="mt-6 inline-flex items-center gap-1 text-sm font-semibold text-[#0052ff] hover:underline"
             >
-              Compare All Plans
+              {t('compare')}
               <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
 
           {plans.length === 0 ? (
             <div className="flex min-h-[12rem] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 p-8 lg:col-span-3">
-              <p className="text-center text-sm text-gray-500">
-                Investment plans will appear here once they are configured in your account.
-              </p>
+              <p className="text-center text-sm text-gray-500">{t('empty')}</p>
             </div>
           ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-3 lg:grid-cols-4">
@@ -85,7 +80,7 @@ export default async function InvestmentPlansSection() {
               const theme = getLandingPlanTheme(plan, index)
               const Icon = theme.icon
               const displayDuration =
-                plan.duration === 'No Lock Period' ? 'Flexible' : plan.duration
+                plan.duration === 'No Lock Period' ? t('flexible') : plan.duration
 
               return (
                 <div
@@ -94,7 +89,7 @@ export default async function InvestmentPlansSection() {
                 >
                   {plan.popular && (
                     <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-purple-600 px-3 py-0.5 text-[10px] font-bold text-white">
-                      Most Popular
+                      {t('mostPopular')}
                     </span>
                   )}
 
@@ -127,16 +122,16 @@ export default async function InvestmentPlansSection() {
 
                   <ul className="mt-4 flex-1 space-y-2">
                     <li className="flex justify-between text-xs">
-                      <span className="text-gray-500">Min. Investment</span>
+                      <span className="text-gray-500">{t('minInvestment')}</span>
                       <span className="font-semibold text-gray-800">{plan.minInvestment}</span>
                     </li>
                     <li className="flex justify-between text-xs">
-                      <span className="text-gray-500">Duration</span>
+                      <span className="text-gray-500">{t('duration')}</span>
                       <span className="font-semibold text-gray-800">{displayDuration}</span>
                     </li>
                     <li className="flex justify-between text-xs">
-                      <span className="text-gray-500">Capital Protection</span>
-                      <span className="font-semibold text-gray-800">Yes</span>
+                      <span className="text-gray-500">{t('capitalProtection')}</span>
+                      <span className="font-semibold text-gray-800">{t('capitalProtectionYes')}</span>
                     </li>
                   </ul>
 
@@ -147,7 +142,7 @@ export default async function InvestmentPlansSection() {
                       theme.buttonClass
                     )}
                   >
-                    Choose Plan
+                    {t('choosePlan')}
                   </Link>
                 </div>
               )

@@ -1,12 +1,12 @@
 'use client'
 
 import { ReferralProgramView } from '@/components/referral/ReferralProgramView'
-import { InvestorPageGate } from '@/components/investor/InvestorPageGate'
+import { ReferralProgramGate } from '@/components/referral/ReferralProgramGate'
 
 export default function ReferralPage() {
   return (
-    <InvestorPageGate feature="referral_program" route="/referral">
+    <ReferralProgramGate>
       <ReferralProgramView />
-    </InvestorPageGate>
+    </ReferralProgramGate>
   )
 }

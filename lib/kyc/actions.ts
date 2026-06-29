@@ -41,27 +41,6 @@ function assertOwnPath(userId: string, path: string) {
   }
 }
 
-async function loadProfileForKyc(userId: string) {
-  const admin = createAdminSupabaseClient()
-  if (!admin) return null
-
-  const [{ data: userRow }, { data: authData }] = await Promise.all([
-    admin.from('users').select('full_name, phone_number, country').eq('id', userId).maybeSingle(),
-    admin.auth.admin.getUserById(userId),
-  ])
-
-  const metadata = authData.user?.user_metadata ?? {}
-
-  return {
-    fullName: (userRow?.full_name as string | undefined) ?? (metadata.full_name as string | undefined) ?? '',
-    phone:
-      (userRow?.phone_number as string | undefined) ?? (metadata.phone as string | undefined) ?? '',
-    dateOfBirth: (metadata.date_of_birth as string | undefined) ?? '',
-    address: (metadata.address as string | undefined) ?? '',
-    country: (userRow?.country as string | undefined) ?? '',
-  }
-}
-
 export async function getMyKycSubmission(): Promise<KycSubmission | null> {
   try {
     const userId = await requireUserId()
@@ -87,24 +66,6 @@ export async function submitKycForReview(
   const userId = await requireUserId()
   if (!userId) {
     return { success: false, error: 'You must be signed in to submit KYC.' }
-  }
-
-  const profile = await loadProfileForKyc(userId)
-  if (!profile) {
-    return { success: false, error: 'KYC submission is temporarily unavailable.' }
-  }
-
-  const missing: string[] = []
-  if (!profile.fullName.trim()) missing.push('full name')
-  if (!profile.phone.trim()) missing.push('phone number')
-  if (!profile.dateOfBirth.trim()) missing.push('date of birth')
-  if (!profile.address.trim()) missing.push('address')
-
-  if (missing.length > 0) {
-    return {
-      success: false,
-      error: `Complete your profile first: ${missing.join(', ')}.`,
-    }
   }
 
   if (!input.idType || !input.idNumber.trim() || !input.country.trim()) {

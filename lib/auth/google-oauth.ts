@@ -1,5 +1,7 @@
 'use client'
 
+import { sanitizeRedirectPath } from '@/lib/auth/session'
+
 type AuthErrorLike = {
   message?: string
   msg?: string
@@ -48,7 +50,7 @@ export function isGoogleAuthEnabled() {
  * (required for exchangeCodeForSession in /auth/callback).
  */
 export function signInWithGoogle(redirectTo = '/dashboard') {
-  const safeRedirect = redirectTo.startsWith('/') ? redirectTo : '/dashboard'
+  const safeRedirect = sanitizeRedirectPath(redirectTo)
   const url = new URL('/auth/login/google', window.location.origin)
   url.searchParams.set('redirect', safeRedirect)
   window.location.assign(url.toString())

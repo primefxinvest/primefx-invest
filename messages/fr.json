@@ -23,7 +23,62 @@
     "backToLogin": "Retour à la connexion",
     "createAccount": "Créer un compte",
     "welcomeBack": "Bon retour",
-    "joinPrimeFx": "Rejoindre PrimeFx Invest"
+    "joinPrimeFx": "Rejoindre PrimeFx Invest",
+    "rememberMe": "Se souvenir de moi",
+    "orContinueWith": "Ou continuer avec",
+    "redirectingToGoogle": "Redirection vers Google...",
+    "signInWithGoogle": "Se connecter avec Google",
+    "signUpWithGoogle": "S'inscrire avec Google",
+    "passwordPlaceholder": "Entrez votre mot de passe",
+    "fullNameLabel": "Nom complet",
+    "confirmPasswordLabel": "Confirmer le mot de passe",
+    "passwordCreatePlaceholder": "Créez un mot de passe fort",
+    "confirmPasswordPlaceholder": "Confirmez votre mot de passe",
+    "agreeTermsPrefix": "J'accepte les",
+    "termsOfService": "Conditions d'utilisation",
+    "privacyPolicy": "Politique de confidentialité",
+    "and": "et la",
+    "oauthFailed": "Échec de la connexion Google. Réessayez ou utilisez e-mail et mot de passe.",
+    "oauthCancelled": "La connexion Google a été annulée ou interrompue.",
+    "enterEmailForReset": "Entrez d'abord votre adresse e-mail pour réinitialiser le mot de passe.",
+    "passwordResetSent": "E-mail de réinitialisation envoyé",
+    "passwordResetSentDescription": "Consultez {email} pour les instructions.",
+    "invalidCredentials": "Veuillez entrer un e-mail et un mot de passe valides (min. 6 caractères)",
+    "loginFailed": "Échec de la connexion. Veuillez réessayer.",
+    "loginFailedCredentials": "Échec de la connexion. Vérifiez vos identifiants.",
+    "fillAllFields": "Veuillez remplir tous les champs",
+    "passwordMinLength": "Le mot de passe doit contenir au moins 6 caractères",
+    "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
+    "agreeTermsRequired": "Vous devez accepter les conditions générales",
+    "agreeTermsGoogleRequired": "Vous devez accepter les conditions générales avant de continuer avec Google.",
+    "registerFailed": "Échec de l'inscription. Veuillez réessayer.",
+    "profileCreationFailed": "Échec de la création du profil. Contactez le support.",
+    "referralInvited": "Vous avez été invité avec le code de parrainage {code}.",
+    "referralLinked": "Votre parrain sera lié lorsque vous terminerez l'inscription.",
+    "starterInvestorNote": "Tous les comptes commencent en tant qu'investisseurs Starter 🌱 — passez à un niveau supérieur en investissant dans des plans plus élevés.",
+    "benefitEncryption": "Sécurité par chiffrement 256 bits",
+    "benefitSupport": "Support PrimeAI 24h/24",
+    "benefitAccess": "Accès instantané aux investissements",
+    "mfaTitle": "Vérification à deux facteurs",
+    "mfaSubtitle": "Entrez le code de votre application d'authentification pour continuer.",
+    "mfaAuthenticatorCode": "Code d'authentification",
+    "mfaAuthenticatorHelp": "Ouvrez Google Authenticator, Authy ou votre application TOTP et entrez le code à 6 chiffres pour PrimeFx Invest.",
+    "mfaCodeLabel": "Code de vérification",
+    "mfaVerifyContinue": "Vérifier et continuer",
+    "mfaVerifying": "Vérification...",
+    "mfaSignOutDifferent": "Se déconnecter et utiliser un autre compte",
+    "mfaLostAuthenticator": "Vous n'avez plus accès à votre authentificateur ?",
+    "mfaContactSupport": "Contacter le support",
+    "mfaVerificationSuccess": "Vérification réussie",
+    "mfaWelcomeBack": "Bon retour sur PrimeFx Invest.",
+    "mfaInvalidCode": "Code de vérification invalide.",
+    "mfaVerificationFailed": "Échec de la vérification. Veuillez réessayer.",
+    "layoutTitle": "Accès au compte",
+    "layoutDescription": "Connectez-vous ou créez votre compte PrimeFx Invest.",
+    "metaSignInTitle": "Se connecter",
+    "metaSignInDescription": "Connectez-vous à votre tableau de bord investisseur PrimeFx Invest.",
+    "metaSignUpTitle": "Créer un compte",
+    "metaSignUpDescription": "Rejoignez PrimeFx Invest — créez votre compte gratuit et investissez avec des plans IA à partir de 50 $."
   },
   "verification": {
     "verifyIdentity": "Vérifier l'identité",
@@ -77,7 +132,17 @@
     "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
     "notFoundTitle": "Page introuvable",
     "notFoundDescription": "La page que vous recherchez n'existe pas ou a peut-être été déplacée.",
-    "goHome": "Accueil"
+    "goHome": "Accueil",
+    "notFoundPublicHome": "Retour à l'accueil",
+    "notFoundPublicDescription": "Cette page n'existe pas. Vérifiez l'URL ou retournez à la page d'accueil.",
+    "notFoundDashboardHome": "Retour au tableau de bord",
+    "notFoundDashboardDescription": "Cette page n'existe pas dans votre tableau de bord investisseur. Vérifiez l'URL ou retournez au tableau de bord.",
+    "notFoundAuthHome": "Retour à la connexion",
+    "notFoundAuthDescription": "Cette page n'existe pas. Retournez à la connexion ou créez un compte.",
+    "notFoundAdminHome": "Retour à l'admin",
+    "notFoundAdminDescription": "Cette page d'administration n'existe pas. Vérifiez l'URL ou retournez au tableau de bord admin.",
+    "loadErrorDescription": "Impossible de charger ces données. Veuillez réessayer.",
+    "noDataYet": "Pas encore de données"
   },
   "sidebar": {
     "dashboard": "Tableau de bord",
@@ -103,7 +168,12 @@
     "deposit": "Dépôt",
     "withdraw": "Retrait",
     "transfer": "Transfert",
-    "loggingOut": "Déconnexion…"
+    "loggingOut": "Déconnexion…",
+    "logoutFailed": "Échec de la déconnexion",
+    "closeMenu": "Fermer le menu de navigation",
+    "closeNavMenu": "Fermer le menu",
+    "upgradeNow": "Mettre à niveau",
+    "upgradeTo": "Passer à {tier}"
   },
   "landing": {
     "home": "Accueil",
@@ -112,7 +182,246 @@
     "academy": "Académie",
     "marketInsights": "Analyses de marché",
     "community": "Communauté",
-    "support": "Support"
+    "support": "Support",
+    "openMenu": "Ouvrir le menu",
+    "closeMenu": "Fermer le menu",
+    "hero": {
+      "badge": "ÉCOSYSTÈME D'INVESTISSEMENT IA",
+      "titleLine1": "Investissez plus intelligemment.",
+      "titleHighlight": "Faites fructifier votre patrimoine.",
+      "titleLine2": "Sécurisez votre avenir.",
+      "subtitle": "PrimeFx Invest combine l'IA, les marchés mondiaux et des stratégies d'experts pour faire croître votre patrimoine de façon constante et sécurisée.",
+      "featureSecure": "Sécurisé et réglementé",
+      "featureAi": "Stratégies IA",
+      "featureReturns": "Fort potentiel de rendement",
+      "featureGlobal": "Opportunités mondiales",
+      "ctaStart": "Commencer à investir",
+      "ctaDashboard": "Aller au tableau de bord",
+      "ctaWatch": "Voir comment ça marche",
+      "trustedBy": "Approuvé par {count} investisseurs dans le monde",
+      "reviews": "({count} avis)",
+      "statInvestors": "Investisseurs actifs",
+      "statAum": "Actifs sous gestion",
+      "statReturns": "Rendement annuel moyen",
+      "statCountries": "Pays desservis",
+      "statSecure": "Sécurisé et protégé"
+    },
+    "whyChoose": {
+      "eyebrow": "POURQUOI CHOISIR PRIMEAI INVEST ?",
+      "title": "Pourquoi des milliers nous choisissent",
+      "subtitle": "Nous combinons technologie de pointe et stratégies d'investissement éprouvées pour des rendements constants et sécurisés.",
+      "features": [
+        {
+          "title": "Avantage IA",
+          "description": "Notre IA propriétaire analyse les marchés mondiaux 24h/24 pour identifier les opportunités à forte probabilité."
+        },
+        {
+          "title": "Opportunités diversifiées",
+          "description": "Accédez au forex, matières premières, indices et actifs numériques dans plus de 150 pays."
+        },
+        {
+          "title": "Sécurité bancaire",
+          "description": "Chiffrement SSL 256 bits, stockage à froid et authentification multifacteur."
+        },
+        {
+          "title": "Gestion experte",
+          "description": "Une équipe d'analystes et de gestionnaires travaille avec l'IA pour maximiser vos rendements."
+        },
+        {
+          "title": "Transparent et équitable",
+          "description": "Pas de frais cachés. Suivi en temps réel et rapports détaillés."
+        },
+        {
+          "title": "Support humain 24h/24",
+          "description": "Notre équipe support est disponible en permanence par chat, e-mail et téléphone."
+        }
+      ]
+    },
+    "journey": {
+      "eyebrow": "COMMENT ÇA MARCHE",
+      "title": "Votre chemin vers la liberté financière",
+      "cta": "Commencer maintenant",
+      "steps": [
+        {
+          "title": "Créer un compte",
+          "description": "Inscrivez-vous en moins de 2 minutes avec votre e-mail."
+        },
+        {
+          "title": "Choisir votre plan",
+          "description": "Starter, Growth, Prime ou Elite selon vos objectifs."
+        },
+        {
+          "title": "Alimenter le compte",
+          "description": "Dépôt par virement, carte ou crypto — crédité instantanément."
+        },
+        {
+          "title": "Nous investissons pour vous",
+          "description": "Notre IA et nos experts gèrent votre portefeuille 24h/24."
+        },
+        {
+          "title": "Croître et retirer",
+          "description": "Suivez votre croissance et retirez vos gains à tout moment."
+        }
+      ]
+    },
+    "plans": {
+      "eyebrow": "PLANS D'INVESTISSEMENT",
+      "title": "Des plans pour chaque investisseur",
+      "subtitle": "Débutant ou grand portefeuille — nous avons un plan adapté à votre profil de risque.",
+      "compare": "Comparer tous les plans",
+      "empty": "Les plans d'investissement apparaîtront ici une fois configurés.",
+      "mostPopular": "Le plus populaire",
+      "minInvestment": "Investissement min.",
+      "duration": "Durée",
+      "capitalProtection": "Protection du capital",
+      "capitalProtectionYes": "Oui",
+      "flexible": "Flexible",
+      "choosePlan": "Choisir le plan"
+    },
+    "performance": {
+      "eyebrow": "PERFORMANCE DU MARCHÉ",
+      "title": "Rendements constants. Performance prouvée.",
+      "subtitle": "Nos stratégies IA ont constamment surpassé les indices traditionnels année après année.",
+      "viewReport": "Voir le rapport complet",
+      "comparison": "Comparaison de performance",
+      "primeaiReturn": "Rendement moyen PrimeAI",
+      "sp500": "Moyenne S&P 500",
+      "liveMarkets": "Opportunités de marché en direct",
+      "liveMarketsSubtitle": "Mouvements de prix en temps réel",
+      "viewOpportunities": "Voir toutes les opportunités",
+      "statReturn": "Rendement annuel moyen",
+      "statWinRate": "Taux de réussite",
+      "statAum": "Actifs totaux gérés",
+      "statInvestors": "Investisseurs actifs",
+      "timeframes": [
+        "1M",
+        "6M",
+        "1Y",
+        "2Y",
+        "All Time"
+      ]
+    },
+    "security": {
+      "eyebrow": "VOTRE SÉCURITÉ EST NOTRE PRIORITÉ",
+      "title": "Une sécurité de niveau bancaire",
+      "subtitle": "Nous appliquons les mêmes normes de sécurité que les grandes institutions financières.",
+      "learnMore": "En savoir plus sur la sécurité",
+      "cardTitle": "Vos fonds, entièrement protégés",
+      "cardBody": "Chaque transaction est chiffrée, vérifiée et surveillée en temps réel.",
+      "features": [
+        "Chiffrement SSL 256 bits",
+        "Authentification à deux facteurs",
+        "Portefeuilles cold storage",
+        "Conformité réglementaire",
+        "Surveillance en temps réel"
+      ]
+    },
+    "testimonials": {
+      "eyebrow": "TÉMOIGNAGES",
+      "title": "Ce que disent nos investisseurs",
+      "viewAll": "Voir tous les avis",
+      "items": [
+        {
+          "quote": "PrimeFx Invest completely changed how I approach investing. The AI recommendations are spot-on, and I've seen consistent returns month after month.",
+          "name": "Sarah Mitchell",
+          "role": "Growth Plan Investor"
+        },
+        {
+          "quote": "I was skeptical at first, but the transparency and 24/7 support won me over. My portfolio has grown 34% in just 8 months. Highly recommended!",
+          "name": "James Okafor",
+          "role": "Prime Plan Investor"
+        },
+        {
+          "quote": "As a busy professional, I don't have time to manage investments. PrimeFx does it all for me — secure, profitable, and completely hands-off.",
+          "name": "Elena Rodriguez",
+          "role": "Elite Plan Investor"
+        }
+      ]
+    },
+    "globalImpact": {
+      "eyebrow": "IMPACT MONDIAL",
+      "stats": [
+        {
+          "label": "Investisseurs satisfaits"
+        },
+        {
+          "label": "Actifs sous gestion"
+        },
+        {
+          "label": "Pays dans le monde"
+        },
+        {
+          "label": "Note moyenne"
+        },
+        {
+          "label": "Disponibilité et fiabilité"
+        }
+      ]
+    },
+    "faq": {
+      "eyebrow": "FAQ",
+      "title": "Questions fréquentes",
+      "subtitle": "Tout ce qu'il faut savoir avant de commencer.",
+      "items": [
+        {
+          "question": "Is PrimeAI Invest safe and secure?",
+          "answer": "Yes. We use 256-bit SSL encryption, cold storage wallets, two-factor authentication, and are fully compliant with global financial regulations."
+        },
+        {
+          "question": "What is the minimum investment amount?",
+          "answer": "You can start with as little as $50 on our Starter Plan. Higher-tier plans have higher minimums but offer greater return potential."
+        },
+        {
+          "question": "How often can I withdraw my profits?",
+          "answer": "Withdrawals are processed every 7 days on all plans. You can also access your capital anytime with no lock-in periods."
+        },
+        {
+          "question": "How does the AI investment system work?",
+          "answer": "Our proprietary AI analyzes thousands of market signals in real time and executes trades through our expert management team to optimize your portfolio."
+        },
+        {
+          "question": "What returns can I realistically expect?",
+          "answer": "Returns vary by plan and market conditions. Our Starter Plan targets 8–15% monthly ROI, while Elite plans can reach 40–60%. Past performance does not guarantee future results."
+        },
+        {
+          "question": "Do I need investment experience to get started?",
+          "answer": "Not at all. PrimeFx Invest is designed for everyone — from complete beginners to seasoned investors. Our platform handles everything for you."
+        },
+        {
+          "question": "What payment methods do you accept?",
+          "answer": "We accept bank transfers, credit/debit cards, and major cryptocurrencies including Bitcoin and Ethereum."
+        },
+        {
+          "question": "Is there a mobile app available?",
+          "answer": "Yes! Our mobile app is available on both iOS and Android, giving you full access to your portfolio, deposits, withdrawals, and support on the go."
+        }
+      ]
+    },
+    "appCta": {
+      "mobileEyebrow": "APPLICATION MOBILE",
+      "mobileTitle": "Emportez vos investissements partout",
+      "mobileSubtitle": "Gérez votre portefeuille, suivez la performance et investissez en déplacement.",
+      "appStoreAria": "Télécharger sur l'App Store",
+      "googlePlayAria": "Disponible sur Google Play",
+      "ctaTitle": "Prêt à commencer votre parcours d'investissement ?",
+      "ctaSubtitle": "Rejoignez plus de 120 000 investisseurs qui font confiance à PrimeFx Invest.",
+      "ctaButton": "Commencer à investir"
+    },
+    "footer": {
+      "tagline": "Plateforme d'investissement IA pour une croissance patrimoniale plus intelligente et plus sûre.",
+      "product": "Produit",
+      "company": "Entreprise",
+      "legal": "Juridique",
+      "features": "Fonctionnalités",
+      "pricing": "Tarifs",
+      "security": "Sécurité",
+      "about": "À propos",
+      "contact": "Contact",
+      "privacy": "Confidentialité",
+      "terms": "Conditions",
+      "legalCenter": "Centre juridique",
+      "rights": "Tous droits réservés."
+    }
   },
   "navbar": {
     "openMenu": "Ouvrir le menu de navigation",
@@ -129,6 +438,181 @@
     "kycVerification": "Vérification KYC",
     "memberSince": "Membre depuis",
     "active": "Actif",
-    "loadErrorTitle": "Impossible de charger le profil"
+    "loadErrorTitle": "Impossible de charger le profil",
+    "twoFactorEnabled": "2FA activé",
+    "personalInformation": "Informations personnelles",
+    "fullName": "Nom complet",
+    "emailAddress": "Adresse e-mail",
+    "phoneNumber": "Numéro de téléphone",
+    "dateOfBirth": "Date de naissance",
+    "address": "Adresse",
+    "accountType": "Type de compte",
+    "kycVerificationStatus": "Statut de vérification d'identité",
+    "activityHistory": "Historique d'activité",
+    "action": "Action",
+    "source": "Source",
+    "date": "Date",
+    "time": "Heure",
+    "noActivity": "Aucune activité enregistrée pour le moment.",
+    "loadProfileFailed": "Impossible de charger le profil"
+  },
+  "compliance": {
+    "kycRejected": "Vérification KYC refusée",
+    "kycRequired": "Vérification KYC requise",
+    "viewProfile": "Voir le profil"
+  },
+  "investor": {
+    "unlockWith": "Débloquer avec {tier}",
+    "featureRequires": "Cette fonctionnalité nécessite {tier} ou plus. Améliorez votre niveau d'investisseur pour accéder à {feature}.",
+    "thisModule": "ce module",
+    "minInvestment": "Investissement min. {amount} · ROI {range}",
+    "upgradeToTier": "Passer à {tier}",
+    "viewPlans": "Voir les plans d'investissement"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "description": "Personnalisez les préférences et la sécurité de votre compte.",
+    "general": "Paramètres généraux",
+    "language": "Langue",
+    "languageDescription": "Choisissez votre langue préférée",
+    "theme": "Thème",
+    "themeDescription": "Mode clair ou sombre",
+    "currency": "Devise",
+    "currencyDescription": "Devise d'affichage par défaut",
+    "security": "Paramètres de sécurité",
+    "changePassword": "Changer le mot de passe",
+    "changePasswordDescription": "Mettez à jour le mot de passe de votre compte en toute sécurité",
+    "twoFactor": "Authentification à deux facteurs",
+    "twoFactorActive": "Protégé par une application d'authentification",
+    "twoFactorInactive": "Ajoutez une couche de sécurité supplémentaire",
+    "active": "Actif",
+    "off": "Désactivé",
+    "activeSessions": "Sessions actives",
+    "activeSessionsDescription": "Gérez vos sessions de connexion",
+    "notifications": "Préférences de notification",
+    "emailNotifications": "Notifications par e-mail",
+    "emailNotificationsDescription": "Recevez des mises à jour par e-mail",
+    "pushNotifications": "Notifications push",
+    "pushNotificationsDescription": "Alertes navigateur pour dépôts, retraits et investissements",
+    "investmentAlerts": "Alertes d'investissement",
+    "investmentAlertsDescription": "Alertes sur les mises à jour d'investissement",
+    "securityAlerts": "Alertes de sécurité",
+    "securityAlertsDescription": "Alertes importantes de sécurité du compte",
+    "pushUnavailable": "Notifications push indisponibles",
+    "pushEnabled": "Notifications push activées",
+    "pushDisabled": "Notifications push désactivées",
+    "privacy": "Contrôles de confidentialité",
+    "profileVisibility": "Visibilité du profil",
+    "profileVisibilityDescription": "Afficher le profil dans la communauté",
+    "dataCollection": "Collecte de données",
+    "dataCollectionDescription": "Autoriser les analyses et améliorations",
+    "dangerZone": "Zone de danger",
+    "deleteAccount": "Supprimer le compte",
+    "deleteAccountWarning": "Cette action est irréversible. Toutes vos données seront définitivement supprimées.",
+    "themeLight": "Clair",
+    "themeAuto": "Automatique",
+    "themeDark": "Sombre",
+    "visibilityPublic": "Public",
+    "visibilityPrivate": "Privé",
+    "visibilityFriends": "Amis uniquement"
+  },
+  "meta": {
+    "dashboardTitle": "Tableau de bord investisseur",
+    "dashboardDescription": "Tableau de bord investisseur privé PrimeFx Invest.",
+    "marketingTitle": "Investissez plus intelligemment avec l'IA",
+    "marketingDescription": "Faites fructifier votre patrimoine avec PrimeFx Invest — plans IA, portefeuilles sécurisés, paiements hebdomadaires et tableau de bord complet.",
+    "aboutTitle": "À propos",
+    "aboutDescription": "Découvrez PrimeFx Invest et notre mission de démocratiser l'investissement par IA.",
+    "contactTitle": "Nous contacter",
+    "contactDescription": "Contactez l'équipe support de PrimeFx Invest.",
+    "legalTitle": "Centre juridique",
+    "legalDescription": "Conditions d'utilisation, politique de confidentialité et mentions légales PrimeFx Invest."
+  },
+  "dashboard": {
+    "welcome": "Bon retour, {name} !",
+    "overviewSubtitle": "Voici votre aperçu d'investissement pour aujourd'hui.",
+    "totalInvested": "Total investi",
+    "currentValue": "Valeur actuelle",
+    "totalProfit": "Profit total",
+    "roiOverall": "ROI (global)",
+    "fromLastMonth": "par rapport au mois dernier",
+    "portfolioPerformance": "Performance du portefeuille",
+    "assetAllocation": "Répartition des actifs",
+    "period": "Période",
+    "periodThisYear": "Cette année",
+    "periodLastMonth": "Le mois dernier",
+    "periodLast3Months": "3 derniers mois",
+    "noPerformanceTitle": "Aucune donnée de performance",
+    "noPerformanceDesc": "Investissez pour suivre la performance de votre portefeuille.",
+    "explorePlans": "Explorer les plans",
+    "noAllocationTitle": "Pas encore de répartition",
+    "noAllocationDesc": "Commencez à investir pour voir la distribution de votre portefeuille.",
+    "startInvesting": "Commencer à investir",
+    "noMarketTitle": "Aucune donnée de marché",
+    "noMarketDesc": "L'aperçu du marché apparaîtra une fois les actifs configurés.",
+    "quickActions": "Actions rapides",
+    "quickActionItems": [
+      {
+        "label": "Investir maintenant",
+        "description": "Commencer à investir"
+      },
+      {
+        "label": "Dépôt",
+        "description": "Ajouter des fonds"
+      },
+      {
+        "label": "Retrait",
+        "description": "Demander un paiement"
+      },
+      {
+        "label": "Transfert",
+        "description": "Envoyer vers un autre portefeuille"
+      },
+      {
+        "label": "PrimeAI",
+        "description": "Posez vos questions"
+      },
+      {
+        "label": "Académie",
+        "description": "Apprendre et progresser"
+      }
+    ],
+    "topPlans": "Meilleurs plans d'investissement",
+    "viewAllPlans": "Voir tous les plans",
+    "noPlansTitle": "Aucun plan d'investissement",
+    "noPlansDesc": "Les plans apparaîtront ici lorsqu'ils seront disponibles.",
+    "viewInvestPage": "Voir la page Investir",
+    "mostPopular": "Le plus populaire",
+    "minShort": "Min.",
+    "investNow": "Investir maintenant",
+    "goToPlan": "Aller à {name}",
+    "riskLow": "Risque faible",
+    "riskMedium": "Risque moyen",
+    "riskHigh": "Risque élevé",
+    "riskVeryHigh": "Risque très élevé",
+    "riskGeneric": "Risque {level}",
+    "recentTransactions": "Transactions récentes",
+    "viewAll": "Tout voir",
+    "noTransactionsTitle": "Aucune transaction pour le moment",
+    "noTransactionsDesc": "Vos derniers dépôts, retraits et profits apparaîtront ici.",
+    "goToWallet": "Aller au portefeuille",
+    "txDeposit": "Dépôt",
+    "txProfit": "Profit",
+    "txWithdraw": "Retrait",
+    "txTransfer": "Transfert",
+    "txBonus": "Bonus",
+    "rewardsProgress": "Progression des récompenses",
+    "referralEarnings": "Referral Earnings",
+    "totalEarnings": "Gains totaux",
+    "totalReferrals": "{count} parrainages au total",
+    "viewDetails": "Voir les détails",
+    "learningProgress": "Progression d'apprentissage",
+    "overallProgress": "Progression globale",
+    "coursesCompleted": "Cours terminés",
+    "continueLearning": "Continuer à apprendre",
+    "securityStatus": "Statut de sécurité",
+    "securityVeryStrong": "Très fort",
+    "securityProtected": "Votre compte est bien protégé",
+    "marketOverview": "Aperçu du marché"
   }
 }

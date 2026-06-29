@@ -60,7 +60,7 @@ function SignupForm() {
 
   const handleGoogleSignUp = () => {
     if (!agreedToTerms) {
-      setError('You must agree to the terms and conditions before continuing with Google.')
+      setError(t('agreeTermsGoogleRequired'))
       return
     }
 
@@ -78,22 +78,22 @@ function SignupForm() {
     
     // Validation
     if (!formData.name || !formData.email || !formData.password) {
-      setError('Please fill in all fields')
+      setError(t('fillAllFields'))
       return
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters')
+      setError(t('passwordMinLength'))
       return
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('passwordsDoNotMatch'))
       return
     }
 
     if (!agreedToTerms) {
-      setError('You must agree to the terms and conditions')
+      setError(t('agreeTermsRequired'))
       return
     }
 
@@ -113,7 +113,7 @@ function SignupForm() {
       })
 
       if (authError) {
-        setError(authError.message || 'Registration failed. Please try again.')
+        setError(authError.message || t('registerFailed'))
         return
       }
 
@@ -128,7 +128,7 @@ function SignupForm() {
         })
 
         if (!profile.success) {
-          setError(profile.error ?? 'Profile creation failed. Please contact support.')
+          setError(profile.error ?? t('profileCreationFailed'))
           return
         }
 
@@ -141,7 +141,7 @@ function SignupForm() {
         router.push('/login?registered=1')
       }
     } catch (err) {
-      setError('Registration failed. Please try again.')
+      setError(t('registerFailed'))
     } finally {
       setLoading(false)
     }
@@ -155,17 +155,14 @@ function SignupForm() {
         </div>
         <h1 className="text-2xl font-bold">PrimeFx Invest</h1>
         <p className="text-muted-foreground text-sm mt-1">{t('signUpTitle')}</p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          All accounts start as <span className="font-medium">Starter Investors</span> 🌱 — upgrade by investing in higher plans.
-        </p>
+        <p className="mt-2 text-xs text-muted-foreground">{t('starterInvestorNote')}</p>
       </div>
 
       <RegistrationStepper activeStep={1} className="mb-8" />
 
       {referralCode ? (
         <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          You were invited with referral code <span className="font-semibold">{referralCode}</span>.
-          Your referrer will be linked when you finish signing up.
+          {t('referralInvited', { code: referralCode })} {t('referralLinked')}
         </div>
       ) : null}
 
@@ -181,7 +178,7 @@ function SignupForm() {
         {/* Full Name */}
         <div>
           <label htmlFor="name" className="block text-sm font-medium mb-2">
-            Full Name
+            {t('fullNameLabel')}
           </label>
           <input
             id="name"
@@ -224,7 +221,7 @@ function SignupForm() {
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="Create a strong password"
+              placeholder={t('passwordCreatePlaceholder')}
               className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:border-primary focus:outline-none transition-colors"
               disabled={loading || googleLoading}
             />
@@ -241,7 +238,7 @@ function SignupForm() {
         {/* Confirm Password */}
         <div>
           <label htmlFor="confirmPassword" className="block text-sm font-medium mb-2">
-            Confirm Password
+            {t('confirmPasswordLabel')}
           </label>
           <div className="relative">
             <input
@@ -250,7 +247,7 @@ function SignupForm() {
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
-              placeholder="Confirm your password"
+              placeholder={t('confirmPasswordPlaceholder')}
               className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:border-primary focus:outline-none transition-colors"
               disabled={loading || googleLoading}
             />
@@ -274,13 +271,13 @@ function SignupForm() {
             disabled={loading || googleLoading}
           />
           <span className="text-sm text-muted-foreground">
-            I agree to the{' '}
+            {t('agreeTermsPrefix')}{' '}
             <Link href="/terms" className="text-primary hover:underline">
-              Terms of Service
+              {t('termsOfService')}
             </Link>
-            {' '}and{' '}
+            {' '}{t('and')}{' '}
             <Link href="/privacy" className="text-primary hover:underline">
-              Privacy Policy
+              {t('privacyPolicy')}
             </Link>
           </span>
         </label>
@@ -309,14 +306,14 @@ function SignupForm() {
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
+              <span className="px-2 bg-card text-muted-foreground">{t('orContinueWith')}</span>
             </div>
           </div>
 
           <GoogleSignInButton
             disabled={loading || googleLoading}
             onClick={handleGoogleSignUp}
-            label={googleLoading ? 'Redirecting to Google...' : 'Sign up with Google'}
+            label={googleLoading ? t('redirectingToGoogle') : t('signUpWithGoogle')}
           />
         </>
       ) : null}
@@ -325,15 +322,15 @@ function SignupForm() {
       <div className="mt-6 space-y-2 p-4 bg-primary/5 rounded-lg">
         <div className="flex gap-2 text-sm">
           <CheckCircle2 size={16} className="text-accent flex-shrink-0 mt-0.5" />
-          <span>256-bit encryption security</span>
+          <span>{t('benefitEncryption')}</span>
         </div>
         <div className="flex gap-2 text-sm">
           <CheckCircle2 size={16} className="text-accent flex-shrink-0 mt-0.5" />
-          <span>24/7 PrimeAI support</span>
+          <span>{t('benefitSupport')}</span>
         </div>
         <div className="flex gap-2 text-sm">
           <CheckCircle2 size={16} className="text-accent flex-shrink-0 mt-0.5" />
-          <span>Instant investment access</span>
+          <span>{t('benefitAccess')}</span>
         </div>
       </div>
 

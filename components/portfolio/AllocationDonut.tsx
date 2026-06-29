@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { PieTooltipContent } from '@/components/charts/ChartTooltip'
 import { chartTooltipWrapperProps } from '@/lib/charts/theme'

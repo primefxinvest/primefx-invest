@@ -1,11 +1,13 @@
 'use client'
 
-import Link from 'next/link'
+import { useTranslations } from 'next-intl'
+import { Link } from '@/i18n/navigation'
 import { AlertCircle, ShieldAlert } from 'lucide-react'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { cn } from '@/lib/utils'
 
 export function KycFinancialBanner({ className }: { className?: string }) {
+  const t = useTranslations('compliance')
   const { loading, verified, status, summary } = useFinancialKycAccess()
 
   if (loading || verified || !summary) return null
@@ -30,7 +32,7 @@ export function KycFinancialBanner({ className }: { className?: string }) {
         )}
         <div>
           <p className="text-sm font-semibold">
-            {isRejected ? 'KYC verification rejected' : 'KYC verification required'}
+            {isRejected ? t('kycRejected') : t('kycRequired')}
           </p>
           <p className="mt-0.5 text-sm opacity-90">{summary}</p>
         </div>
@@ -44,7 +46,7 @@ export function KycFinancialBanner({ className }: { className?: string }) {
             : 'bg-amber-600 text-white hover:bg-amber-700'
         )}
       >
-        View profile
+        {t('viewProfile')}
       </Link>
     </div>
   )

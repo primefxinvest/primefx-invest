@@ -96,6 +96,7 @@ export async function getPlatformSettingsSnapshot(): Promise<PlatformSettingsSna
       '006_rewards_tiers.sql',
       '007_payment_providers.sql',
       '008_user_mfa_admin.sql',
+      '014_platform_features.sql',
     ],
   }
 }

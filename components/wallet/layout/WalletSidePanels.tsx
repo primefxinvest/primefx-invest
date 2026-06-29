@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { CheckCircle2, Headphones, ShieldCheck } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
 import { WalletListSkeleton } from '@/components/wallet/layout/WalletListSkeleton'

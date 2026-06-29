@@ -1,24 +1,28 @@
 import type { Metadata } from 'next'
+import { getTranslations } from 'next-intl/server'
 import { AboutContent } from '@/components/public/AboutContent'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { webPageJsonLd } from '@/lib/seo/json-ld'
 import { buildPageMetadata } from '@/lib/seo/metadata'
 
-const TITLE = 'About Us'
-const DESCRIPTION =
-  'Learn about PrimeFx Invest — our mission to democratize investing with AI, security-first infrastructure, and transparent investment plans.'
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('meta')
+  return buildPageMetadata({
+    title: t('aboutTitle'),
+    description: t('aboutDescription'),
+    path: '/about',
+    keywords: ['about PrimeFx', 'investment company', 'fintech mission', 'AI investing'],
+  })
+}
 
-export const metadata: Metadata = buildPageMetadata({
-  title: TITLE,
-  description: DESCRIPTION,
-  path: '/about',
-  keywords: ['about PrimeFx', 'investment company', 'fintech mission', 'AI investing'],
-})
+export default async function AboutPage() {
+  const t = await getTranslations('meta')
+  const title = t('aboutTitle')
+  const description = t('aboutDescription')
 
-export default function AboutPage() {
   return (
     <>
-      <JsonLd data={webPageJsonLd({ title: TITLE, description: DESCRIPTION, path: '/about' })} />
+      <JsonLd data={webPageJsonLd({ title, description, path: '/about' })} />
       <AboutContent />
     </>
   )

@@ -1,12 +1,13 @@
 import type { User } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { MFA_VERIFY_ROUTE } from '@/lib/auth/routes'
+import { stripLocalePrefix } from '@/lib/i18n/pathname'
 
 export function sanitizeRedirectPath(path: string | null | undefined, fallback = '/dashboard') {
   if (!path || !path.startsWith('/') || path.startsWith('//')) {
     return fallback
   }
-  return path
+  return stripLocalePrefix(path)
 }
 
 export function getAuthenticatedEntryPath(

@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { ArrowRight, Bot, Sparkles } from 'lucide-react'
 
 export default function WalletPrimeAIInsight() {

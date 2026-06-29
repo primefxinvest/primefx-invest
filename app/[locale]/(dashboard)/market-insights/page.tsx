@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { ArrowRight, TrendingDown, TrendingUp } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
 import { ChartCardSkeleton } from '@/components/shared/skeletons'

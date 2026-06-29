@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState, useTransition } from 'react'
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { AlertCircle, CheckCircle2, Clock, Loader2, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { KycFileField } from '@/components/kyc/KycFileField'
@@ -18,15 +18,6 @@ import { updateUserProfile } from '@/lib/profile/actions'
 import type { UserProfile } from '@/lib/profile/types'
 import { getCurrentUser } from '@/lib/supabase'
 import { cn } from '@/lib/utils'
-
-function profileComplete(profile: UserProfile) {
-  return Boolean(
-    profile.fullName.trim() &&
-      profile.phone.trim() &&
-      profile.dateOfBirth.trim() &&
-      profile.address.trim()
-  )
-}
 
 export function KycSubmissionPanel({ profile }: { profile: UserProfile }) {
   const [submission, setSubmission] = useState<KycSubmission | null>(null)
@@ -81,8 +72,6 @@ export function KycSubmissionPanel({ profile }: { profile: UserProfile }) {
     !isVerified &&
     !isUnderReview &&
     (profile.kycStatus === 'Pending' || profile.kycStatus === 'Rejected' || !submission)
-
-  const needsProfile = !profileComplete(profile)
 
   const runDocumentScan = async (
     file: File,
@@ -317,22 +306,6 @@ export function KycSubmissionPanel({ profile }: { profile: UserProfile }) {
 
       {canSubmit ? (
         <div className="space-y-6">
-          {needsProfile ? (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-              <p className="font-semibold">Complete your profile before submitting</p>
-              <p className="mt-1">
-                We need your full name, phone, date of birth, and address on file.{' '}
-                <button
-                  type="button"
-                  onClick={() => window.dispatchEvent(new CustomEvent('primefx:open-edit-profile'))}
-                  className="font-semibold underline"
-                >
-                  Edit profile
-                </button>
-              </p>
-            </div>
-          ) : null}
-
           {profile.kycStatus === 'Rejected' ? (
             <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
               Your previous submission was rejected. Please upload updated documents and submit again.
@@ -352,6 +325,7 @@ export function KycSubmissionPanel({ profile }: { profile: UserProfile }) {
                 placeholder="Select ID type"
                 disabled={pending}
                 searchable={false}
+                usePortal={false}
               />
             </div>
             <div>
@@ -444,7 +418,7 @@ export function KycSubmissionPanel({ profile }: { profile: UserProfile }) {
             </p>
             <button
               type="button"
-              disabled={pending || needsProfile}
+              disabled={pending}
               onClick={handleSubmit}
               className={cn(
                 'inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50'

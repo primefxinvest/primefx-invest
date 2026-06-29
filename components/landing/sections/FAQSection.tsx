@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Plus, Minus } from 'lucide-react'
-import { LANDING_FAQS } from '@/lib/seo/faqs'
 
 function FAQItem({ q, a }: { q: string; a: string }) {
   const [open, setOpen] = useState(false)
@@ -27,33 +27,31 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function FAQSection() {
-  const leftFaqs = LANDING_FAQS.slice(0, 4)
-  const rightFaqs = LANDING_FAQS.slice(4)
+  const t = useTranslations('landing.faq')
+  const items = t.raw('items') as Array<{ question: string; answer: string }>
+  const leftFaqs = items.slice(0, 4)
+  const rightFaqs = items.slice(4)
 
   return (
     <section className="bg-gray-50 py-20">
       <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
           <div>
-            <p className="text-xs font-semibold tracking-widest text-[#0052ff]">FAQ</p>
-            <h2 className="mt-3 text-3xl font-bold text-gray-900">
-              Frequently Asked Questions
-            </h2>
-            <p className="mt-4 text-sm text-gray-600">
-              Everything you need to know before getting started.
-            </p>
+            <p className="text-xs font-semibold tracking-widest text-[#0052ff]">{t('eyebrow')}</p>
+            <h2 className="mt-3 text-3xl font-bold text-gray-900">{t('title')}</h2>
+            <p className="mt-4 text-sm text-gray-600">{t('subtitle')}</p>
           </div>
 
           <div>
-              {leftFaqs.map((faq) => (
-                <FAQItem key={faq.question} q={faq.question} a={faq.answer} />
-              ))}
+            {leftFaqs.map((faq) => (
+              <FAQItem key={faq.question} q={faq.question} a={faq.answer} />
+            ))}
           </div>
 
           <div>
-              {rightFaqs.map((faq) => (
-                <FAQItem key={faq.question} q={faq.question} a={faq.answer} />
-              ))}
+            {rightFaqs.map((faq) => (
+              <FAQItem key={faq.question} q={faq.question} a={faq.answer} />
+            ))}
           </div>
         </div>
       </div>

@@ -1,11 +1,5 @@
-import { NotFoundView } from '@/components/shared/NotFoundView'
+import { NotFoundPage } from '@/components/shared/NotFoundPage'
 
 export default function AdminPortalNotFound() {
-  return (
-    <NotFoundView
-      homeHref="/admin"
-      homeLabel="Back to admin"
-      description="This admin page doesn't exist. Check the URL or return to the admin dashboard."
-    />
-  )
+  return <NotFoundPage variant="admin" nativeHomeLink withIntlProvider />
 }

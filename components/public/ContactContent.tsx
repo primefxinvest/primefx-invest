@@ -1,6 +1,6 @@
 'use client'
 
-import Link from 'next/link'
+import { Link } from '@/i18n/navigation'
 import { Mail, MapPin, MessageSquare, Phone } from 'lucide-react'
 import { useAuthEntry } from '@/lib/hooks/useAuthEntry'
 

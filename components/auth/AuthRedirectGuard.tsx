@@ -1,6 +1,7 @@
 'use client'
 
 import { ReactNode, useEffect, useState } from 'react'
+import { useLocale } from 'next-intl'
 import { usePathname } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
@@ -8,6 +9,8 @@ import { needsMfaChallenge } from '@/lib/auth/mfa'
 import { getAuthenticatedEntryPath } from '@/lib/auth/session'
 import { isAuthRoute, isMfaVerifyRoute } from '@/lib/auth/routes'
 import { getCurrentUser, supabase } from '@/lib/supabase'
+import { localizePath } from '@/lib/i18n/pathname'
+import { type AppLocale } from '@/i18n/routing'
 
 interface AuthRedirectGuardProps {
   children: ReactNode
@@ -27,6 +30,7 @@ function isTransientAuthError(error: unknown) {
 }
 
 export default function AuthRedirectGuard({ children }: AuthRedirectGuardProps) {
+  const locale = useLocale() as AppLocale
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [ready, setReady] = useState(false)
@@ -65,9 +69,12 @@ export default function AuthRedirectGuard({ children }: AuthRedirectGuardProps) 
             searchParams.get('redirect'),
             mfa.required
           )
+          const [path, query] = destination.split('?')
+          const localizedPath = localizePath(path, locale)
+          const target = query ? `${localizedPath}?${query}` : localizedPath
 
           // Hard redirect avoids spinner deadlock when using the browser back button.
-          window.location.replace(destination)
+          window.location.replace(target)
           return
         }
 
@@ -97,7 +104,7 @@ export default function AuthRedirectGuard({ children }: AuthRedirectGuardProps) 
       window.clearTimeout(safetyTimer)
       window.removeEventListener('pageshow', onPageShow)
     }
-  }, [pathname, searchParams])
+  }, [locale, pathname, searchParams])
 
   if (!ready) {
     return (

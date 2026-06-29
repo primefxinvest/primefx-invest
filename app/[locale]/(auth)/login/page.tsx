@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase'
 import { formatGoogleAuthError, isGoogleAuthEnabled, signInWithGoogle } from '@/lib/auth/google-oauth'
 import { needsMfaChallenge } from '@/lib/auth/mfa'
 import { MFA_VERIFY_ROUTE } from '@/lib/auth/routes'
+import { sanitizeRedirectPath } from '@/lib/auth/session'
 import Logo from '@/components/shared/Logo'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { useResetOnPageShow } from '@/lib/hooks/useResetOnPageShow'
@@ -20,7 +21,7 @@ function LoginForm() {
   const tCommon = useTranslations('common')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const redirectTo = searchParams.get('redirect') || '/dashboard'
+  const redirectTo = sanitizeRedirectPath(searchParams.get('redirect'))
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -44,26 +45,26 @@ function LoginForm() {
     error ||
     (oauthMessage ? formatGoogleAuthError({ message: oauthMessage }) : '') ||
     (oauthError === 'oauth_failed'
-      ? 'Google sign-in failed. Try again or use email and password.'
+      ? t('oauthFailed')
       : oauthError === 'oauth_missing_code'
-        ? 'Google sign-in was cancelled or interrupted.'
+        ? t('oauthCancelled')
         : '')
 
   const finishLogin = () => {
     router.refresh()
-    router.push(redirectTo.startsWith('/') ? redirectTo : '/dashboard')
+    router.push(redirectTo)
   }
 
   const redirectToMfaVerify = () => {
     const params = new URLSearchParams({
-      redirect: redirectTo.startsWith('/') ? redirectTo : '/dashboard',
+      redirect: redirectTo,
     })
     router.push(`${MFA_VERIFY_ROUTE}?${params.toString()}`)
   }
 
   const handleForgotPassword = async () => {
     if (!email) {
-      setError('Enter your email address first to reset your password.')
+      setError(t('enterEmailForReset'))
       return
     }
 
@@ -76,8 +77,8 @@ function LoginForm() {
       return
     }
 
-    toast.success('Password reset email sent', {
-      description: `Check ${email} for reset instructions.`,
+    toast.success(t('passwordResetSent'), {
+      description: t('passwordResetSentDescription', { email }),
     })
   }
 
@@ -94,7 +95,7 @@ function LoginForm() {
 
     try {
       if (!email || password.length < 6) {
-        setError('Please enter a valid email and password (min 6 characters)')
+        setError(t('invalidCredentials'))
         setLoading(false)
         return
       }
@@ -105,13 +106,13 @@ function LoginForm() {
       })
 
       if (authError) {
-        setError(authError.message || 'Login failed. Please check your credentials.')
+        setError(authError.message || t('loginFailedCredentials'))
         setLoading(false)
         return
       }
 
       if (!data.user) {
-        setError('Login failed. Please try again.')
+        setError(t('loginFailed'))
         setLoading(false)
         return
       }
@@ -125,7 +126,7 @@ function LoginForm() {
 
       finishLogin()
     } catch {
-      setError('Login failed. Please try again.')
+      setError(t('loginFailed'))
     } finally {
       setLoading(false)
     }
@@ -173,7 +174,7 @@ function LoginForm() {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder={t('passwordPlaceholder')}
               className="w-full px-4 py-2 rounded-lg border border-border bg-background focus:border-primary focus:outline-none transition-colors"
               disabled={loading || googleLoading}
             />
@@ -194,7 +195,7 @@ function LoginForm() {
               className="rounded border border-border w-4 h-4 cursor-pointer"
               disabled={loading || googleLoading}
             />
-            <span>Remember me</span>
+            <span>{t('rememberMe')}</span>
           </label>
           <button
             type="button"
@@ -229,7 +230,7 @@ function LoginForm() {
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
+              <span className="px-2 bg-card text-muted-foreground">{t('orContinueWith')}</span>
             </div>
           </div>
 
@@ -237,7 +238,7 @@ function LoginForm() {
             <GoogleSignInButton
               disabled={loading || googleLoading}
               onClick={handleGoogleSignIn}
-              label={googleLoading ? 'Redirecting to Google...' : 'Sign in with Google'}
+              label={googleLoading ? t('redirectingToGoogle') : t('signInWithGoogle')}
             />
           </div>
         </>
@@ -257,8 +258,8 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="bg-card border border-border rounded-lg shadow-lg p-8 text-center text-sm text-muted-foreground">
-          Loading...
+        <div className="flex min-h-[280px] items-center justify-center rounded-lg border border-border bg-card p-8 shadow-lg">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       }
     >

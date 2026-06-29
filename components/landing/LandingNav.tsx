@@ -74,11 +74,11 @@ export default function LandingNav() {
   ]
 
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-gray-200/80 bg-white/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+    <header className="fixed inset-x-0 top-0 z-50 overflow-x-hidden border-b border-gray-200/80 bg-white/90 backdrop-blur-md">
+      <div className="mx-auto flex h-16 min-w-0 max-w-8xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Logo href="/" size={36} />
 
-        <nav className="hidden items-center gap-1 lg:flex">
+        <nav className="hidden min-w-0 items-center gap-1 lg:flex">
           {navLinks.map((link) => (
             <Link
               key={link.href}
@@ -104,7 +104,7 @@ export default function LandingNav() {
           type="button"
           className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 lg:hidden"
           onClick={() => setOpen((value) => !value)}
-          aria-label={open ? 'Close menu' : 'Open menu'}
+          aria-label={open ? t('closeMenu') : t('openMenu')}
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
