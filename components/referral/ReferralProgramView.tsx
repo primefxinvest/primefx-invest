@@ -46,9 +46,10 @@ import {
   PieTooltipContent,
 } from '@/components/charts/ChartTooltip'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
-import { fetchReferralProgramOverview } from '@/lib/data/queries'
 import { formatCurrency } from '@/lib/data/format'
-import { ensureMyReferralCode } from '@/lib/referral/actions'
+import { fetchReferralProgramOverviewAction } from '@/lib/referral/actions'
+import type { ReferralProgramOverview } from '@/lib/referral/analytics'
+import type { ReferralProgramPageData } from '@/lib/referral/overview-server'
 import { cn } from '@/lib/utils'
 
 const BENEFIT_CARDS = [
@@ -71,8 +72,8 @@ const BENEFIT_CARDS = [
     accent: 'bg-violet-50 text-violet-600',
   },
   {
-    title: '3 Levels Deep',
-    description: 'Level 1: 5% · Level 2: 2% · Level 3: 1%. Unlimited generations.',
+    title: '4 Levels Deep',
+    description: 'L1: 5% · L2: 2% · L3: 1% · L4: 0.5% weekly profit share.',
     icon: Users,
     accent: 'bg-amber-50 text-amber-600',
   },
@@ -86,6 +87,126 @@ const SHARE_ACTIONS = [
   { key: 'sms', label: 'SMS', icon: MessageCircle, color: 'text-violet-600' },
   { key: 'copy', label: 'Copy', icon: Copy, color: 'text-gray-700' },
 ] as const
+
+function funnelBarWidth(value: number, total: number, minPercent = 20) {
+  if (total <= 0) return `${minPercent}%`
+  const percent = (value / total) * 100
+  return `${Math.max(minPercent, Math.min(100, percent))}%`
+}
+
+function ReferralNetworkPanel({
+  levels,
+}: {
+  levels: ReferralProgramOverview['networkLevels']
+}) {
+  return (
+    <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h3 className="font-semibold text-gray-900">My Referral Network</h3>
+      <div className="mt-4 flex flex-1 flex-col gap-3">
+        {levels.map((level) => (
+          <div key={level.level} className="rounded-xl bg-gray-50 px-4 py-4">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-sm font-semibold text-gray-900">{level.level}</p>
+              <p className="shrink-0 text-xs font-medium text-emerald-600">
+                {formatCurrency(level.earnings)} earned
+              </p>
+            </div>
+            <p className="mt-4 text-center text-4xl font-bold leading-none text-[#0052ff]">
+              {level.count}
+            </p>
+            <div className="mt-3 flex min-h-[32px] items-center justify-center">
+              {level.members.length > 0 ? (
+                <div className="flex -space-x-2">
+                  {level.members.map((member) => (
+                    <span
+                      key={member.id}
+                      title={member.name}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#0052ff] text-[10px] font-bold text-white"
+                    >
+                      {member.initials}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-xs text-gray-400">No members yet</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ReferralChannelsPanel({
+  channels,
+}: {
+  channels: ReferralProgramOverview['channels']
+}) {
+  return (
+    <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h3 className="font-semibold text-gray-900">Top Performing Channels</h3>
+      <div className="mt-5 flex flex-1 flex-col justify-center space-y-4">
+        {channels.map((channel) => (
+          <div key={channel.name}>
+            <div className="mb-1.5 flex items-center justify-between text-sm">
+              <span className="font-medium text-gray-800">{channel.name}</span>
+              <span className="font-medium text-gray-500">{channel.percent}%</span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${channel.percent}%`, backgroundColor: channel.color }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function ReferralFunnelPanel({ funnel }: { funnel: ReferralProgramOverview['funnel'] }) {
+  const steps = [
+    { label: 'Clicks', value: funnel.clicks, width: '100%' },
+    {
+      label: 'Signups',
+      value: funnel.signups,
+      width: funnelBarWidth(funnel.signups, funnel.clicks),
+    },
+    {
+      label: 'Active Investors',
+      value: funnel.activeInvestors,
+      width: funnelBarWidth(funnel.activeInvestors, funnel.clicks, funnel.activeInvestors > 0 ? 20 : 28),
+    },
+  ]
+
+  return (
+    <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h3 className="font-semibold text-gray-900">Conversion Funnel</h3>
+      <div className="mt-5 flex flex-1 flex-col justify-center space-y-4">
+        {steps.map((step) => (
+          <div key={step.label}>
+            <div className="mb-1 flex justify-end">
+              <span className="text-sm font-bold text-gray-900">{step.value.toLocaleString()}</span>
+            </div>
+            <div className="h-9 overflow-hidden rounded-lg bg-gray-100">
+              <div
+                className="flex h-full min-w-[7rem] items-center rounded-lg bg-gradient-to-r from-[#0052ff] to-violet-500 px-3"
+                style={{ width: step.width }}
+              >
+                <span className="truncate text-[11px] font-semibold text-white">{step.label}</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="mt-5 text-center text-sm font-semibold text-emerald-600">
+        Conversion Rate: {funnel.conversionRate}%
+      </p>
+    </div>
+  )
+}
 
 function buildShareUrl(channel: string, link: string, code: string) {
   const text = `Join me on PrimeFx Invest and start investing smarter. Use my referral link: ${link}`
@@ -105,20 +226,22 @@ function buildShareUrl(channel: string, link: string, code: string) {
   }
 }
 
-export function ReferralProgramView() {
-  const { data, loading, error, reload } = useAsyncData(() => fetchReferralProgramOverview(), [])
+export function ReferralProgramView({
+  initialOverview = null,
+}: {
+  initialOverview?: ReferralProgramPageData | null
+}) {
+  const { data, loading, error, reload } = useAsyncData(
+    () => fetchReferralProgramOverviewAction(),
+    [],
+    initialOverview ?? undefined
+  )
   const [chartPeriod, setChartPeriod] = useState<'30' | '90' | '365'>('30')
   const [chartsReady, setChartsReady] = useState(false)
 
   useEffect(() => {
     setChartsReady(true)
   }, [])
-
-  useEffect(() => {
-    void ensureMyReferralCode().then((code) => {
-      if (code) reload()
-    })
-  }, [reload])
 
   const referralData = data?.referralData
   const referrals = data?.referrals ?? []
@@ -215,12 +338,20 @@ export function ReferralProgramView() {
         {BENEFIT_CARDS.map((card) => {
           const Icon = card.icon
           return (
-            <div key={card.title} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className={cn('flex h-11 w-11 items-center justify-center rounded-xl', card.accent)}>
+            <div
+              key={card.title}
+              className="flex flex-col items-start rounded-xl border border-gray-200 bg-white p-5 text-left shadow-sm"
+            >
+              <div
+                className={cn(
+                  'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl',
+                  card.accent
+                )}
+              >
                 <Icon className="h-5 w-5" />
               </div>
-              <h3 className="mt-4 font-semibold text-gray-900">{card.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-gray-500">{card.description}</p>
+              <h3 className="mt-4 w-full font-semibold text-gray-900">{card.title}</h3>
+              <p className="mt-2 w-full text-sm leading-relaxed text-gray-500">{card.description}</p>
             </div>
           )
         })}
@@ -372,89 +503,10 @@ export function ReferralProgramView() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-1">
-              <h3 className="font-semibold text-gray-900">My Referral Network</h3>
-              <div className="mt-4 space-y-4">
-                {overview.networkLevels.map((level) => (
-                  <div key={level.level} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold text-gray-900">{level.level}</p>
-                      <p className="text-xs text-gray-500">{formatCurrency(level.earnings)} earned</p>
-                    </div>
-                    <p className="mt-1 text-2xl font-bold text-[#0052ff]">{level.count}</p>
-                    <div className="mt-3 flex -space-x-2">
-                      {level.members.length > 0 ? (
-                        level.members.map((member) => (
-                          <span
-                            key={member.id}
-                            title={member.name}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-[#0052ff] text-[10px] font-bold text-white"
-                          >
-                            {member.initials}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-xs text-gray-400">No members yet</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="font-semibold text-gray-900">Top Performing Channels</h3>
-              <div className="mt-4 space-y-3">
-                {overview.channels.map((channel) => (
-                  <div key={channel.name}>
-                    <div className="mb-1 flex items-center justify-between text-xs">
-                      <span className="font-medium text-gray-700">{channel.name}</span>
-                      <span className="text-gray-500">{channel.percent}%</span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${channel.percent}%`, backgroundColor: channel.color }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="font-semibold text-gray-900">Conversion Funnel</h3>
-              <div className="mt-5 space-y-3">
-                {[
-                  { label: 'Clicks', value: overview.funnel.clicks, width: '100%' },
-                  { label: 'Signups', value: overview.funnel.signups, width: '72%' },
-                  {
-                    label: 'Active Investors',
-                    value: overview.funnel.activeInvestors,
-                    width: '48%',
-                  },
-                ].map((step) => (
-                  <div key={step.label}>
-                    <div className="mb-1 flex items-center justify-between text-xs">
-                      <span className="font-medium text-gray-700">{step.label}</span>
-                      <span className="font-semibold text-gray-900">{step.value.toLocaleString()}</span>
-                    </div>
-                    <div className="h-8 overflow-hidden rounded-lg bg-gray-100">
-                      <div
-                        className="flex h-full items-center rounded-lg bg-gradient-to-r from-[#0052ff] to-violet-500 px-3 text-[10px] font-semibold text-white"
-                        style={{ width: step.width }}
-                      >
-                        {step.label}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-4 text-center text-sm font-semibold text-emerald-600">
-                Conversion Rate: {overview.funnel.conversionRate}%
-              </p>
-            </div>
+          <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
+            <ReferralNetworkPanel levels={overview.networkLevels} />
+            <ReferralChannelsPanel channels={overview.channels} />
+            <ReferralFunnelPanel funnel={overview.funnel} />
           </div>
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -700,17 +752,18 @@ export function ReferralProgramView() {
             <div className="flex items-start gap-3">
               <Shield className="mt-0.5 h-5 w-5 text-violet-600" />
               <div>
-                <p className="text-sm font-semibold text-gray-900">PrimeFx Ambassador</p>
+                <p className="text-sm font-semibold text-gray-900">Referral rank rewards</p>
                 <p className="mt-1 text-xs leading-relaxed text-gray-600">
-                  Unlock unlimited earning potential with higher ranks and exclusive bonuses.
+                  Bronze ($150) through Ambassador (company car, AcademyFx office, $1,000/mo salary,
+                  0.5% team profits weekly) based on active members.
                 </p>
-                <button
-                  type="button"
+                <Link
+                  href="/support"
                   className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#0052ff] hover:underline"
                 >
-                  Apply Now
+                  View program terms
                   <Target className="h-3.5 w-3.5" />
-                </button>
+                </Link>
               </div>
             </div>
           </div>

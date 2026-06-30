@@ -61,7 +61,7 @@ export default function SupportPage() {
     },
     {
       question: 'How do I withdraw my funds?',
-      answer: 'You can withdraw funds anytime through your wallet. Simply click "Withdraw" and specify the amount and destination bank account.',
+      answer: 'You can withdraw funds anytime through your wallet using NOWPayments crypto or your PrimeFx Card.',
     },
     {
       question: 'Is my data secure?',

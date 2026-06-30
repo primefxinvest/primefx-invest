@@ -1,6 +1,13 @@
 import { randomBytes } from 'crypto'
 
-export type PaymentReferenceKind = 'deposit' | 'withdrawal' | 'investment' | 'transfer'
+export type PaymentReferenceKind =
+  | 'deposit'
+  | 'withdrawal'
+  | 'investment'
+  | 'transfer'
+  | 'profit'
+  | 'referral'
+  | 'bonus'
 
 /** Short, human-readable reference (e.g. DEP-20260626-A1B2C3D4). */
 export function generatePaymentReference(kind: PaymentReferenceKind): string {
@@ -11,6 +18,18 @@ export function generatePaymentReference(kind: PaymentReferenceKind): string {
     String(now.getUTCDate()).padStart(2, '0')
   const token = randomBytes(4).toString('hex').toUpperCase()
   const prefix =
-    kind === 'deposit' ? 'DEP' : kind === 'withdrawal' ? 'WD' : kind === 'transfer' ? 'TRF' : 'INV'
+    kind === 'deposit'
+      ? 'DEP'
+      : kind === 'withdrawal'
+        ? 'WD'
+        : kind === 'transfer'
+          ? 'TRF'
+          : kind === 'profit'
+            ? 'PRF'
+            : kind === 'referral'
+              ? 'REF'
+              : kind === 'bonus'
+                ? 'BNS'
+                : 'INV'
   return `${prefix}-${ymd}-${token}`
 }

@@ -4,10 +4,8 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import {
   ArrowRight,
-  Banknote,
   Bitcoin,
   Check,
-  Copy,
   CreditCard,
   ExternalLink,
   Loader2,
@@ -33,38 +31,30 @@ import { useWalletPageData } from '@/lib/hooks/useWalletPageData'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 import { getPaymentProviderOptions } from '@/lib/payments/actions'
-import { initiateDeposit, submitBankDeposit } from '@/lib/wallet/actions'
+import {
+  buildDepositCurrencyOptions,
+  DEFAULT_DEPOSIT_CURRENCY,
+  toSelectOptions,
+} from '@/lib/payments/currency-options'
+import { initiateDeposit } from '@/lib/wallet/actions'
 import { cn } from '@/lib/utils'
 
 const DEPOSIT_METHODS = [
   {
-    id: 'bank',
-    label: 'Bank Transfer',
-    icon: Banknote,
-    eta: '1-3 business days',
-    badge: 'Recommended',
+    id: 'nowpayments',
+    label: 'NOWPayments',
+    icon: Bitcoin,
+    eta: '~5-30 mins',
+    badge: 'Crypto',
   },
-  { id: 'usdt_trc20', label: 'USDT (TRC20)', icon: Wallet, eta: '~5 mins', badge: 'Low Fee' },
-  { id: 'usdt_erc20', label: 'USDT (ERC20)', icon: Wallet, eta: '~10 mins', badge: 'Medium Fee' },
-  { id: 'btc', label: 'Bitcoin (BTC)', icon: Bitcoin, eta: '~10-30 mins', badge: 'Network Fee' },
-  { id: 'card', label: 'PrimeFx Card', icon: CreditCard, eta: 'Instant', badge: 'No Fee' },
+  {
+    id: 'card',
+    label: 'PrimeFx Card',
+    icon: CreditCard,
+    eta: 'Instant',
+    badge: 'No Fee',
+  },
 ] as const
-
-const BANK_DETAILS = {
-  bankName: 'GT Bank',
-  accountName: 'PrimeFx Invest Ltd',
-  accountNumber: '1234567890',
-  routingNumber: '057103739',
-  swift: 'GTBIRWRW',
-  reference: 'PFXD20240526001',
-}
-
-function cryptoCurrencyForMethod(method: (typeof DEPOSIT_METHODS)[number]['id']) {
-  if (method === 'usdt_trc20') return 'USDT_TRC20'
-  if (method === 'usdt_erc20') return 'USDT_ERC20'
-  if (method === 'btc') return 'BTC'
-  return 'USDT'
-}
 
 export function DepositPageView() {
   const router = useRouter()
@@ -79,10 +69,12 @@ export function DepositPageView() {
     transactionsError,
     reloadTransactions,
   } = useWalletPageData()
-  const [method, setMethod] = useState<(typeof DEPOSIT_METHODS)[number]['id']>('bank')
+  const [method, setMethod] = useState<(typeof DEPOSIT_METHODS)[number]['id']>('nowpayments')
   const [amount, setAmount] = useState('500')
-  const [currency, setCurrency] = useState('USDT')
-  const [currencies, setCurrencies] = useState<{ value: string; label: string }[]>([])
+  const [currency, setCurrency] = useState(DEFAULT_DEPOSIT_CURRENCY)
+  const [currencies, setCurrencies] = useState(() => toSelectOptions(buildDepositCurrencyOptions()))
+  const [nowPaymentsEnabled, setNowPaymentsEnabled] = useState(true)
+  const [binancePayEnabled, setBinancePayEnabled] = useState(false)
   const [note, setNote] = useState('')
   const [step, setStep] = useState<'form' | 'ready'>('form')
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
@@ -90,10 +82,27 @@ export function DepositPageView() {
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
-    getPaymentProviderOptions().then((options) => {
-      setCurrencies(options.depositCurrencies.map((item) => ({ value: item.value, label: item.label })))
-      if (options.depositCurrencies[0]) setCurrency(options.depositCurrencies[0].value)
-    })
+    getPaymentProviderOptions()
+      .then((options) => {
+        setNowPaymentsEnabled(options.nowPaymentsEnabled)
+        setBinancePayEnabled(options.binancePayEnabled)
+
+        if (options.depositCurrencies.length > 0) {
+          setCurrencies(
+            options.depositCurrencies.map((item) => ({ value: item.value, label: item.label }))
+          )
+          setCurrency((current) =>
+            options.depositCurrencies.some((item) => item.value === current)
+              ? current
+              : options.depositCurrencies[0].value
+          )
+        }
+      })
+      .catch(() => {
+        toast.error('Could not refresh payment currencies', {
+          description: 'Using default crypto options. Try again if deposit fails.',
+        })
+      })
   }, [])
 
   const recentDeposits = useMemo(
@@ -125,20 +134,6 @@ export function DepositPageView() {
     (tx) => tx.type === 'Deposit' && tx.status.toLowerCase() === 'pending'
   )
 
-  const copyText = async (text: string, label: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      toast.success(`${label} copied`)
-    } catch {
-      toast.error(`Failed to copy ${label.toLowerCase()}`)
-    }
-  }
-
-  useEffect(() => {
-    if (method === 'bank' || method === 'card') return
-    setCurrency(cryptoCurrencyForMethod(method))
-  }, [method])
-
   const handleDeposit = () => {
     if (!kyc.loading && !kyc.verified) {
       showKycRequiredToast({
@@ -155,32 +150,22 @@ export function DepositPageView() {
       return
     }
 
-    if (method === 'bank') {
-      startTransition(async () => {
-        const result = await submitBankDeposit({ amountUsd: value, note })
-        if (!result.success) {
-          toast.error('Deposit failed', { description: result.error })
-          return
-        }
-        setStep('ready')
-        toast.success('Bank deposit submitted', {
-          description: `Reference ${result.referenceId}. Funds credit after confirmation.`,
-        })
-        router.refresh()
+    if (method === 'card') {
+      toast.info('PrimeFx Card deposits', {
+        description: 'Card funding will be available soon. Use NOWPayments crypto for now.',
       })
       return
     }
 
-    if (method === 'card') {
-      toast.info('PrimeFx Card deposits', {
-        description: 'Card funding will be available soon. Use crypto or bank transfer for now.',
+    if (method === 'nowpayments' && !nowPaymentsEnabled) {
+      toast.error('NOWPayments is not configured', {
+        description: 'Add NOWPAYMENTS_API_KEY and NOWPAYMENTS_IPN_SECRET to your environment.',
       })
       return
     }
 
     startTransition(async () => {
-      const depositCurrency = cryptoCurrencyForMethod(method)
-      const result = await initiateDeposit({ amountUsd: value, currency: depositCurrency })
+      const result = await initiateDeposit({ amountUsd: value, currency })
       if (!result.success) {
         toast.error('Deposit failed', { description: result.error })
         return
@@ -197,7 +182,7 @@ export function DepositPageView() {
     <div className="space-y-6">
       <WalletPageHeader
         title="Deposit"
-        description="Fund your account securely and start investing"
+        description="Fund your account with NOWPayments crypto or PrimeFx Card"
       />
 
       <KycFinancialBanner />
@@ -221,7 +206,7 @@ export function DepositPageView() {
             label="Total Deposited"
             value={wallet?.totalBalance ?? '$0.00'}
             subtext="All time"
-            icon={Banknote}
+            icon={ArrowRight}
             iconClassName="bg-emerald-50 text-emerald-600"
           />
           <WalletStatCard
@@ -235,7 +220,7 @@ export function DepositPageView() {
             label="This Month Deposits"
             value={`$${monthDeposits.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
             subtext={`${monthDeposits.count} transactions`}
-            icon={ArrowRight}
+            icon={Bitcoin}
             iconClassName="bg-indigo-50 text-indigo-600"
           />
         </div>
@@ -252,7 +237,7 @@ export function DepositPageView() {
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold text-gray-900">1. Select deposit method</h2>
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {DEPOSIT_METHODS.map((item) => {
                 const Icon = item.icon
                 const selected = method === item.id
@@ -292,16 +277,25 @@ export function DepositPageView() {
             <h2 className="text-lg font-bold text-gray-900">2. Deposit details</h2>
             <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="space-y-4">
-                {method !== 'bank' && method !== 'card' ? (
+                {method === 'nowpayments' ? (
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">Currency</label>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">Crypto currency</label>
                     <CustomSelect
                       value={currency}
                       onValueChange={setCurrency}
                       options={currencies}
                       placeholder="Select currency"
-                      disabled={pending}
+                      disabled={pending || currencies.length === 0}
                     />
+                    {!nowPaymentsEnabled ? (
+                      <p className="mt-1 text-xs text-amber-700">
+                        NOWPayments is not configured yet. Deposits will fail until API keys are added.
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Deposits open a USD invoice on NOWPayments — you can change the coin on the checkout page.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div>
@@ -344,38 +338,9 @@ export function DepositPageView() {
                 </div>
               </div>
 
-              {method === 'bank' ? (
-                <div className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                  <h3 className="font-semibold text-gray-900">Bank transfer details</h3>
-                  <dl className="mt-4 space-y-3 text-sm">
-                    {[
-                      ['Bank Name', BANK_DETAILS.bankName],
-                      ['Account Name', BANK_DETAILS.accountName],
-                      ['Account Number', BANK_DETAILS.accountNumber, true],
-                      ['Routing Number', BANK_DETAILS.routingNumber],
-                      ['SWIFT Code', BANK_DETAILS.swift],
-                      ['Reference / Memo', BANK_DETAILS.reference, true],
-                    ].map(([label, value, copyable]) => (
-                      <div key={String(label)} className="flex items-center justify-between gap-3">
-                        <dt className="text-gray-500">{label}</dt>
-                        <dd className="flex items-center gap-2 font-medium text-gray-900">
-                          {value}
-                          {copyable ? (
-                            <button
-                              type="button"
-                              onClick={() => copyText(String(value), String(label))}
-                              className="text-[#0052ff] hover:text-blue-700"
-                            >
-                              <Copy className="h-4 w-4" />
-                            </button>
-                          ) : null}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                  <WalletSecurityNotice>
-                    Important: Use the reference code above as payment reference to avoid delays.
-                  </WalletSecurityNotice>
+              {method === 'card' ? (
+                <div className="flex h-full min-h-[200px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
+                  PrimeFx Card funding is coming soon. Use NOWPayments crypto to deposit today.
                 </div>
               ) : step === 'ready' && (checkoutUrl || payAddress) ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
@@ -400,7 +365,7 @@ export function DepositPageView() {
                 </div>
               ) : (
                 <div className="flex h-full min-h-[200px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
-                  Select a method and amount, then continue to see payment instructions.
+                  Select NOWPayments, enter an amount, then continue to see payment instructions.
                 </div>
               )}
             </div>
@@ -419,10 +384,10 @@ export function DepositPageView() {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { title: 'Secure & Encrypted', text: 'Bank-level security for every deposit.' },
-              { title: 'Fast Processing', text: 'Deposits processed quickly and efficiently.' },
+              { title: 'Secure & Encrypted', text: 'Enterprise-grade security for every deposit.' },
+              { title: 'Fast Processing', text: 'Crypto deposits confirm in minutes via NOWPayments.' },
               { title: 'Zero Deposit Fees', text: 'No deposit fees on supported methods.' },
-              { title: 'Multiple Options', text: 'Bank, crypto, and card options.' },
+              { title: 'Two Options', text: 'NOWPayments crypto and PrimeFx Card.' },
             ].map((item) => (
               <div key={item.title} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                 <p className="font-semibold text-gray-900">{item.title}</p>
@@ -438,7 +403,7 @@ export function DepositPageView() {
               { label: 'Min deposit', value: '$10.00' },
               { label: 'Max per transaction', value: '$50,000.00' },
               { label: 'Deposit fee', value: '0%' },
-              { label: 'Processing time', value: 'Instant – 3 days' },
+              { label: 'Processing time', value: 'Instant – 30 mins' },
             ]}
           />
           <WalletRecentPanel

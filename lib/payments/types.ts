@@ -50,5 +50,7 @@ export interface CreateWithdrawalResult {
   success: boolean
   paymentId?: string
   orderId?: string
+  availableAt?: string
+  noticeDays?: number
   error?: string
 }

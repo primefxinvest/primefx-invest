@@ -76,6 +76,7 @@ export interface AdminUserRow {
   admin_notes: string | null
   mfa_disabled_at?: string | null
   mfa_disabled_reason?: string | null
+  referral_access_enabled?: boolean | null
 }
 
 export interface AdminUserDetailProfile extends AdminUserRow {
@@ -89,6 +90,7 @@ export interface AdminUserDetailProfile extends AdminUserRow {
   address: string | null
   email_verified: boolean
   last_sign_in_at: string | null
+  referral_access_enabled: boolean
 }
 
 export interface AdminUserInvestmentRow {
@@ -231,3 +233,31 @@ export interface AdminDashboardMetrics {
 
 export type AccountStatus = 'active' | 'suspended' | 'banned'
 export type KycStatus = 'Pending' | 'Verified' | 'Rejected' | 'pending' | 'verified' | 'rejected'
+
+export interface AdminVerificationSessionRow {
+  id: string
+  session_id: string
+  vendor_data: string | null
+  status: string
+  decision: Record<string, unknown> | null
+  workflow_id: string | null
+  user_id: string | null
+  user_email: string | null
+  user_name: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface AdminVerificationSessionsResult {
+  rows: AdminVerificationSessionRow[]
+  total: number
+  page: number
+  pageSize: number
+  stats: {
+    total: number
+    approved: number
+    declined: number
+    inReview: number
+    pending: number
+  }
+}

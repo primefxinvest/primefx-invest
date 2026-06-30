@@ -34,7 +34,6 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
       'enhanced_primeai_access',
       'academy_access',
       'market_insights',
-      'referral_program',
     ],
   },
   prime: {
@@ -51,7 +50,6 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
       'full_primeai_access',
       'academy_access',
       'market_insights',
-      'referral_program',
       'portfolio_analysis',
       'early_plan_access',
     ],
@@ -70,7 +68,6 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
       'unlimited_primeai_access',
       'academy_access',
       'market_insights',
-      'referral_program',
       'advanced_portfolio_analysis',
       'early_plan_access',
       'exclusive_plans',
@@ -121,7 +118,6 @@ export function hasInvestorFeature(
 /** Minimum tier required for gated platform routes */
 export const ROUTE_MIN_TIER: Partial<Record<string, InvestorTierKey>> = {
   '/market-insights': 'growth',
-  '/referral': 'growth',
   '/reports': 'prime',
 }
 
@@ -132,7 +128,6 @@ export function getRouteRequiredTier(path: string): InvestorTierKey | undefined 
 /** Features that unlock at each tier (for upgrade prompts) */
 export const FEATURE_MIN_TIER: Partial<Record<InvestorFeature, InvestorTierKey>> = {
   market_insights: 'growth',
-  referral_program: 'growth',
   portfolio_analysis: 'prime',
   advanced_portfolio_analysis: 'elite',
   early_plan_access: 'prime',

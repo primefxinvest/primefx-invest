@@ -23,9 +23,9 @@ export default function Logo({ href, showText = true, tagline = 'INVEST', size =
         priority
       />
       {showText && (
-        <div className="leading-tight">
-          <span className="block text-sm font-bold tracking-tight text-gray-900">PrimeFx</span>
-          <span className="block text-[10px] font-semibold tracking-widest text-[#0052ff]">{tagline}</span>
+        <div className="min-w-0 leading-tight">
+          <span className="block truncate text-[13px] font-bold tracking-tight text-gray-900">PrimeFx</span>
+          <span className="block text-[9px] font-semibold tracking-widest text-[#0052ff]">{tagline}</span>
         </div>
       )}
     </div>

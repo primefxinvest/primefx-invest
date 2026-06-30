@@ -30,6 +30,7 @@ import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 import { searchTransferRecipient, submitWalletTransfer } from '@/lib/wallet/actions'
 import type { TransferRecipientMethod } from '@/lib/wallet/types'
+import { calculateP2pTransferFee } from '@/lib/fees/constants'
 import { cn } from '@/lib/utils'
 
 const TRANSFER_METHODS = [
@@ -68,6 +69,9 @@ export function TransferPageView() {
   const [currency, setCurrency] = useState('USD')
   const [message, setMessage] = useState('')
   const [pending, startTransition] = useTransition()
+
+  const transferAmount = Number(amount) || 0
+  const transferFees = useMemo(() => calculateP2pTransferFee(transferAmount), [transferAmount])
 
   const available = useMemo(() => {
     const match = wallet?.availableBalance?.replace(/[^0-9.-]/g, '')
@@ -164,6 +168,10 @@ export function TransferPageView() {
       }
       if (value > available) {
         toast.error('Insufficient balance')
+        return
+      }
+      if (transferFees.senderTotal > available) {
+        toast.error(`Insufficient balance for $${transferFees.fee.toFixed(2)} transfer fee`)
         return
       }
       setStep(3)
@@ -337,8 +345,14 @@ export function TransferPageView() {
                           disabled={step > 2 || pending}
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                          Available: ${available.toFixed(2)} · Min $5 · Max $10,000
+                          Available: ${available.toFixed(2)} · Min $5 · Max $10,000 · Fee 1.2%
                         </p>
+                        {transferAmount >= 5 ? (
+                          <p className="mt-1 text-xs text-gray-500">
+                            Total debit: ${transferFees.senderTotal.toFixed(2)} (includes $
+                            {transferFees.fee.toFixed(2)} fee)
+                          </p>
+                        ) : null}
                       </div>
                       <div>
                         <label className="mb-2 block text-sm font-medium text-gray-700">Currency</label>
@@ -517,8 +531,8 @@ export function TransferPageView() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
           { icon: Zap, label: 'Instant Transfers' },
-          { icon: Send, label: 'Zero Transfer Fees' },
-          { icon: Shield, label: 'Bank-Level Security' },
+          { icon: Send, label: '1.2% Transfer Fee' },
+          { icon: Shield, label: 'Secure Transfers' },
           { icon: Clock, label: '24/7 Support' },
         ].map((item) => (
           <div

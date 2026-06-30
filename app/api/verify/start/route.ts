@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createDiditVerificationSession } from '@/lib/didit/client'
+import { upsertVerificationSession } from '@/lib/didit/verification-sessions'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 
@@ -50,6 +51,14 @@ export async function POST() {
         updated_at: new Date().toISOString(),
       })
       .eq('id', user.id)
+
+    await upsertVerificationSession({
+      sessionId: session.session_id,
+      vendorData: user.id,
+      status: session.status ?? 'Not Started',
+      workflowId: session.workflow_id ?? null,
+      userId: user.id,
+    })
 
     return NextResponse.json({
       url: session.url,

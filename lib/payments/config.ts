@@ -1,4 +1,10 @@
 import type { PaymentProviderId } from './types'
+import {
+  BINANCE_PAY_CURRENCIES,
+  buildDepositCurrencyOptions,
+  buildWithdrawalCurrencyOptions,
+  NOW_PAYMENTS_CURRENCIES,
+} from './currency-options'
 
 export const PAYMENT_PROVIDERS = {
   binance_pay: {
@@ -10,7 +16,7 @@ export const PAYMENT_PROVIDERS = {
     depositFeePercent: 0,
     supportsWithdrawal: false,
     fiatCurrencies: ['USD', 'EUR', 'GBP', 'AED', 'SGD'],
-    cryptoCurrencies: ['BNB', 'BTC', 'ETH', 'USDT', 'BUSD', 'USDC', 'XRP', 'ADA', 'DOGE', 'SOL', 'DOT', 'MATIC'],
+    cryptoCurrencies: [...BINANCE_PAY_CURRENCIES],
   },
   now_payments: {
     id: 'now_payments' as const,
@@ -23,26 +29,7 @@ export const PAYMENT_PROVIDERS = {
     depositFeePercent: 0.5,
     withdrawalFeePercent: 0.5,
     supportsWithdrawal: true,
-    cryptoCurrencies: [
-      'BTC',
-      'ETH',
-      'USDT_TRC20',
-      'USDT_ERC20',
-      'USDC',
-      'BNB',
-      'LTC',
-      'XRP',
-      'SOL',
-      'DOGE',
-      'ADA',
-      'MATIC',
-      'TRX',
-      'BUSD',
-      'DAI',
-      'SHIB',
-      'AVAX',
-      'DOT',
-    ],
+    cryptoCurrencies: [...NOW_PAYMENTS_CURRENCIES],
   },
 } as const
 
@@ -65,33 +52,14 @@ export function resolveDepositProvider(currency: string): PaymentProviderId {
   return DEPOSIT_ROUTING[normalized] ?? 'now_payments'
 }
 
-export function getDepositCurrencies(): { value: string; label: string; provider: PaymentProviderId }[] {
-  const items = new Map<string, { value: string; label: string; provider: PaymentProviderId }>()
-
-  for (const currency of PAYMENT_PROVIDERS.binance_pay.cryptoCurrencies) {
-    items.set(currency, {
-      value: currency,
-      label: currency,
-      provider: 'binance_pay',
-    })
-  }
-
-  for (const currency of PAYMENT_PROVIDERS.now_payments.cryptoCurrencies) {
-    if (!items.has(currency)) {
-      items.set(currency, {
-        value: currency,
-        label: currency.replace('_', ' '),
-        provider: 'now_payments',
-      })
-    }
-  }
-
-  return Array.from(items.values())
+export function getDepositCurrencies(input?: {
+  nowPayments?: boolean
+  binancePay?: boolean
+  nowPaymentsWhitelist?: string[]
+}): { value: string; label: string; provider: PaymentProviderId }[] {
+  return buildDepositCurrencyOptions(input)
 }
 
-export function getWithdrawalCurrencies() {
-  return PAYMENT_PROVIDERS.now_payments.cryptoCurrencies.map((currency) => ({
-    value: currency,
-    label: currency.replace('_', ' '),
-  }))
+export function getWithdrawalCurrencies(nowPaymentsWhitelist?: string[]) {
+  return buildWithdrawalCurrencyOptions(nowPaymentsWhitelist)
 }

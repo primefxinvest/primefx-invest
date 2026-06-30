@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import {
   ArrowRight,
-  Banknote,
   Bitcoin,
   CreditCard,
   Eye,
@@ -29,25 +28,21 @@ import { useWalletPageData } from '@/lib/hooks/useWalletPageData'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 import { getPaymentProviderOptions } from '@/lib/payments/actions'
+import {
+  buildWithdrawalCurrencyOptions,
+  DEFAULT_WITHDRAW_CURRENCY,
+} from '@/lib/payments/currency-options'
 import { initiateWithdrawal, submitManualWithdrawal } from '@/lib/wallet/actions'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
+import { calculateWithdrawalFee, WITHDRAWAL_NOTICE_DAYS } from '@/lib/fees/constants'
 import { cn } from '@/lib/utils'
 
-const METHOD_CURRENCY: Partial<Record<(typeof WITHDRAW_METHODS)[number]['id'], string>> = {
-  usdt_trc20: 'USDT_TRC20',
-  usdt_erc20: 'USDT_ERC20',
-}
-
 const WITHDRAW_METHODS = [
-  { id: 'bank', label: 'Bank Transfer', icon: Banknote, eta: '1-3 business days' },
-  { id: 'usdt_trc20', label: 'USDT (TRC20)', icon: Wallet, eta: '~5 mins' },
-  { id: 'usdt_erc20', label: 'USDT (ERC20)', icon: Wallet, eta: '~10 mins' },
-  { id: 'crypto', label: 'Crypto Wallet', icon: Bitcoin, eta: '~5-30 mins' },
+  { id: 'nowpayments', label: 'NOWPayments', icon: Bitcoin, eta: '~5-30 mins' },
   { id: 'card', label: 'PrimeFx Card', icon: CreditCard, eta: 'Instant' },
 ] as const
 
-const FEE_RATE = 0.01
-const MIN_FEE = 1
+const FEE_RATE = INVESTOR_RULES.financial.withdrawalFeeRate
 
 export function WithdrawPageView() {
   const router = useRouter()
@@ -62,22 +57,37 @@ export function WithdrawPageView() {
     transactionsError,
     reloadTransactions,
   } = useWalletPageData()
-  const [method, setMethod] = useState<(typeof WITHDRAW_METHODS)[number]['id']>('bank')
+  const [method, setMethod] = useState<(typeof WITHDRAW_METHODS)[number]['id']>('nowpayments')
   const [amount, setAmount] = useState('500')
-  const [currency, setCurrency] = useState('USDT_TRC20')
+  const [currency, setCurrency] = useState(DEFAULT_WITHDRAW_CURRENCY)
   const [address, setAddress] = useState('')
   const [note, setNote] = useState('')
   const [pin, setPin] = useState('')
   const [twoFa, setTwoFa] = useState('')
   const [showPin, setShowPin] = useState(false)
-  const [currencies, setCurrencies] = useState<{ value: string; label: string }[]>([])
+  const [currencies, setCurrencies] = useState(() => buildWithdrawalCurrencyOptions())
+  const [nowPaymentsEnabled, setNowPaymentsEnabled] = useState(true)
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
-    getPaymentProviderOptions().then((options) => {
-      setCurrencies(options.withdrawalCurrencies)
-      if (options.withdrawalCurrencies[0]) setCurrency(options.withdrawalCurrencies[0].value)
-    })
+    getPaymentProviderOptions()
+      .then((options) => {
+        setNowPaymentsEnabled(options.nowPaymentsEnabled)
+
+        if (options.withdrawalCurrencies.length > 0) {
+          setCurrencies(options.withdrawalCurrencies)
+          setCurrency((current) =>
+            options.withdrawalCurrencies.some((item) => item.value === current)
+              ? current
+              : options.withdrawalCurrencies[0].value
+          )
+        }
+      })
+      .catch(() => {
+        toast.error('Could not refresh withdrawal currencies', {
+          description: 'Using default crypto options. Try again if withdrawal fails.',
+        })
+      })
   }, [])
 
   const available = useMemo(() => {
@@ -86,8 +96,7 @@ export function WithdrawPageView() {
   }, [wallet?.availableBalance])
 
   const amountNum = Number(amount) || 0
-  const fee = Math.max(MIN_FEE, amountNum * FEE_RATE)
-  const receive = Math.max(0, amountNum - fee)
+  const { fee, netAmount: receive } = calculateWithdrawalFee(amountNum)
 
   const recentWithdrawals = useMemo(
     () =>
@@ -114,11 +123,6 @@ export function WithdrawPageView() {
     .filter((tx) => tx.type === 'Withdrawal' && tx.status.toLowerCase() === 'completed')
     .reduce((sum, tx) => sum + Math.abs(tx.amountValue), 0)
 
-  useEffect(() => {
-    const mapped = METHOD_CURRENCY[method]
-    if (mapped) setCurrency(mapped)
-  }, [method])
-
   const minWithdrawal = INVESTOR_RULES.financial.minimumWithdrawal
 
   const handleSubmit = () => {
@@ -139,24 +143,12 @@ export function WithdrawPageView() {
       toast.error('Amount exceeds available balance')
       return
     }
-    if (method !== 'bank' && method !== 'card' && !address.trim()) {
-      toast.error('Enter your payout wallet address')
-      return
-    }
 
-    const methodLabels: Record<(typeof WITHDRAW_METHODS)[number]['id'], string> = {
-      bank: 'Bank transfer',
-      usdt_trc20: 'USDT (TRC20)',
-      usdt_erc20: 'USDT (ERC20)',
-      crypto: 'Crypto wallet',
-      card: 'PrimeFx Card',
-    }
-
-    if (method === 'bank' || method === 'card') {
+    if (method === 'card') {
       startTransition(async () => {
         const result = await submitManualWithdrawal({
           amountUsd: amountNum,
-          methodLabel: methodLabels[method],
+          methodLabel: 'PrimeFx Card',
           note,
         })
         if (!result.success) {
@@ -164,7 +156,7 @@ export function WithdrawPageView() {
           return
         }
         toast.success('Withdrawal submitted', {
-          description: `Reference ${result.referenceId}. Processing may take 1-3 business days.`,
+          description: `Reference ${result.referenceId}. Your PrimeFx Card payout is being processed.`,
         })
         setAmount('')
         setNote('')
@@ -173,11 +165,22 @@ export function WithdrawPageView() {
       return
     }
 
+    if (method === 'nowpayments' && !nowPaymentsEnabled) {
+      toast.error('NOWPayments withdrawals are not configured', {
+        description: 'Add NOWPAYMENTS_API_KEY and NOWPAYMENTS_IPN_SECRET to your environment.',
+      })
+      return
+    }
+
+    if (!address.trim()) {
+      toast.error('Enter your crypto wallet address')
+      return
+    }
+
     startTransition(async () => {
-      const payoutCurrency = METHOD_CURRENCY[method] ?? currency
       const result = await initiateWithdrawal({
         amountUsd: amountNum,
-        currency: payoutCurrency,
+        currency,
         address: address.trim(),
       })
       if (!result.success) {
@@ -185,7 +188,7 @@ export function WithdrawPageView() {
         return
       }
       toast.success('Withdrawal submitted', {
-        description: 'Your payout is being processed.',
+        description: 'Your payout is being processed via NOWPayments.',
       })
       setAmount('')
       setAddress('')
@@ -198,7 +201,7 @@ export function WithdrawPageView() {
     <div className="space-y-6">
       <WalletPageHeader
         title="Withdrawal"
-        description="Withdraw your funds securely to your preferred method"
+        description="Withdraw to NOWPayments crypto or your PrimeFx Card"
       />
 
       <KycFinancialBanner />
@@ -221,7 +224,7 @@ export function WithdrawPageView() {
             label="Withdrawable Balance"
             value={`$${Math.max(0, available - fee).toFixed(2)}`}
             subtext="After fees"
-            icon={Banknote}
+            icon={CreditCard}
             iconClassName="bg-emerald-50 text-emerald-600"
           />
           <WalletStatCard
@@ -272,24 +275,25 @@ export function WithdrawPageView() {
             <h2 className="text-lg font-bold text-gray-900">2. Withdrawal details</h2>
             <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-4">
-                {method === 'bank' ? (
+                {method === 'nowpayments' ? (
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">Bank account</label>
-                    <CustomSelect
-                      value="gtbank"
-                      onValueChange={() => {}}
-                      options={[{ value: 'gtbank', label: 'GT Bank •••• 5678' }]}
-                    />
-                  </div>
-                ) : (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">Currency</label>
+                    <label className="mb-2 block text-sm font-medium text-gray-700">Crypto currency</label>
                     <CustomSelect
                       value={currency}
                       onValueChange={setCurrency}
                       options={currencies}
-                      disabled={pending}
+                      disabled={pending || currencies.length === 0}
+                      placeholder="Select currency"
                     />
+                    {!nowPaymentsEnabled ? (
+                      <p className="mt-1 text-xs text-amber-700">
+                        NOWPayments is not configured yet. Crypto withdrawals are unavailable.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+                    Funds will be sent to your linked PrimeFx Card.
                   </div>
                 )}
                 <div>
@@ -306,14 +310,14 @@ export function WithdrawPageView() {
                     Min: ${minWithdrawal.toFixed(2)} · Max: $5,000.00 · Available: ${available.toFixed(2)}
                   </p>
                 </div>
-                {method !== 'bank' && method !== 'card' ? (
+                {method === 'nowpayments' ? (
                   <div>
                     <label className="mb-2 block text-sm font-medium text-gray-700">Wallet address</label>
                     <input
                       type="text"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Enter payout address"
+                      placeholder="Enter your crypto payout address"
                       className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-[#0052ff] focus:outline-none"
                       disabled={pending}
                     />
@@ -335,7 +339,10 @@ export function WithdrawPageView() {
                 <p className="text-sm text-gray-600">You will receive</p>
                 <p className="mt-1 text-3xl font-bold text-gray-900">${receive.toFixed(2)}</p>
                 <p className="mt-2 text-sm text-gray-500">
-                  Fee: ${fee.toFixed(2)} ({(FEE_RATE * 100).toFixed(0)}%)
+                  Fee: ${fee.toFixed(2)} ({(FEE_RATE * 100).toFixed(1)}%)
+                </p>
+                <p className="mt-2 text-sm text-amber-700">
+                  {WITHDRAWAL_NOTICE_DAYS}-day notice required before funds are released.
                 </p>
               </div>
             </div>
@@ -408,7 +415,8 @@ export function WithdrawPageView() {
             rules={[
               { label: 'Min withdrawal', value: '$10.00' },
               { label: 'Max per transaction', value: '$10,000.00' },
-              { label: 'Withdrawal fee', value: '1% (Min $1.00)' },
+              { label: 'Withdrawal fee', value: '5%' },
+              { label: 'Notice period', value: `${WITHDRAWAL_NOTICE_DAYS} days` },
             ]}
           />
           <WalletRecentPanel

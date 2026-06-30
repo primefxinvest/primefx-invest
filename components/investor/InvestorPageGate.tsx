@@ -32,11 +32,9 @@ export function InvestorPageGate({ children, feature, route }: InvestorPageGateP
     const required =
       feature === 'market_insights'
         ? 'growth'
-        : feature === 'referral_program'
-          ? 'growth'
-          : feature === 'portfolio_analysis' || feature === 'advanced_portfolio_analysis'
-            ? 'prime'
-            : 'growth'
+        : feature === 'portfolio_analysis' || feature === 'advanced_portfolio_analysis'
+          ? 'prime'
+          : 'growth'
 
     return (
       <UpgradePrompt currentTier={tierKey} requiredTier={required} feature={feature} />

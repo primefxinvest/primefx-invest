@@ -38,18 +38,18 @@ export default function SidebarUpgradeCard() {
   if (!offer) return null
 
   return (
-    <div className="shrink-0 border-t border-gray-200 px-3 py-3">
-      <div className="rounded-xl bg-gradient-to-br from-[#0052ff] to-[#1a6bff] p-4 text-white shadow-md">
-        <div className="flex items-center gap-2">
-          <Crown className="h-4 w-4 shrink-0" />
-          <span className="text-sm font-semibold">
+    <div className="shrink-0 border-t border-gray-200 px-2 py-2">
+      <div className="rounded-lg bg-gradient-to-br from-[#0052ff] to-[#1a6bff] p-3 text-white shadow-md">
+        <div className="flex items-center gap-1.5">
+          <Crown className="h-3.5 w-3.5 shrink-0" />
+          <span className="text-xs font-semibold leading-tight">
             {t('upgradeTo', { tier: offer.nextTierLabel })}
           </span>
         </div>
-        <p className="mt-1.5 text-xs leading-relaxed text-blue-100">{offer.description}</p>
+        <p className="mt-1 text-[11px] leading-snug text-blue-100">{offer.description}</p>
         <Link
           href={`/invest?plan=${offer.nextPlanId}`}
-          className="mt-3 block w-full rounded-lg bg-white py-2 text-center text-xs font-semibold text-[#0052ff] transition-colors hover:bg-blue-50"
+          className="mt-2.5 block w-full rounded-md bg-white py-1.5 text-center text-[11px] font-semibold text-[#0052ff] transition-colors hover:bg-blue-50"
         >
           {t('upgradeNow')}
         </Link>

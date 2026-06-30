@@ -1,13 +1,20 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState, useTransition } from 'react'
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Check,
   CheckCircle2,
   Clock,
+  Copy,
+  Gift,
   Loader2,
   Search,
+  Share2,
+  TrendingUp,
+  X,
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -15,32 +22,216 @@ import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { StatusCardGrid, statusCardAdminSurfaceClass } from '@/components/shared/status-cards'
 import { updateTransactionStatus } from '@/lib/admin/actions'
 import type { AdminTransactionRow } from '@/lib/admin/types'
-import { formatCurrency, formatDateTime } from '@/lib/data/format'
+import { formatCurrency } from '@/lib/data/format'
+import { getDefaultAvatarUrl } from '@/lib/profile/avatar'
 import { cn } from '@/lib/utils'
 
 type StatusFilter = 'all' | 'pending' | 'completed' | 'failed'
 
+function formatTransactionDate(value: string) {
+  const date = new Date(value)
+  const datePart = new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(date)
+  const timePart = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date)
+  return { datePart, timePart }
+}
+
+function getTypeMeta(type: string) {
+  const normalized = type.toLowerCase()
+  switch (normalized) {
+    case 'deposit':
+      return {
+        label: 'Deposit',
+        icon: ArrowDownLeft,
+        badgeClass: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+        amountClass: 'text-emerald-700',
+      }
+    case 'withdrawal':
+      return {
+        label: 'Withdrawal',
+        icon: ArrowUpRight,
+        badgeClass: 'bg-orange-50 text-orange-700 ring-orange-100',
+        amountClass: 'text-orange-700',
+      }
+    case 'bonus':
+      return {
+        label: 'Bonus',
+        icon: Gift,
+        badgeClass: 'bg-violet-50 text-violet-700 ring-violet-100',
+        amountClass: 'text-violet-700',
+      }
+    case 'profit':
+      return {
+        label: 'Profit',
+        icon: TrendingUp,
+        badgeClass: 'bg-blue-50 text-blue-700 ring-blue-100',
+        amountClass: 'text-blue-700',
+      }
+    case 'referral':
+      return {
+        label: 'Referral',
+        icon: Share2,
+        badgeClass: 'bg-amber-50 text-amber-700 ring-amber-100',
+        amountClass: 'text-amber-700',
+      }
+    default:
+      return {
+        label: type.charAt(0).toUpperCase() + type.slice(1),
+        icon: ArrowDownLeft,
+        badgeClass: 'bg-slate-50 text-slate-700 ring-slate-100',
+        amountClass: 'text-foreground',
+      }
+  }
+}
+
 function StatusBadge({ status }: { status: string }) {
   const normalized = status.toLowerCase()
-  const styles =
+  const config =
     normalized === 'completed'
-      ? 'bg-emerald-100 text-emerald-700'
+      ? {
+          icon: CheckCircle2,
+          className: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
+        }
       : normalized === 'pending'
-        ? 'bg-amber-100 text-amber-700'
-        : 'bg-red-100 text-red-700'
+        ? {
+            icon: Clock,
+            className: 'bg-amber-50 text-amber-700 ring-amber-100',
+          }
+        : {
+            icon: XCircle,
+            className: 'bg-red-50 text-red-700 ring-red-100',
+          }
+
+  const Icon = config.icon
 
   return (
-    <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize sm:px-2.5 sm:text-xs', styles)}>
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize ring-1 ring-inset sm:px-2.5 sm:text-xs',
+        config.className
+      )}
+    >
+      <Icon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
       {status}
     </span>
   )
 }
 
-function StatusIcon({ status }: { status: string }) {
-  const normalized = status.toLowerCase()
-  if (normalized === 'completed') return <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-  if (normalized === 'pending') return <Clock className="h-4 w-4 text-amber-500" />
-  return <XCircle className="h-4 w-4 text-red-500" />
+function TypeBadge({ type }: { type: string }) {
+  const meta = getTypeMeta(type)
+  const Icon = meta.icon
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset sm:px-2.5 sm:text-xs',
+        meta.badgeClass
+      )}
+    >
+      <Icon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
+      {meta.label}
+    </span>
+  )
+}
+
+function TransactionUserCell({ tx }: { tx: AdminTransactionRow }) {
+  const displayName = tx.user_name?.trim() || 'Unknown user'
+  const avatarSrc = getDefaultAvatarUrl(tx.user_email || tx.user_id)
+
+  return (
+    <Link
+      href={`/admin/users/${tx.user_id}`}
+      className="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-90 sm:gap-3"
+    >
+      <img
+        src={avatarSrc}
+        alt={displayName}
+        className="h-8 w-8 shrink-0 rounded-full border border-border bg-muted object-cover sm:h-9 sm:w-9"
+      />
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-foreground hover:text-primary">{displayName}</p>
+        <p className="truncate text-xs text-muted-foreground">{tx.user_email}</p>
+      </div>
+    </Link>
+  )
+}
+
+function ReferenceCell({ reference }: { reference: string }) {
+  const copyReference = async () => {
+    try {
+      await navigator.clipboard.writeText(reference)
+      toast.success('Reference copied')
+    } catch {
+      toast.error('Could not copy reference')
+    }
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-1.5">
+      <span
+        className="truncate font-mono text-[11px] text-muted-foreground sm:text-xs"
+        title={reference}
+      >
+        {reference}
+      </span>
+      <button
+        type="button"
+        onClick={copyReference}
+        className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+        title="Copy reference"
+        aria-label="Copy reference"
+      >
+        <Copy className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
+}
+
+function TransactionActions({
+  tx,
+  pending,
+  onApprove,
+  onReject,
+}: {
+  tx: AdminTransactionRow
+  pending: boolean
+  onApprove: () => void
+  onReject: () => void
+}) {
+  if (tx.status.toLowerCase() !== 'pending') {
+    return <span className="text-xs text-muted-foreground">—</span>
+  }
+
+  return (
+    <div className="flex items-center justify-end gap-1">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={onApprove}
+        title="Approve"
+        aria-label="Approve transaction"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+      >
+        {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+      </button>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={onReject}
+        title="Reject"
+        aria-label="Reject transaction"
+        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+      >
+        <X className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  )
 }
 
 export function AdminTransactionsView({ transactions }: { transactions: AdminTransactionRow[] }) {
@@ -130,7 +321,7 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <AdminPageHeader
         title="Transaction Management"
         description="Review, approve, and monitor platform transactions"
@@ -165,7 +356,7 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
             <ArrowDownLeft className="h-4 w-4 shrink-0" />
             <span className="text-[11px] sm:text-sm">Inflow volume</span>
           </div>
-          <span className="text-sm font-bold text-emerald-700 sm:text-base">
+          <span className="text-sm font-bold tabular-nums text-emerald-700 sm:text-base">
             {formatCurrency(stats.depositVolume)}
           </span>
         </div>
@@ -174,7 +365,7 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
             <ArrowUpRight className="h-4 w-4 shrink-0" />
             <span className="text-[11px] sm:text-sm">Outflow volume</span>
           </div>
-          <span className="text-sm font-bold text-orange-700 sm:text-base">
+          <span className="text-sm font-bold tabular-nums text-orange-700 sm:text-base">
             {formatCurrency(stats.withdrawalVolume)}
           </span>
         </div>
@@ -241,153 +432,163 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
             No transactions found.
           </div>
         ) : (
-          filtered.map((tx) => (
-            <article key={tx.id} className={statusCardAdminSurfaceClass}>
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold capitalize text-foreground">{tx.type}</p>
-                    <StatusBadge status={tx.status} />
-                  </div>
-                  <p className="mt-1 truncate text-sm text-muted-foreground">
-                    {tx.user_name || tx.user_email}
-                  </p>
-                  <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
-                    {tx.reference_id || tx.id.slice(0, 8)}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(tx.created_at)}</p>
-                </div>
-                <div className="text-right">
-                  <p
-                    className={cn(
-                      'text-base font-bold',
-                      tx.type.toLowerCase() === 'withdrawal' ? 'text-orange-600' : 'text-emerald-600'
-                    )}
-                  >
-                    {formatCurrency(tx.amount)}
-                  </p>
-                  <div className="mt-1 flex justify-end">
-                    <StatusIcon status={tx.status} />
-                  </div>
-                </div>
-              </div>
+          filtered.map((tx) => {
+            const meta = getTypeMeta(tx.type)
+            const { datePart, timePart } = formatTransactionDate(tx.created_at)
+            const reference = tx.reference_id || tx.id.slice(0, 8)
+            const isPending = tx.status.toLowerCase() === 'pending'
 
-              {tx.status.toLowerCase() === 'pending' ? (
-                <div className="mt-3 flex gap-2 border-t border-border pt-3">
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => handleStatus(tx, 'Completed')}
-                    className="flex-1 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white disabled:opacity-50"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    disabled={pending}
-                    onClick={() => handleStatus(tx, 'Rejected')}
-                    className="flex-1 rounded-lg border border-red-200 bg-red-50 py-2 text-xs font-semibold text-red-700 disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
+            return (
+              <article
+                key={tx.id}
+                className={cn(
+                  statusCardAdminSurfaceClass,
+                  isPending && 'border-l-2 border-l-amber-400 bg-amber-50/20'
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <TypeBadge type={tx.type} />
+                      <StatusBadge status={tx.status} />
+                    </div>
+                    <div className="mt-2">
+                      <TransactionUserCell tx={tx} />
+                    </div>
+                    <div className="mt-2">
+                      <ReferenceCell reference={reference} />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {datePart} · {timePart}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className={cn('text-base font-bold tabular-nums', meta.amountClass)}>
+                      {formatCurrency(tx.amount)}
+                    </p>
+                  </div>
                 </div>
-              ) : null}
-            </article>
-          ))
+
+                {isPending ? (
+                  <div className="mt-3 flex gap-2 border-t border-border pt-3">
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => handleStatus(tx, 'Completed')}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => handleStatus(tx, 'Rejected')}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 py-2 text-xs font-semibold text-red-700 disabled:opacity-50"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Reject
+                    </button>
+                  </div>
+                ) : null}
+              </article>
+            )
+          })
         )}
       </div>
 
       {/* Desktop table */}
-      <div className="hidden overflow-hidden rounded-xl border border-border bg-card md:block">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead className="border-b border-border bg-background">
+      <div className="hidden min-w-0 overflow-hidden rounded-lg border border-border bg-card md:block">
+        <table className="w-full table-fixed">
+          <colgroup>
+            <col style={{ width: '17%' }} />
+            <col style={{ width: '24%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '12%' }} />
+            <col style={{ width: '13%' }} />
+            <col style={{ width: '72px' }} />
+          </colgroup>
+          <thead className="border-b border-border bg-background">
+            <tr>
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-muted-foreground sm:px-4">
+                Reference
+              </th>
+              <th className="px-2 py-2.5 text-left text-xs font-semibold text-muted-foreground sm:px-3">
+                User
+              </th>
+              <th className="px-2 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+                Type
+              </th>
+              <th className="px-2 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+                Amount
+              </th>
+              <th className="px-2 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+                Status
+              </th>
+              <th className="px-2 py-2.5 text-left text-xs font-semibold text-muted-foreground">
+                Date
+              </th>
+              <th className="px-2 py-2.5 text-right text-xs font-semibold sm:px-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {filtered.length === 0 ? (
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:px-6">
-                  Reference
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:px-6">
-                  User
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:px-6">
-                  Type
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:px-6">
-                  Amount
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:px-6">
-                  Status
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:px-6">
-                  Date
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:px-6">
-                  Actions
-                </th>
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  No transactions found.
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-sm text-muted-foreground">
-                    No transactions found.
-                  </td>
-                </tr>
-              ) : (
-                filtered.map((tx) => (
-                  <tr key={tx.id} className="transition-colors hover:bg-background/80">
-                    <td className="px-4 py-4 font-mono text-xs lg:px-6">
-                      {tx.reference_id || tx.id.slice(0, 8)}
+            ) : (
+              filtered.map((tx) => {
+                const meta = getTypeMeta(tx.type)
+                const { datePart, timePart } = formatTransactionDate(tx.created_at)
+                const reference = tx.reference_id || tx.id.slice(0, 8)
+                const isPending = tx.status.toLowerCase() === 'pending'
+
+                return (
+                  <tr
+                    key={tx.id}
+                    className={cn(
+                      'transition-colors hover:bg-background/80',
+                      isPending && 'border-l-2 border-l-amber-400 bg-amber-50/20'
+                    )}
+                  >
+                    <td className="overflow-hidden px-3 py-3 sm:px-4">
+                      <ReferenceCell reference={reference} />
                     </td>
-                    <td className="px-4 py-4 lg:px-6">
-                      <p className="font-medium">{tx.user_name || tx.user_email}</p>
-                      {tx.user_name ? (
-                        <p className="text-xs text-muted-foreground">{tx.user_email}</p>
-                      ) : null}
+                    <td className="overflow-hidden px-2 py-3 sm:px-3">
+                      <TransactionUserCell tx={tx} />
                     </td>
-                    <td className="px-4 py-4 capitalize text-muted-foreground lg:px-6">{tx.type}</td>
-                    <td className="px-4 py-4 font-semibold lg:px-6">{formatCurrency(tx.amount)}</td>
-                    <td className="px-4 py-4 lg:px-6">
-                      <div className="flex items-center gap-2">
-                        <StatusIcon status={tx.status} />
-                        <StatusBadge status={tx.status} />
-                      </div>
+                    <td className="px-2 py-3">
+                      <TypeBadge type={tx.type} />
                     </td>
-                    <td className="px-4 py-4 text-sm text-muted-foreground lg:px-6">
-                      {formatDateTime(tx.created_at)}
+                    <td className="px-2 py-3">
+                      <span className={cn('text-sm font-semibold tabular-nums', meta.amountClass)}>
+                        {formatCurrency(tx.amount)}
+                      </span>
                     </td>
-                    <td className="px-4 py-4 lg:px-6">
-                      {tx.status.toLowerCase() === 'pending' ? (
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={pending}
-                            onClick={() => handleStatus(tx, 'Completed')}
-                            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
-                          >
-                            Approve
-                          </button>
-                          <button
-                            type="button"
-                            disabled={pending}
-                            onClick={() => handleStatus(tx, 'Rejected')}
-                            className="rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      ) : pending ? (
-                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
+                    <td className="px-2 py-3">
+                      <StatusBadge status={tx.status} />
+                    </td>
+                    <td className="px-2 py-3">
+                      <p className="whitespace-nowrap text-xs text-foreground">{datePart}</p>
+                      <p className="whitespace-nowrap text-[11px] text-muted-foreground">{timePart}</p>
+                    </td>
+                    <td className="px-2 py-3 text-right sm:px-3">
+                      <TransactionActions
+                        tx={tx}
+                        pending={pending}
+                        onApprove={() => handleStatus(tx, 'Completed')}
+                        onReject={() => handleStatus(tx, 'Rejected')}
+                      />
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                )
+              })
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   )

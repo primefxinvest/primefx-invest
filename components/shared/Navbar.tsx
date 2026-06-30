@@ -14,6 +14,7 @@ import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { fetchNotifications } from '@/lib/data/queries'
 import { cn } from '@/lib/utils'
+import { SIDEBAR_OFFSET_CLASS } from '@/lib/layout/sidebar'
 
 function usePlatformShortcut() {
   const [shortcut, setShortcut] = useState('Ctrl+K')
@@ -64,7 +65,7 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="fixed left-0 right-0 top-0 z-30 border-b border-gray-200 bg-white/95 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md lg:left-64">
+      <header className={cn('fixed left-0 right-0 top-0 z-30 border-b border-gray-200 bg-white/95 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md', SIDEBAR_OFFSET_CLASS)}>
         <div className="flex h-14 items-center gap-2 px-3 sm:gap-3 sm:px-6">
           <button
             type="button"

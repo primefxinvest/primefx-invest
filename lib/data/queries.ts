@@ -578,15 +578,15 @@ function normalizePaymentType(type?: string | null): PaymentMethod['type'] {
   const value = (type ?? '').toLowerCase()
   if (value.includes('crypto') || value.includes('usdt') || value.includes('btc')) return 'crypto'
   if (value.includes('card')) return 'card'
-  return 'bank'
+  return 'crypto'
 }
 
 function formatPaymentLabel(type?: string | null) {
-  const value = (type ?? 'bank').toLowerCase()
+  const value = (type ?? 'crypto').toLowerCase()
   if (value.includes('usdt')) return 'USDT (TRC20)'
   if (value.includes('btc')) return 'Bitcoin (BTC)'
-  if (value.includes('card')) return 'Credit Card'
-  return 'Bank Account'
+  if (value.includes('card')) return 'PrimeFx Card'
+  return 'NOWPayments'
 }
 
 function notificationTitle(type?: string | null) {

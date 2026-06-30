@@ -4,7 +4,7 @@ import { createBinancePayOrder } from './binance-pay'
 import { generatePaymentReference } from './reference'
 import { resolveDepositProvider, PAYMENT_PROVIDERS } from './config'
 import { isProviderConfigured } from './env'
-import { createNowPaymentsInvoice, createNowPaymentsPayout } from './nowpayments'
+import { createNowPaymentsInvoice } from './nowpayments'
 import type { CreateDepositResult, CreateWithdrawalResult } from './types'
 import {
   providerUnavailableUserMessage,
@@ -12,16 +12,14 @@ import {
   toUserWithdrawalError,
 } from './user-errors'
 import {
-  assertSufficientBalance,
   completeTransaction,
   creditInvestorWallet,
-  debitInvestorWallet,
   getPaymentByOrderId,
   recordDepositPayment,
-  recordWithdrawalPayment,
   updatePaymentStatus,
 } from './wallet-ledger'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
+import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/referral/program-config'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import {
   notifyDepositCreated,
@@ -173,28 +171,26 @@ export async function createWithdrawalPayment(input: {
   const orderId = generatePaymentReference('withdrawal')
 
   try {
-    await assertSufficientBalance(input.userId, amount)
-
-    const payout = await createNowPaymentsPayout({
-      address: input.address,
-      currency: input.currency,
-      amount,
-      extraId: orderId,
-    })
-
-    const { paymentId } = await recordWithdrawalPayment({
+    const { createWithdrawalRequest } = await import('@/lib/wallet/withdrawals')
+    const queued = await createWithdrawalRequest({
       userId: input.userId,
-      orderId,
-      amount,
+      amountUsd: amount,
+      methodLabel: `Crypto (${input.currency.toUpperCase()})`,
+      provider: 'now_payments',
       currency: input.currency,
-      address: input.address,
-      providerPaymentId: String(payout.id),
-      metadata: { payoutId: payout.id },
+      payoutAddress: input.address,
+      metadata: { address: input.address, currency: input.currency },
     })
 
-    await notifyWithdrawalSubmitted(input.userId, amount, orderId)
+    await notifyWithdrawalSubmitted(input.userId, amount, queued.referenceId)
 
-    return { success: true, paymentId, orderId }
+    return {
+      success: true,
+      paymentId: queued.requestId,
+      orderId: queued.referenceId,
+      availableAt: queued.availableAt,
+      noticeDays: WITHDRAWAL_NOTICE_DAYS,
+    }
   } catch (err) {
     return {
       success: false,

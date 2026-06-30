@@ -32,7 +32,7 @@ export const LANDING_FAQS = [
   {
     question: 'What payment methods do you accept?',
     answer:
-      'We accept bank transfers, credit/debit cards, and major cryptocurrencies including Bitcoin and Ethereum.',
+      'We accept crypto via NOWPayments and PrimeFx Card for deposits and withdrawals.',
   },
   {
     question: 'Is there a mobile app available?',

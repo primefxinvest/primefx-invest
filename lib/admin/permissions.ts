@@ -138,6 +138,7 @@ export const ADMIN_NAV_ITEMS: Array<{
   { href: '/admin', label: 'Dashboard', module: 'analytics_reporting', icon: 'BarChart3' },
   { href: '/admin/users', label: 'User Management', module: 'user_management', icon: 'Users' },
   { href: '/admin/kyc', label: 'KYC Verification', module: 'kyc_aml_compliance', icon: 'FileText' },
+  { href: '/admin/verifications', label: 'Didit Sessions', module: 'kyc_aml_compliance', icon: 'ShieldCheck' },
   { href: '/admin/plans', label: 'Investment Plans', module: 'investment_plan_management', icon: 'Zap' },
   { href: '/admin/wallets', label: 'Wallet Management', module: 'financial_management', icon: 'Wallet' },
   { href: '/admin/transactions', label: 'Transactions', module: 'financial_management', icon: 'TrendingUp' },

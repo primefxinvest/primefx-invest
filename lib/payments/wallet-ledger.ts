@@ -70,6 +70,93 @@ export async function debitInvestorWallet(userId: string, amountUsd: number) {
   if (updateError) throw new Error(updateError.message)
 }
 
+export async function holdWalletFunds(userId: string, amountUsd: number) {
+  const db = getDb()
+  const { data: wallet, error: walletError } = await db
+    .from('wallet_balances')
+    .select('*')
+    .eq('user_id', userId)
+    .single()
+
+  if (walletError || !wallet) {
+    throw new Error(walletError?.message ?? 'Wallet not found.')
+  }
+
+  const available = Number(wallet.available_balance ?? 0)
+  if (available < amountUsd) {
+    throw new Error('Insufficient available balance.')
+  }
+
+  const { error: updateError } = await db
+    .from('wallet_balances')
+    .update({
+      available_balance: available - amountUsd,
+      pending_balance: Number(wallet.pending_balance ?? 0) + amountUsd,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+
+  if (updateError) throw new Error(updateError.message)
+}
+
+export async function releaseWalletHold(userId: string, amountUsd: number) {
+  const db = getDb()
+  const { data: wallet, error: walletError } = await db
+    .from('wallet_balances')
+    .select('*')
+    .eq('user_id', userId)
+    .single()
+
+  if (walletError || !wallet) {
+    throw new Error(walletError?.message ?? 'Wallet not found.')
+  }
+
+  const pending = Number(wallet.pending_balance ?? 0)
+  if (pending < amountUsd) {
+    throw new Error('Insufficient pending balance.')
+  }
+
+  const { error: updateError } = await db
+    .from('wallet_balances')
+    .update({
+      pending_balance: pending - amountUsd,
+      total_balance: Math.max(0, Number(wallet.total_balance ?? 0) - amountUsd),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+
+  if (updateError) throw new Error(updateError.message)
+}
+
+export async function restoreWalletHold(userId: string, amountUsd: number) {
+  const db = getDb()
+  const { data: wallet, error: walletError } = await db
+    .from('wallet_balances')
+    .select('*')
+    .eq('user_id', userId)
+    .single()
+
+  if (walletError || !wallet) {
+    throw new Error(walletError?.message ?? 'Wallet not found.')
+  }
+
+  const pending = Number(wallet.pending_balance ?? 0)
+  if (pending < amountUsd) {
+    throw new Error('Insufficient pending balance.')
+  }
+
+  const { error: updateError } = await db
+    .from('wallet_balances')
+    .update({
+      available_balance: Number(wallet.available_balance ?? 0) + amountUsd,
+      pending_balance: pending - amountUsd,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+
+  if (updateError) throw new Error(updateError.message)
+}
+
 export async function recordDepositPayment(input: {
   userId: string
   provider: 'binance_pay' | 'now_payments'

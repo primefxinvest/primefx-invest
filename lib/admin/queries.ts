@@ -9,6 +9,8 @@ import type {
   AdminTransactionRow,
   AdminUserDetail,
   AdminUserRow,
+  AdminVerificationSessionRow,
+  AdminVerificationSessionsResult,
   AdminWalletRow,
 } from './types'
 import { getAdminUserMfaSummary } from '@/lib/auth/mfa-admin'
@@ -142,6 +144,7 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     address: (metadata.address as string | undefined) ?? null,
     email_verified: Boolean(authUser?.email_confirmed_at),
     last_sign_in_at: authUser?.last_sign_in_at ?? null,
+    referral_access_enabled: Boolean(userRow.referral_access_enabled),
   }
 
   const [
@@ -693,4 +696,120 @@ function buildMonthlyVolume(transactions: Record<string, unknown>[]) {
       deposits: values.deposits,
       withdrawals: values.withdrawals,
     }))
+}
+
+const VERIFICATION_PAGE_SIZE = 20
+
+function mapVerificationSessionRow(
+  row: Record<string, unknown>,
+  usersById: Map<string, { email: string; full_name: string | null }>
+): AdminVerificationSessionRow {
+  const userId = (row.user_id as string | null) ?? null
+  const user = userId ? usersById.get(userId) : undefined
+
+  return {
+    id: String(row.id),
+    session_id: String(row.session_id),
+    vendor_data: (row.vendor_data as string | null) ?? null,
+    status: String(row.status ?? 'Not Started'),
+    decision: (row.decision as Record<string, unknown> | null) ?? null,
+    workflow_id: (row.workflow_id as string | null) ?? null,
+    user_id: userId,
+    user_email: user?.email ?? null,
+    user_name: user?.full_name ?? null,
+    created_at: String(row.created_at),
+    updated_at: String(row.updated_at),
+  }
+}
+
+export async function getAdminVerificationSessions(input: {
+  page?: number
+  pageSize?: number
+  status?: string
+  search?: string
+}): Promise<AdminVerificationSessionsResult> {
+  const db = getDb()
+  const page = Math.max(1, input.page ?? 1)
+  const pageSize = input.pageSize ?? VERIFICATION_PAGE_SIZE
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+  const status = input.status?.trim()
+  const search = input.search?.trim()
+
+  let query = db.from('verification_sessions').select('*', { count: 'exact' })
+
+  if (status && status !== 'all') {
+    query = query.eq('status', status)
+  }
+
+  if (search) {
+    const escaped = search.replace(/[%_,]/g, '')
+    const term = `%${escaped}%`
+    query = query.or(`session_id.ilike.${term},vendor_data.ilike.${term}`)
+  }
+
+  const { data, error, count } = await query
+    .order('created_at', { ascending: false })
+    .range(from, to)
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  const userIds = [
+    ...new Set(
+      (data ?? [])
+        .map((row) => row.user_id as string | null)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ]
+
+  const usersById = new Map<string, { email: string; full_name: string | null }>()
+  if (userIds.length > 0) {
+    const { data: users } = await db
+      .from('users')
+      .select('id, email, full_name')
+      .in('id', userIds)
+
+    users?.forEach((user) => {
+      usersById.set(user.id as string, {
+        email: String(user.email ?? ''),
+        full_name: (user.full_name as string | null) ?? null,
+      })
+    })
+  }
+
+  const { data: allStatuses, error: statsError } = await db
+    .from('verification_sessions')
+    .select('status')
+
+  if (statsError) {
+    throw new Error(statsError.message)
+  }
+
+  const stats = {
+    total: allStatuses?.length ?? 0,
+    approved: 0,
+    declined: 0,
+    inReview: 0,
+    pending: 0,
+  }
+
+  for (const row of allStatuses ?? []) {
+    const value = String(row.status ?? '')
+    if (value === 'Approved') stats.approved += 1
+    else if (value === 'Declined') stats.declined += 1
+    else if (value === 'In Review') stats.inReview += 1
+    else if (value === 'Not Started' || value === 'In Progress') stats.pending += 1
+  }
+
+  return {
+    rows: (data ?? []).map((row) =>
+      mapVerificationSessionRow(row as Record<string, unknown>, usersById)
+    ),
+    total: count ?? 0,
+    page,
+    pageSize,
+    stats,
+  }
 }

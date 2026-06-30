@@ -2,9 +2,13 @@
 
 import { useCallback, useEffect, useState } from 'react'
 
-export function useAsyncData<T>(loader: () => Promise<T>, deps: unknown[] = []) {
-  const [data, setData] = useState<T | undefined>(undefined)
-  const [loading, setLoading] = useState(true)
+export function useAsyncData<T>(
+  loader: () => Promise<T>,
+  deps: unknown[] = [],
+  initialData?: T
+) {
+  const [data, setData] = useState<T | undefined>(initialData)
+  const [loading, setLoading] = useState(initialData === undefined)
   const [error, setError] = useState<string | null>(null)
 
   const reload = useCallback(async () => {
@@ -21,8 +25,9 @@ export function useAsyncData<T>(loader: () => Promise<T>, deps: unknown[] = []) 
   }, deps)
 
   useEffect(() => {
+    if (initialData !== undefined) return
     reload()
-  }, [reload])
+  }, [initialData, reload])
 
   return { data, loading, error, reload }
 }

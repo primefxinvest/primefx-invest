@@ -3,6 +3,8 @@ import { ReactNode } from 'react'
 import { getTranslations } from 'next-intl/server'
 import { getLocale } from 'next-intl/server'
 import AppLayout from '@/components/shared/AppLayout'
+import { ReferralAccessProvider } from '@/lib/referral/access-context'
+import { getReferralAccessForUser } from '@/lib/referral/settings'
 import { buildPageMetadata } from '@/lib/seo/metadata'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from '@/i18n/navigation'
@@ -31,5 +33,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     redirect({ href: '/login', locale })
   }
 
-  return <AppLayout>{children}</AppLayout>
+  const referralAccess = await getReferralAccessForUser(user!.id)
+
+  return (
+    <ReferralAccessProvider access={referralAccess}>
+      <AppLayout>{children}</AppLayout>
+    </ReferralAccessProvider>
+  )
 }

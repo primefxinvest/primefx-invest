@@ -4,6 +4,7 @@ import {
   mapDiditStatusToVerificationStatus,
   syncUserVerificationFromDidit,
 } from '@/lib/didit/verification-sync'
+import { upsertVerificationSession } from '@/lib/didit/verification-sessions'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 
@@ -43,6 +44,14 @@ export async function GET(request: Request) {
   try {
     const decision = await fetchDiditSessionDecision(sessionId)
     const diditStatus = decision.status ?? 'In Progress'
+
+    await upsertVerificationSession({
+      sessionId,
+      vendorData: decision.vendor_data ?? user.id,
+      status: diditStatus,
+      decision: decision.decision ?? null,
+      userId: user.id,
+    })
 
     if (profile?.didit_session_id !== sessionId) {
       await adminDb

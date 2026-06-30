@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { AdminKycDocumentsSection } from '@/components/admin/AdminKycDocumentsSection'
 import { AdminKycReviewControls } from '@/components/admin/AdminKycReviewControls'
+import { AdminReferralAccessToggle } from '@/components/admin/AdminReferralAccessToggle'
 import type { AdminUserDetail } from '@/lib/admin/types'
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from '@/lib/data/format'
 import { getDefaultAvatarUrl } from '@/lib/profile/avatar'
@@ -67,7 +68,13 @@ function SectionCard({
   )
 }
 
-export function AdminUserDetailView({ detail }: { detail: AdminUserDetail }) {
+export function AdminUserDetailView({
+  detail,
+  globalReferralEnabled = false,
+}: {
+  detail: AdminUserDetail
+  globalReferralEnabled?: boolean
+}) {
   const { profile, mfa, wallet, portfolio, investments, transactions, referrals, activity, payment_methods, kyc_submission } =
     detail
 
@@ -150,6 +157,17 @@ export function AdminUserDetailView({ detail }: { detail: AdminUserDetail }) {
           </div>
         ))}
       </div>
+
+      <SectionCard
+        title="Referral program"
+        description="Control whether this investor can open the referral page and earn commissions."
+      >
+        <AdminReferralAccessToggle
+          userId={profile.id}
+          enabled={profile.referral_access_enabled}
+          globalEnabled={globalReferralEnabled}
+        />
+      </SectionCard>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <SectionCard title="Profile & contact">

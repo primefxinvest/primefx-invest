@@ -138,6 +138,9 @@ export async function recordReferralForNewUser(
     return { success: false }
   }
 
+  const { buildReferralNetworkForUser } = await import('@/lib/referral/network')
+  await buildReferralNetworkForUser(referredUserId, referrerId)
+
   return { success: true, referrerId }
 }
 

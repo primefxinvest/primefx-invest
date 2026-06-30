@@ -1,30 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { fetchReferralProgramEnabledAction } from '@/lib/referral/settings-actions'
+import { useReferralAccess } from '@/lib/referral/access-context'
 
 export function useReferralProgramEnabled() {
-  const [enabled, setEnabled] = useState<boolean | null>(null)
-  const [loading, setLoading] = useState(true)
+  const access = useReferralAccess()
 
-  useEffect(() => {
-    let active = true
-
-    fetchReferralProgramEnabledAction()
-      .then((value) => {
-        if (active) setEnabled(value)
-      })
-      .catch(() => {
-        if (active) setEnabled(false)
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [])
-
-  return { enabled: enabled ?? false, loading }
+  return {
+    enabled: access.canAccess,
+    canAccess: access.canAccess,
+    globalEnabled: access.globalEnabled,
+    userEnabled: access.userEnabled,
+    loading: false,
+  }
 }

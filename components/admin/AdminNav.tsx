@@ -5,6 +5,7 @@ import {
   FileText,
   Lock,
   Settings,
+  ShieldCheck,
   TrendingUp,
   Users,
   Wallet,
@@ -25,6 +26,7 @@ const ICONS = {
   Award,
   Lock,
   Settings,
+  ShieldCheck,
 } as const
 
 interface AdminNavProps {

@@ -127,3 +127,18 @@ export async function fetchDiditSessionDecision(
 ): Promise<DiditSessionDecision> {
   return diditRequest<DiditSessionDecision>(`/v3/session/${sessionId}/decision/`)
 }
+
+/** @see https://docs.didit.me/sessions-api/update-status */
+export async function updateDiditSessionStatus(
+  sessionId: string,
+  newStatus: 'Approved' | 'Declined' | 'Resubmitted',
+  comment?: string
+): Promise<Record<string, unknown>> {
+  return diditRequest<Record<string, unknown>>(`/v3/session/${sessionId}/update-status/`, {
+    method: 'PATCH',
+    body: JSON.stringify({
+      new_status: newStatus,
+      ...(comment ? { comment } : {}),
+    }),
+  })
+}

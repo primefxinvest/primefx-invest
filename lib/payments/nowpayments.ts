@@ -87,6 +87,27 @@ export function toNowPaymentsPayCurrency(currency: string): string {
   return currency.toLowerCase().replace(/_/g, '')
 }
 
+export async function fetchNowPaymentsAvailableCurrencies(): Promise<string[]> {
+  const response = await fetch(`${getNowPaymentsBaseUrl()}/currencies`, {
+    headers: {
+      'x-api-key': getNowPaymentsApiKey(),
+    },
+    next: { revalidate: 300 },
+  })
+
+  const data = (await response.json()) as { currencies?: string[]; message?: string }
+
+  if (!response.ok) {
+    throw new Error(data.message ?? `NOWPayments currencies request failed (${response.status})`)
+  }
+
+  if (!Array.isArray(data.currencies) || data.currencies.length === 0) {
+    throw new Error('NOWPayments returned no currencies')
+  }
+
+  return data.currencies
+}
+
 export async function createNowPaymentsInvoice(params: NowPaymentsInvoiceParams) {
   const apiKey = getNowPaymentsApiKey()
   const baseUrl = getNowPaymentsBaseUrl()

@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { fetchReferralProgramOverviewServer } from '@/lib/referral/overview-server'
 import { ensureUserReferralCode } from '@/lib/referral/server'
 
 export async function ensureMyReferralCode(): Promise<string | null> {
@@ -22,4 +23,17 @@ export async function ensureMyReferralCode(): Promise<string | null> {
   }
 
   return ensureUserReferralCode(user.id, profile?.full_name as string | undefined)
+}
+
+export async function fetchReferralProgramOverviewAction() {
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  if (!user) {
+    throw new Error('Not authenticated')
+  }
+
+  return fetchReferralProgramOverviewServer(user.id)
 }

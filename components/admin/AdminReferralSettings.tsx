@@ -5,6 +5,7 @@ import { Loader2, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { adminSetReferralProgramEnabled } from '@/lib/referral/settings-actions'
+import { REFERRAL_PROFIT_SHARE_LEVELS, REFERRAL_RANK_TIERS } from '@/lib/referral/program-config'
 import { cn } from '@/lib/utils'
 
 interface AdminReferralSettingsProps {
@@ -25,7 +26,7 @@ export function AdminReferralSettings({ enabled, configured }: AdminReferralSett
         return
       }
       setIsEnabled(next)
-      toast.success(next ? 'Referral program unlocked for investors' : 'Referral program locked')
+      toast.success(next ? 'Referral page unlocked for investors' : 'Referral page locked')
     })
   }
 
@@ -39,13 +40,14 @@ export function AdminReferralSettings({ enabled, configured }: AdminReferralSett
           <div>
             <h2 className="text-lg font-semibold text-foreground">Referral Program Access</h2>
             <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-              Control whether investors with Growth tier and above can access the referral
-              dashboard, share links, and earn commissions.
+              Step 1: Unlock the referral program platform-wide. Step 2: Grant access to individual
+              investors in Admin → Users → [user] → Referral program.
             </p>
             {!configured ? (
               <p className="mt-2 text-sm text-amber-700">
-                Run migration <code className="rounded bg-amber-50 px-1">014_platform_features.sql</code>{' '}
-                to enable admin control.
+                Run migrations <code className="rounded bg-amber-50 px-1">014_platform_features.sql</code>,{' '}
+                <code className="rounded bg-amber-50 px-1">015_referral_program_engine.sql</code>, and{' '}
+                <code className="rounded bg-amber-50 px-1">016_user_referral_access.sql</code>.
               </p>
             ) : null}
           </div>
@@ -69,8 +71,8 @@ export function AdminReferralSettings({ enabled, configured }: AdminReferralSett
 
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         {[
-          { label: 'Investor requirement', value: 'Growth tier+' },
-          { label: 'Current status', value: isEnabled ? 'Active for investors' : 'Hidden / locked' },
+          { label: 'Access rule', value: 'Global + per user' },
+          { label: 'Current status', value: isEnabled ? 'Page accessible' : 'Page locked' },
           { label: 'Admin module', value: 'Rewards & Referral' },
         ].map((item) => (
           <div key={item.label} className="rounded-lg border border-border bg-background px-4 py-3">
@@ -78,6 +80,37 @@ export function AdminReferralSettings({ enabled, configured }: AdminReferralSett
             <p className="mt-1 text-sm font-semibold text-foreground">{item.value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-lg border border-border bg-background p-4">
+          <h3 className="text-sm font-semibold text-foreground">Referral rank rewards</h3>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            {REFERRAL_RANK_TIERS.map((tier) => (
+              <li key={tier.key}>
+                <span className="font-medium text-foreground">{tier.name}</span>
+                {' — '}
+                {tier.minMembers} members
+                {tier.cashBonusUsd > 0 ? ` · $${tier.cashBonusUsd.toLocaleString()} bonus` : ''}
+                {tier.perks.length ? ` · ${tier.perks.join(', ')}` : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="rounded-lg border border-border bg-background p-4">
+          <h3 className="text-sm font-semibold text-foreground">Weekly profit sharing (L1–L4)</h3>
+          <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+            {REFERRAL_PROFIT_SHARE_LEVELS.map((level) => (
+              <li key={level.level}>
+                <span className="font-medium text-foreground">{level.label}</span> — {level.description}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Platform fees: P2P transfer 1.2% · Withdrawal 5% · Withdrawals require a 7-day notice.
+            Gold (XAU/USD) profits accrue Monday–Friday only.
+          </p>
+        </div>
       </div>
     </div>
   )

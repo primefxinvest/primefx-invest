@@ -2,6 +2,7 @@ import 'server-only'
 
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { notifyKycStatusChange } from '@/lib/notifications/service'
+import { upsertVerificationSession } from '@/lib/didit/verification-sessions'
 
 export type UserVerificationStatus = 'pending' | 'approved' | 'declined' | 'expired'
 
@@ -72,6 +73,13 @@ export async function syncUserVerificationFromDidit(input: {
 
   if (input.sessionId) {
     userPatch.didit_session_id = input.sessionId
+    await upsertVerificationSession({
+      sessionId: input.sessionId,
+      vendorData: input.userId,
+      status: input.diditStatus ?? 'In Progress',
+      decision: input.decision ?? null,
+      userId: input.userId,
+    })
   }
 
   await db.from('users').update(userPatch).eq('id', input.userId)

@@ -1,4 +1,9 @@
 import { formatCurrency } from '@/lib/data/format'
+import {
+  REFERRAL_PROFIT_SHARE_LEVELS,
+  REFERRAL_RANK_TIERS,
+  resolveReferralRank,
+} from '@/lib/referral/program-config'
 
 export interface ReferralListItem {
   id: string
@@ -50,13 +55,6 @@ export interface ReferralProgramOverview {
   }
 }
 
-const RANK_TIERS = [
-  { name: 'Starter', min: 0 },
-  { name: 'Growth', min: 10 },
-  { name: 'Diamond', min: 50 },
-  { name: 'Legendary', min: 100 },
-] as const
-
 function getInitials(name: string) {
   return name
     .split(' ')
@@ -67,25 +65,13 @@ function getInitials(name: string) {
 }
 
 function computeRank(activeInvestors: number): ReferralRank {
-  let currentIndex = 0
-  for (let i = RANK_TIERS.length - 1; i >= 0; i -= 1) {
-    if (activeInvestors >= RANK_TIERS[i].min) {
-      currentIndex = i
-      break
-    }
-  }
-
-  const current = RANK_TIERS[currentIndex]
-  const next = RANK_TIERS[Math.min(currentIndex + 1, RANK_TIERS.length - 1)]
-  const span = Math.max(1, next.min - current.min)
-  const progress = Math.min(100, Math.round(((activeInvestors - current.min) / span) * 100))
-
+  const resolved = resolveReferralRank(activeInvestors)
   return {
-    current: current.name,
-    next: next.name,
-    currentThreshold: current.min,
-    nextThreshold: next.min,
-    progressPercent: current.name === next.name ? 100 : progress,
+    current: resolved.current.name,
+    next: resolved.next.name,
+    currentThreshold: resolved.current.minMembers,
+    nextThreshold: resolved.next.minMembers,
+    progressPercent: resolved.progressPercent,
     activeInvestors,
   }
 }
@@ -121,9 +107,10 @@ export function buildReferralProgramOverview(
   const level3 = referrals.slice(level1.length + level2.length)
 
   const levelData = [
-    { level: 'Level 1', items: level1, share: 0.58 },
-    { level: 'Level 2', items: level2, share: 0.25 },
-    { level: 'Level 3', items: level3, share: 0.1 },
+    { level: 'Level 1 (5%)', items: level1, share: 0.5 },
+    { level: 'Level 2 (2%)', items: level2, share: 0.25 },
+    { level: 'Level 3 (1%)', items: level3, share: 0.15 },
+    { level: 'Level 4 (0.5%)', items: [], share: 0.1 },
   ]
 
   const healthScore = Math.min(
@@ -164,12 +151,11 @@ export function buildReferralProgramOverview(
     healthScore,
     healthLabel: healthScore >= 90 ? 'Excellent' : healthScore >= 75 ? 'Good' : 'Fair',
     earningsChart: buildEarningsChart(Math.max(lifetimeEarnings, 100)),
-    earningsBreakdown: [
-      { name: 'Level 1', value: 58, color: '#0052ff' },
-      { name: 'Level 2', value: 25, color: '#7c3aed' },
-      { name: 'Level 3', value: 12, color: '#10b981' },
-      { name: 'Bonuses', value: 5, color: '#f59e0b' },
-    ],
+    earningsBreakdown: REFERRAL_PROFIT_SHARE_LEVELS.map((level, index) => ({
+      name: level.label,
+      value: [50, 25, 15, 10][index] ?? 10,
+      color: ['#0052ff', '#7c3aed', '#10b981', '#f59e0b'][index] ?? '#94a3b8',
+    })),
     networkLevels: levelData.map(({ level, items, share }) => ({
       level,
       count: items.length,
@@ -194,13 +180,11 @@ export function buildReferralProgramOverview(
       conversionRate,
     },
     recentActivities,
-    achievements: [
-      { id: 'first-referral', label: 'First Referral', unlocked: totalReferrals >= 1 },
-      { id: 'network-builder', label: 'Network Builder', unlocked: totalReferrals >= 5 },
-      { id: 'diamond-rank', label: 'Diamond Rank', unlocked: rank.current === 'Diamond' || rank.current === 'Legendary' },
-      { id: 'top-referrer', label: 'Top Referrer', unlocked: lifetimeEarnings >= 500 },
-      { id: 'ambassador', label: 'Ambassador', unlocked: activeInvestors >= 25 },
-    ],
+    achievements: REFERRAL_RANK_TIERS.map((tier) => ({
+      id: tier.key,
+      label: tier.name,
+      unlocked: activeInvestors >= tier.minMembers,
+    })),
     challenges: [
       {
         id: 'monthly-champion',

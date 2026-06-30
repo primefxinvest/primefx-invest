@@ -4,6 +4,7 @@ import { AdminUserDetailView } from '@/components/admin/AdminUserDetailView'
 import { requireAdminModule } from '@/lib/admin/auth'
 import { getAdminUserDetail } from '@/lib/admin/queries'
 import { withAdminData } from '@/lib/admin/safe-query'
+import { getReferralProgramEnabledAdmin } from '@/lib/referral/settings'
 
 export default async function AdminUserDetailPage({
   params,
@@ -41,5 +42,12 @@ export default async function AdminUserDetailPage({
     notFound()
   }
 
-  return <AdminUserDetailView detail={data} />
+  const referralStatus = await getReferralProgramEnabledAdmin()
+
+  return (
+    <AdminUserDetailView
+      detail={data}
+      globalReferralEnabled={referralStatus.enabled}
+    />
+  )
 }

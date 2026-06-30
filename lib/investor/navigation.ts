@@ -16,7 +16,7 @@ export const INVESTOR_NAV_ITEMS: InvestorNavItem[] = [
   { href: '/reports', label: 'Reports', requiredTier: 'prime' },
   { href: '/rewards', label: 'Rewards' },
   { href: '/community', label: 'Community' },
-  { href: '/referral', label: 'Referral Center', requiredTier: 'growth' },
+  { href: '/referral', label: 'Referral Center' },
   { href: '/market-insights', label: 'Market Insights', requiredTier: 'growth' },
   { href: '/support', label: 'Support' },
 ]

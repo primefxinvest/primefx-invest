@@ -44,6 +44,7 @@ import {
 } from '@/lib/wallet/navigation'
 import { useReferralProgramEnabled } from '@/lib/hooks/useReferralProgramEnabled'
 import { fetchNotifications } from '@/lib/data/queries'
+import { SIDEBAR_WIDTH_DESKTOP_CLASS, SIDEBAR_WIDTH_MOBILE_CLASS } from '@/lib/layout/sidebar'
 
 const navIconMap = {
   '/dashboard': Home,
@@ -99,8 +100,7 @@ export default function Sidebar() {
   const [loggingOut, setLoggingOut] = useState(false)
   const [walletOpen, setWalletOpen] = useState(() => isWalletSectionActive(pathname))
   const { tierKey } = useInvestorTier()
-  const { enabled: referralProgramEnabled, loading: referralProgramLoading } =
-    useReferralProgramEnabled()
+  const { canAccess, loading: referralProgramLoading } = useReferralProgramEnabled()
   const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [])
   const unreadCount = (notifications ?? []).filter((n) => !n.read).length
 
@@ -137,12 +137,14 @@ export default function Sidebar() {
 
       <aside
         className={cn(
-          'fixed left-0 top-0 z-50 flex h-[100dvh] w-[min(18rem,85vw)] flex-col border-r border-gray-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-xl transition-transform duration-300 ease-out lg:w-64 lg:shadow-none',
+          'fixed left-0 top-0 z-50 flex h-[100dvh] flex-col border-r border-gray-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-xl transition-transform duration-300 ease-out lg:shadow-none',
+          SIDEBAR_WIDTH_MOBILE_CLASS,
+          SIDEBAR_WIDTH_DESKTOP_CLASS,
           open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-4 lg:px-5 lg:py-5">
-          <Logo href="/dashboard" size={40} />
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-3 py-3">
+          <Logo href="/dashboard" size={34} className="gap-2" />
           <button
             type="button"
             onClick={close}
@@ -153,22 +155,22 @@ export default function Sidebar() {
           </button>
         </div>
 
-      <nav className="primefx-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-4">
+      <nav className="primefx-scrollbar min-h-0 flex-1 overflow-y-auto px-2 py-3">
         <div className="space-y-0.5">
           {INVESTOR_NAV_ITEMS.map((item) => {
             const Icon = navIconMap[item.href as keyof typeof navIconMap] ?? Home
             const tierLocked = item.requiredTier ? !canAccessRoute(tierKey, item.href) : false
             const referralLocked =
-              item.href === '/referral' && !referralProgramLoading && !referralProgramEnabled
+              item.href === '/referral' && !referralProgramLoading && !canAccess
 
             if (tierLocked) {
               return (
                 <div
                   key={item.href}
                   title={`Requires ${item.requiredTier} tier`}
-                  className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-400"
+                  className="flex cursor-not-allowed items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium text-gray-400"
                 >
-                  <Icon className="h-5 w-5 shrink-0 opacity-50" />
+                  <Icon className="h-4 w-4 shrink-0 opacity-50" />
                   <span className="flex-1">{t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}</span>
                   <Lock className="h-3.5 w-3.5 shrink-0" />
                 </div>
@@ -182,13 +184,13 @@ export default function Sidebar() {
                   <div
                     title="Referral program is locked by admin"
                     className={cn(
-                      'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                      'flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
                       active
                         ? 'bg-violet-50 text-violet-700'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     )}
                   >
-                    <Icon className="h-5 w-5 shrink-0" />
+                    <Icon className="h-4 w-4 shrink-0" />
                     <span className="flex-1">{t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}</span>
                     <Lock className="h-3.5 w-3.5 shrink-0 text-violet-500" />
                   </div>
@@ -205,13 +207,13 @@ export default function Sidebar() {
                     type="button"
                     onClick={() => setWalletOpen((current) => !current)}
                     className={cn(
-                      'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                      'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
                       walletActive
                         ? 'bg-[#0052ff] text-white shadow-sm'
                         : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                     )}
                   >
-                    <Wallet className="h-5 w-5 shrink-0" />
+                    <Wallet className="h-4 w-4 shrink-0" />
                     <span className="flex-1 text-left">{t('wallet')}</span>
                     {walletOpen ? (
                       <ChevronDown className="h-4 w-4 shrink-0 opacity-80" />
@@ -221,14 +223,14 @@ export default function Sidebar() {
                   </button>
 
                   {walletOpen ? (
-                    <div className="ml-4 space-y-0.5 border-l border-gray-200 pl-2">
+                    <div className="ml-3 space-y-0.5 border-l border-gray-200 pl-1.5">
                       {WALLET_NAV_ITEMS.map((subItem) => {
                         const subActive = isWalletNavActive(pathname, subItem.href)
                         return (
                           <Link key={subItem.href} href={subItem.href}>
                             <div
                               className={cn(
-                                'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                                'flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors',
                                 subActive
                                   ? 'bg-blue-50 text-[#0052ff]'
                                   : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
@@ -256,13 +258,13 @@ export default function Sidebar() {
               <Link key={item.href} href={item.href}>
                 <div
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    'flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
                     isActive
                       ? 'bg-[#0052ff] text-white shadow-sm'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   )}
                 >
-                  <Icon className="h-5 w-5 shrink-0" />
+                  <Icon className="h-4 w-4 shrink-0" />
                   <span>{t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}</span>
                 </div>
               </Link>
@@ -279,13 +281,13 @@ export default function Sidebar() {
               <Link key={item.href} href={item.href}>
                 <div
                   className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                    'flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
                     isActive
                       ? 'bg-[#0052ff] text-white'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                   )}
                 >
-                  <Icon className="h-5 w-5 shrink-0" />
+                  <Icon className="h-4 w-4 shrink-0" />
                   <span className="flex-1">{t(item.labelKey)}</span>
                   {item.href === '/notifications' && unreadCount > 0 && (
                     <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
@@ -301,14 +303,14 @@ export default function Sidebar() {
 
       <SidebarUpgradeCard />
 
-      <div className="shrink-0 border-t border-gray-200 px-3 py-3">
+      <div className="shrink-0 border-t border-gray-200 px-2 py-2">
         <button
           type="button"
           onClick={handleLogout}
           disabled={loggingOut}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-60"
+          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-60"
         >
-          <LogOut className="h-5 w-5" />
+          <LogOut className="h-4 w-4" />
           <span>{loggingOut ? t('loggingOut') : t('logout')}</span>
         </button>
       </div>

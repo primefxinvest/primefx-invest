@@ -6,6 +6,7 @@ import {
   creditInvestorWallet,
   debitInvestorWallet,
 } from '@/lib/payments/wallet-ledger'
+import { calculateP2pTransferFee, recordPlatformFee } from '@/lib/payments/fees'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
@@ -62,13 +63,15 @@ export async function executeWalletTransfer(input: {
     return { success: false, error: `Maximum transfer per transaction is $${MAX_TRANSFER.toLocaleString()}.` }
   }
 
+  const { recipientAmount, fee, senderTotal } = calculateP2pTransferFee(amount)
+
   const kyc = await requireVerifiedKyc(input.senderId, 'transfer')
   if (!kyc.allowed) {
     return { success: false, error: kyc.error }
   }
 
   try {
-    await assertSufficientBalance(input.senderId, amount)
+    await assertSufficientBalance(input.senderId, senderTotal)
   } catch (err) {
     return {
       success: false,
@@ -80,7 +83,7 @@ export async function executeWalletTransfer(input: {
   const note = input.message?.trim()
 
   try {
-    await debitInvestorWallet(input.senderId, amount)
+    await debitInvestorWallet(input.senderId, senderTotal)
   } catch (err) {
     return {
       success: false,
@@ -89,9 +92,9 @@ export async function executeWalletTransfer(input: {
   }
 
   try {
-    await creditInvestorWallet(input.recipientId, amount)
+    await creditInvestorWallet(input.recipientId, recipientAmount)
   } catch (err) {
-    await creditInvestorWallet(input.senderId, amount)
+    await creditInvestorWallet(input.senderId, senderTotal)
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Failed to credit recipient wallet.',
@@ -102,24 +105,32 @@ export async function executeWalletTransfer(input: {
     await createCompletedTransaction({
       userId: input.senderId,
       type: 'transfer_sent',
-      amount,
+      amount: senderTotal,
       description: note
-        ? `Sent to ${input.recipientLabel} — ${note}`
-        : `Sent to ${input.recipientLabel}`,
+        ? `Sent $${recipientAmount.toFixed(2)} to ${input.recipientLabel} (fee $${fee.toFixed(2)}) — ${note}`
+        : `Sent $${recipientAmount.toFixed(2)} to ${input.recipientLabel} (fee $${fee.toFixed(2)})`,
       referenceId,
     })
 
     await createCompletedTransaction({
       userId: input.recipientId,
       type: 'transfer_received',
-      amount,
+      amount: recipientAmount,
       description: note
-        ? `Received from ${input.senderLabel} — ${note}`
-        : `Received from ${input.senderLabel}`,
+        ? `Received $${recipientAmount.toFixed(2)} from ${input.senderLabel} — ${note}`
+        : `Received $${recipientAmount.toFixed(2)} from ${input.senderLabel}`,
       referenceId,
     })
 
-    await notifyTransferCompleted(input.senderId, input.recipientId, amount, referenceId)
+    await recordPlatformFee({
+      userId: input.senderId,
+      feeType: 'p2p_transfer',
+      grossAmount: recipientAmount,
+      feeAmount: fee,
+      referenceId,
+    })
+
+    await notifyTransferCompleted(input.senderId, input.recipientId, recipientAmount, referenceId)
   } catch (err) {
     await creditInvestorWallet(input.senderId, amount)
     await debitInvestorWallet(input.recipientId, amount)
@@ -175,39 +186,11 @@ export async function recordManualWithdrawalRequest(input: {
   methodLabel: string
   note?: string
 }) {
-  const amount = input.amountUsd
-  if (amount < INVESTOR_RULES.financial.minimumWithdrawal) {
-    throw new Error(`Minimum withdrawal is $${INVESTOR_RULES.financial.minimumWithdrawal}.`)
-  }
-
-  const kyc = await requireVerifiedKyc(input.userId, 'withdrawal')
-  if (!kyc.allowed) {
-    throw new Error(kyc.error)
-  }
-
-  await assertSufficientBalance(input.userId, amount)
-
-  const referenceId = generatePaymentReference('withdrawal')
-
-  try {
-    await debitInvestorWallet(input.userId, amount)
-
-    const db = getDb()
-    const { error } = await db.from('transactions').insert({
-      user_id: input.userId,
-      type: 'withdrawal',
-      amount,
-      status: 'Pending',
-      description: input.note?.trim()
-        ? `${input.methodLabel} withdrawal — ${input.note.trim()}`
-        : `${input.methodLabel} withdrawal — awaiting processing`,
-      reference_id: referenceId,
-    })
-
-    if (error) throw new Error(error.message)
-    return { referenceId }
-  } catch (err) {
-    await creditInvestorWallet(input.userId, amount)
-    throw err
-  }
+  const { createWithdrawalRequest } = await import('@/lib/wallet/withdrawals')
+  return createWithdrawalRequest({
+    userId: input.userId,
+    amountUsd: input.amountUsd,
+    methodLabel: input.methodLabel,
+    note: input.note,
+  })
 }
