@@ -38,11 +38,6 @@ import { initiateWithdrawal } from '@/lib/wallet/actions'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { calculateWithdrawalFee, WITHDRAWAL_NOTICE_DAYS } from '@/lib/fees/constants'
-import { cn } from '@/lib/utils'
-
-const WITHDRAW_METHODS = [
-  { id: 'nowpayments', labelKey: 'methodNowPayments', icon: Bitcoin, etaKey: 'etaCrypto' },
-] as const
 
 const FEE_RATE = INVESTOR_RULES.financial.withdrawalFeeRate
 
@@ -68,7 +63,6 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
     transactionsError,
     reloadTransactions,
   } = useWalletPageData()
-  const [method, setMethod] = useState<(typeof WITHDRAW_METHODS)[number]['id']>('nowpayments')
   const [amount, setAmount] = useState('500')
   const [currency, setCurrency] = useState(() => {
     const first = initialPaymentOptions.withdrawalCurrencies[0]?.value
@@ -146,7 +140,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
       return
     }
 
-    if (method === 'nowpayments' && !nowPaymentsEnabled) {
+    if (!nowPaymentsEnabled) {
       toast.error(tDeposit('nowPaymentsConfigError'), {
         description: tDeposit('nowPaymentsConfigHint'),
       })
@@ -224,31 +218,6 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_340px]">
         <div className="space-y-6">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900">{t('selectMethod')}</h2>
-            <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-              {WITHDRAW_METHODS.map((item) => {
-                const Icon = item.icon
-                const selected = method === item.id
-                return (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => setMethod(item.id)}
-                    className={cn(
-                      'min-w-[140px] shrink-0 rounded-xl border p-4 text-left',
-                      selected ? 'border-[#0052ff] bg-blue-50/40' : 'border-gray-200'
-                    )}
-                  >
-                    <Icon className="h-5 w-5 text-[#0052ff]" />
-                    <p className="mt-2 text-sm font-semibold text-gray-900">{tDeposit(item.labelKey)}</p>
-                    <p className="mt-1 text-xs text-gray-500">{tDeposit(item.etaKey)}</p>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold text-gray-900">{t('withdrawDetails')}</h2>
             <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">

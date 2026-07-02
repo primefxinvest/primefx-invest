@@ -184,7 +184,7 @@ export async function fetchWalletData(): Promise<WalletData> {
   const userId = await requireUserId()
   if (!userId) return emptyWalletData()
 
-  const { formatPrimeFxId } = await import('@/lib/wallet/transfer-lookup')
+  const { formatPrimeFxId } = await import('@/lib/wallet/primefx-id')
   const { data: wallet } = await getWallet(userId)
   const available = toNumber(wallet?.available_balance)
   const pending = toNumber(wallet?.pending_balance)
@@ -587,7 +587,6 @@ function formatPaymentLabel(type?: string | null) {
   const value = (type ?? 'crypto').toLowerCase()
   if (value.includes('usdt')) return 'USDT (TRC20)'
   if (value.includes('btc')) return 'Bitcoin (BTC)'
-  if (value.includes('card')) return 'PrimeFx Card'
   return 'NOWPayments'
 }
 

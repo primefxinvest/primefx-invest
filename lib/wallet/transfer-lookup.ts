@@ -3,12 +3,9 @@ import 'server-only'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 
 import type { TransferRecipientMethod, TransferRecipientPreview } from './types'
+import { formatPrimeFxId } from '@/lib/wallet/primefx-id'
 
 export type { TransferRecipientMethod, TransferRecipientPreview }
-
-export function formatPrimeFxId(userId: string): string {
-  return `PFX${userId.replace(/-/g, '').slice(0, 8).toUpperCase()}`
-}
 
 function getDb() {
   const db = createAdminSupabaseClient()

@@ -1,12 +1,13 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import {
   ArrowRight,
   Bitcoin,
   Check,
+  Zap,
   ExternalLink,
   Loader2,
   QrCode,
@@ -34,7 +35,6 @@ import type { PaymentProviderOptions } from '@/lib/payments/types'
 import {
   buildDepositCurrencyOptions,
   DEFAULT_DEPOSIT_CURRENCY,
-  toSelectOptions,
 } from '@/lib/payments/currency-options'
 import { initiateDeposit } from '@/lib/wallet/actions'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
@@ -47,6 +47,13 @@ const DEPOSIT_METHODS = [
     etaKey: 'etaCrypto',
     badgeKey: 'badgeCrypto',
     labelKey: 'methodNowPayments',
+  },
+  {
+    id: 'binancepay',
+    icon: Zap,
+    etaKey: 'etaCrypto',
+    badgeKey: 'badgeNoFee',
+    labelKey: 'methodBinancePay',
   },
 ] as const
 
@@ -73,24 +80,44 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
   } = useWalletPageData()
   const [method, setMethod] = useState<(typeof DEPOSIT_METHODS)[number]['id']>('nowpayments')
   const [amount, setAmount] = useState('500')
-  const [currency, setCurrency] = useState(() => {
-    const first = initialPaymentOptions.depositCurrencies[0]?.value
-    if (first) return first
-    return DEFAULT_DEPOSIT_CURRENCY
-  })
-  const currencies =
+  const nowPaymentsEnabled = initialPaymentOptions.nowPaymentsEnabled
+  const binancePayEnabled = initialPaymentOptions.binancePayEnabled
+  const depositCurrencies =
     initialPaymentOptions.depositCurrencies.length > 0
-      ? initialPaymentOptions.depositCurrencies.map((item) => ({
+      ? initialPaymentOptions.depositCurrencies
+      : buildDepositCurrencyOptions().map((item) => ({
           value: item.value,
           label: item.label,
+          provider: item.provider,
         }))
-      : toSelectOptions(buildDepositCurrencyOptions())
-  const nowPaymentsEnabled = initialPaymentOptions.nowPaymentsEnabled
+  const filteredCurrencies = useMemo(
+    () =>
+      depositCurrencies
+        .filter((item) =>
+          method === 'binancepay' ? item.provider === 'binance_pay' : item.provider === 'now_payments'
+        )
+        .map((item) => ({ value: item.value, label: item.label })),
+    [depositCurrencies, method]
+  )
+  const [currency, setCurrency] = useState(() => {
+    const firstNow = depositCurrencies.find((item) => item.provider === 'now_payments')?.value
+    return firstNow ?? DEFAULT_DEPOSIT_CURRENCY
+  })
   const [note, setNote] = useState('')
   const [step, setStep] = useState<'form' | 'ready'>('form')
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
   const [payAddress, setPayAddress] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
+
+  useEffect(() => {
+    const preferredProvider = method === 'binancepay' ? 'binance_pay' : 'now_payments'
+    const next = depositCurrencies.find((item) => item.provider === preferredProvider)?.value
+    if (next && next !== currency) {
+      setCurrency(next)
+    }
+    // Only react to method changes / options changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [method, depositCurrencies])
 
   const recentDeposits = useMemo(
     () =>
@@ -145,6 +172,13 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
     if (method === 'nowpayments' && !nowPaymentsEnabled) {
       toast.error(t('nowPaymentsConfigError'), {
         description: t('nowPaymentsConfigHint'),
+      })
+      return
+    }
+
+    if (method === 'binancepay' && !binancePayEnabled) {
+      toast.error(t('binancePayConfigError'), {
+        description: t('binancePayConfigHint'),
       })
       return
     }
@@ -259,33 +293,27 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
             <h2 className="text-lg font-bold text-gray-900">{t('depositDetails')}</h2>
             <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="space-y-4">
-                {method === 'nowpayments' ? (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">{t('cryptoCurrency')}</label>
-                    <CustomSelect
-                      value={currency}
-                      onValueChange={setCurrency}
-                      options={currencies}
-                      placeholder={t('selectCurrency')}
-                      disabled={pending || currencies.length === 0}
-                    />
-                    {!nowPaymentsEnabled ? (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('cryptoCurrency')}</label>
+                  <CustomSelect
+                    value={currency}
+                    onValueChange={setCurrency}
+                    options={filteredCurrencies}
+                    placeholder={t('selectCurrency')}
+                    disabled={pending || filteredCurrencies.length === 0}
+                  />
+                  {method === 'nowpayments' ? (
+                    !nowPaymentsEnabled ? (
                       <p className="mt-1 text-xs text-amber-700">{t('nowPaymentsNotConfigured')}</p>
                     ) : (
                       <p className="mt-1 text-xs text-gray-500">{t('nowPaymentsHint')}</p>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">{t('currency')}</label>
-                    <CustomSelect
-                      value="USD"
-                      onValueChange={() => {}}
-                      options={[{ value: 'USD', label: 'USD' }]}
-                      disabled
-                    />
-                  </div>
-                )}
+                    )
+                  ) : !binancePayEnabled ? (
+                    <p className="mt-1 text-xs text-amber-700">{t('binancePayNotConfigured')}</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-500">{t('binancePayHint')}</p>
+                  )}
+                </div>
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">{t('amount')}</label>
                   <input
@@ -316,11 +344,7 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
                 </div>
               </div>
 
-              {method === 'card' ? (
-                <div className="flex h-full min-h-[200px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 p-6 text-center text-sm text-gray-500">
-                  {t('cardComingSoon')}
-                </div>
-              ) : step === 'ready' && (checkoutUrl || payAddress) ? (
+              {step === 'ready' && (checkoutUrl || payAddress) ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                   <h3 className="font-semibold text-emerald-900">{t('paymentReady')}</h3>
                   {checkoutUrl ? (

@@ -61,7 +61,7 @@ export default function SupportPage() {
     },
     {
       question: 'How do I withdraw my funds?',
-      answer: 'You can withdraw funds anytime through your wallet using NOWPayments crypto or your PrimeFx Card.',
+      answer: 'You can withdraw funds anytime through your wallet using NOWPayments crypto.',
     },
     {
       question: 'Is my data secure?',
