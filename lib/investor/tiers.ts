@@ -118,7 +118,6 @@ export function hasInvestorFeature(
 /** Minimum tier required for gated platform routes */
 export const ROUTE_MIN_TIER: Partial<Record<string, InvestorTierKey>> = {
   '/market-insights': 'growth',
-  '/reports': 'prime',
 }
 
 export function getRouteRequiredTier(path: string): InvestorTierKey | undefined {

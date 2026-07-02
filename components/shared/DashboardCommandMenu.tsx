@@ -124,7 +124,7 @@ export function DashboardCommandMenu({ open, onOpenChange }: DashboardCommandMen
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search pages, plans, insights, reports..."
+            placeholder="Search pages, plans, insights..."
             className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
           <button

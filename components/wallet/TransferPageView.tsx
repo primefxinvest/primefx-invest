@@ -1,11 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import {
   ArrowRight,
   ArrowUpRight,
   CheckCircle2,
+  Copy,
   Clock,
   History,
   Loader2,
@@ -20,23 +22,25 @@ import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
 import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
 import { WalletStatCard } from '@/components/wallet/layout/WalletStatCard'
 import { WalletStepIndicator } from '@/components/wallet/layout/WalletStepIndicator'
-import { WalletSecurityNotice, walletTransferCta } from '@/components/wallet/layout/WalletSidePanels'
+import { WalletSecurityNotice, WalletTransferCta } from '@/components/wallet/layout/WalletSidePanels'
 import { WalletListSkeleton } from '@/components/wallet/layout/WalletListSkeleton'
 import { CustomSelect } from '@/components/ui/custom-select'
 import { AsyncState } from '@/components/shared/data-state'
 import { MetricCardsSkeleton } from '@/components/shared/skeletons'
 import { useWalletPageData } from '@/lib/hooks/useWalletPageData'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
+import { kycBlockReason, kycFallbackMessage } from '@/lib/investor/kyc-i18n'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 import { searchTransferRecipient, submitWalletTransfer } from '@/lib/wallet/actions'
 import type { TransferRecipientMethod } from '@/lib/wallet/types'
 import { calculateP2pTransferFee } from '@/lib/fees/constants'
+import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { cn } from '@/lib/utils'
 
 const TRANSFER_METHODS = [
-  { id: 'email', label: 'Email Address' },
-  { id: 'username', label: 'Username' },
-  { id: 'id', label: 'PrimeFx ID' },
+  { id: 'email', labelKey: 'methodEmail' },
+  { id: 'username', labelKey: 'methodUsername' },
+  { id: 'id', labelKey: 'methodId' },
 ] as const
 
 type RecipientPreview = {
@@ -48,6 +52,13 @@ type RecipientPreview = {
 }
 
 export function TransferPageView() {
+  const t = useTranslations('wallet.transfer')
+  const tDeposit = useTranslations('wallet.deposit')
+  const tBalances = useTranslations('wallet.balances')
+  const tActivity = useTranslations('wallet.activity')
+  const tTransactions = useTranslations('wallet.transactions')
+  const tWallet = useTranslations('wallet')
+  const tCompliance = useTranslations('compliance')
   const router = useRouter()
   const kyc = useFinancialKycAccess()
   const {
@@ -101,9 +112,9 @@ export function TransferPageView() {
 
   const recentTransfers = transferTx.slice(0, 5).map((tx) => ({
     id: tx.id,
-    name: tx.description ?? 'Transfer',
+    name: tx.description ?? walletTxTypeLabel(tWallet, 'Transfer'),
     amount: tx.amount,
-    status: tx.status,
+    status: walletTxStatusLabel(tWallet, tx.status),
     time: tx.date,
     credit: tx.isCredit,
   }))
@@ -146,14 +157,18 @@ export function TransferPageView() {
       showKycRequiredToast({
         status: kyc.status,
         action: 'transfer',
-        fallback: kyc.summary ?? 'Complete KYC before transferring funds.',
+        title: tCompliance('kycToastTitle'),
+        description:
+          kycBlockReason(tCompliance, kyc.status, 'transfer') ??
+          kyc.summary ??
+          kycFallbackMessage(tCompliance, 'transfer'),
       })
       return
     }
 
     if (step === 1) {
       if (!recipientPreview) {
-        toast.error('Recipient not found. Check the email, username, or PrimeFx ID.')
+        toast.error(t('recipientNotFound'))
         return
       }
       setStep(2)
@@ -163,15 +178,15 @@ export function TransferPageView() {
     if (step === 2) {
       const value = Number(amount)
       if (!Number.isFinite(value) || value < 5) {
-        toast.error('Minimum transfer is $5.00')
+        toast.error(t('minTransfer'))
         return
       }
       if (value > available) {
-        toast.error('Insufficient balance')
+        toast.error(t('insufficientBalance'))
         return
       }
       if (transferFees.senderTotal > available) {
-        toast.error(`Insufficient balance for $${transferFees.fee.toFixed(2)} transfer fee`)
+        toast.error(t('insufficientBalanceFee', { fee: `$${transferFees.fee.toFixed(2)}` }))
         return
       }
       setStep(3)
@@ -188,13 +203,13 @@ export function TransferPageView() {
         })
 
         if (!result.success) {
-          toast.error('Transfer failed', { description: result.error })
+          toast.error(t('failed'), { description: result.error })
           return
         }
 
         setStep(4)
-        toast.success('Transfer completed', {
-          description: `Reference ${result.referenceId}`,
+        toast.success(t('transferCompleted'), {
+          description: t('transferCompletedDesc', { reference: result.referenceId ?? '' }),
         })
         setRecipient('')
         setRecipientPreview(null)
@@ -204,12 +219,20 @@ export function TransferPageView() {
     }
   }
 
+  const handleCopyPrimeFxId = async () => {
+    const value = wallet?.primeFxId
+    if (!value) return
+    try {
+      await navigator.clipboard.writeText(value)
+      toast.success(t('copied'))
+    } catch {
+      toast.error(t('copyFailed'))
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <WalletPageHeader
-        title="Transfer"
-        description="Send money instantly to any PrimeFx user"
-      />
+      <WalletPageHeader title={t('title')} description={t('description')} />
 
       <KycFinancialBanner />
 
@@ -217,32 +240,32 @@ export function TransferPageView() {
         loading={walletLoading && !wallet}
         error={walletError}
         onRetry={reloadWallet}
-        errorTitle="Could not load wallet"
+        errorTitle={t('loadWalletError')}
         skeleton={<MetricCardsSkeleton count={4} />}
       >
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <WalletStatCard
-            label="Available Balance"
+            label={t('availableBalance')}
             value={wallet?.availableBalance ?? '$0.00'}
-            subtext="USD Wallet"
+            subtext={tBalances('usdWallet')}
             icon={Send}
           />
           <WalletStatCard
-            label="Sent Today"
+            label={t('sentToday')}
             value={`$${sentToday.toFixed(2)}`}
             icon={ArrowUpRight}
             iconClassName="bg-emerald-50 text-emerald-600"
           />
           <WalletStatCard
-            label="Received Today"
+            label={t('receivedToday')}
             value={`$${receivedToday.toFixed(2)}`}
             icon={ArrowRight}
             iconClassName="bg-blue-50 text-[#0052ff]"
           />
           <WalletStatCard
-            label="Monthly Transfers"
-            value={`$${transferTx.reduce((s, t) => s + Math.abs(t.amountValue), 0).toFixed(2)}`}
-            subtext={`${transferTx.length} transactions`}
+            label={tActivity('transfers')}
+            value={`$${transferTx.reduce((s, tx) => s + Math.abs(tx.amountValue), 0).toFixed(2)}`}
+            subtext={`${transferTx.length} ${tDeposit('transactions')}`}
             icon={History}
             iconClassName="bg-orange-50 text-orange-600"
           />
@@ -251,15 +274,40 @@ export function TransferPageView() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
         <div className="space-y-6">
+          {wallet?.primeFxId ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">{t('yourIdTitle')}</h2>
+                  <p className="mt-1 text-sm text-gray-600">{t('yourIdDesc')}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyPrimeFxId}
+                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  <Copy className="h-4 w-4" />
+                  {t('copyId')}
+                </button>
+              </div>
+              <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
+                <p className="text-xs font-semibold text-gray-500">{t('primeFxIdLabel')}</p>
+                <p className="mt-1 break-all font-mono text-sm font-semibold text-gray-900">
+                  {wallet.primeFxId}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <WalletStepIndicator
-              steps={['Recipient', 'Amount', 'Review', 'Confirm']}
+              steps={[t('stepRecipient'), t('stepAmount'), t('stepReview'), t('stepConfirm')]}
               current={step}
             />
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900">Send money</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t('sendMoney')}</h2>
 
             {step < 4 ? (
               <>
@@ -279,23 +327,23 @@ export function TransferPageView() {
                           : 'border-gray-200 text-gray-700'
                       )}
                     >
-                      {item.label}
+                      {t(item.labelKey)}
                     </button>
                   ))}
                 </div>
 
                 <div className="mt-5">
-                  <label className="mb-2 block text-sm font-medium text-gray-700">Recipient</label>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('recipient')}</label>
                   <input
                     type="text"
                     value={recipient}
                     onChange={(e) => setRecipient(e.target.value)}
                     placeholder={
                       method === 'email'
-                        ? 'user@example.com'
+                        ? t('placeholderEmail')
                         : method === 'id'
-                          ? 'PFX00012458'
-                          : 'username'
+                          ? t('placeholderId')
+                          : t('placeholderUsername')
                     }
                     className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-[#0052ff] focus:outline-none"
                     disabled={step > 1 || pending}
@@ -305,7 +353,7 @@ export function TransferPageView() {
                 {lookupPending ? (
                   <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Looking up recipient...
+                    {t('lookingUpRecipient')}
                   </div>
                 ) : recipientPreview ? (
                   <div className="mt-4 flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
@@ -320,7 +368,7 @@ export function TransferPageView() {
                         {recipientPreview.kycVerified ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                             <CheckCircle2 className="h-3 w-3" />
-                            Verified
+                            {t('verified')}
                           </span>
                         ) : null}
                       </div>
@@ -328,14 +376,14 @@ export function TransferPageView() {
                     </div>
                   </div>
                 ) : recipient.trim().length >= 3 ? (
-                  <p className="mt-3 text-sm text-amber-600">No matching PrimeFx user found.</p>
+                  <p className="mt-3 text-sm text-amber-600">{t('noMatchingUser')}</p>
                 ) : null}
 
                 {step >= 2 ? (
                   <>
                     <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-[1fr_120px]">
                       <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">Amount</label>
+                        <label className="mb-2 block text-sm font-medium text-gray-700">{tDeposit('amount')}</label>
                         <input
                           type="number"
                           min="5"
@@ -345,17 +393,19 @@ export function TransferPageView() {
                           disabled={step > 2 || pending}
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                          Available: ${available.toFixed(2)} · Min $5 · Max $10,000 · Fee 1.2%
+                          {t('availableLimits', { available: `$${available.toFixed(2)}` })}
                         </p>
                         {transferAmount >= 5 ? (
                           <p className="mt-1 text-xs text-gray-500">
-                            Total debit: ${transferFees.senderTotal.toFixed(2)} (includes $
-                            {transferFees.fee.toFixed(2)} fee)
+                            {t('totalDebit', {
+                              total: `$${transferFees.senderTotal.toFixed(2)}`,
+                              fee: `$${transferFees.fee.toFixed(2)}`,
+                            })}
                           </p>
                         ) : null}
                       </div>
                       <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">Currency</label>
+                        <label className="mb-2 block text-sm font-medium text-gray-700">{tDeposit('currency')}</label>
                         <CustomSelect
                           value={currency}
                           onValueChange={setCurrency}
@@ -366,7 +416,7 @@ export function TransferPageView() {
                     </div>
 
                     <div className="mt-4">
-                      <label className="mb-2 block text-sm font-medium text-gray-700">Message (optional)</label>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">{tDeposit('noteOptional')}</label>
                       <textarea
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
@@ -382,10 +432,12 @@ export function TransferPageView() {
 
                 {step === 3 && recipientPreview ? (
                   <div className="mt-5 rounded-xl border border-gray-100 bg-gray-50 p-4 text-sm">
-                    <p className="font-semibold text-gray-900">Review transfer</p>
+                    <p className="font-semibold text-gray-900">{t('reviewTransfer')}</p>
                     <p className="mt-2 text-gray-600">
-                      Send <strong>${Number(amount).toFixed(2)}</strong> to{' '}
-                      <strong>{recipientPreview.fullName || recipientPreview.email}</strong>
+                      {t('sendAmountTo', {
+                        amount: `$${Number(amount).toFixed(2)}`,
+                        name: recipientPreview.fullName || recipientPreview.email,
+                      })}
                     </p>
                     {message ? <p className="mt-1 text-gray-500">“{message}”</p> : null}
                   </div>
@@ -398,21 +450,21 @@ export function TransferPageView() {
                   className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0052ff] px-6 py-3.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                 >
                   {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {step === 3 ? 'Confirm transfer' : 'Continue'}
+                  {step === 3 ? t('confirmTransfer') : t('continue')}
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </>
             ) : (
               <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-6 text-center">
                 <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
-                <p className="mt-3 text-lg font-semibold text-gray-900">Transfer complete</p>
-                <p className="mt-1 text-sm text-gray-600">Funds were sent instantly to the recipient.</p>
+                <p className="mt-3 text-lg font-semibold text-gray-900">{t('transferComplete')}</p>
+                <p className="mt-1 text-sm text-gray-600">{t('fundsSentInstantly')}</p>
                 <button
                   type="button"
                   onClick={() => setStep(1)}
                   className="mt-4 text-sm font-semibold text-[#0052ff] hover:underline"
                 >
-                  Send another transfer
+                  {t('sendAnother')}
                 </button>
               </div>
             )}
@@ -420,32 +472,32 @@ export function TransferPageView() {
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="font-semibold text-gray-900">Transfer conditions</h3>
+              <h3 className="font-semibold text-gray-900">{t('conditionsTitle')}</h3>
               <ul className="mt-4 space-y-2 text-sm text-gray-600">
-                <li>Minimum transfer: $5.00</li>
-                <li>Maximum per transaction: $10,000.00</li>
-                <li>Daily limit (verified): $25,000.00</li>
-                <li>Daily limit (unverified): $1,000.00</li>
+                <li>{t('minTransferCondition')}</li>
+                <li>{t('maxTransferCondition')}</li>
+                <li>{t('dailyLimitVerified')}</li>
+                <li>{t('dailyLimitUnverified')}</li>
               </ul>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="font-semibold text-gray-900">Security & safety</h3>
+              <h3 className="font-semibold text-gray-900">{t('securityTitle')}</h3>
               <ul className="mt-4 space-y-2 text-sm text-gray-600">
                 <li className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-[#0052ff]" />
-                  KYC required for transfers
+                  {t('kycRequired')}
                 </li>
                 <li className="flex items-center gap-2">
                   <Shield className="h-4 w-4 text-[#0052ff]" />
-                  2FA recommended for large transfers
+                  {t('twoFaRecommended')}
                 </li>
                 <li className="flex items-center gap-2">
                   <Zap className="h-4 w-4 text-[#0052ff]" />
-                  Instant internal transfers
+                  {t('instantInternal')}
                 </li>
               </ul>
               <div className="mt-4">
-                <WalletSecurityNotice>Your money is safe — transfers are encrypted end-to-end.</WalletSecurityNotice>
+                <WalletSecurityNotice>{t('securityNotice')}</WalletSecurityNotice>
               </div>
             </div>
           </div>
@@ -453,13 +505,13 @@ export function TransferPageView() {
 
         <div className="space-y-4">
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h3 className="mb-4 font-semibold text-gray-900">Quick actions</h3>
+            <h3 className="mb-4 font-semibold text-gray-900">{t('quickActions')}</h3>
             <div className="grid grid-cols-2 gap-2">
               {[
-                { label: 'Send Money', icon: Send },
-                { label: 'Request Money', icon: ArrowRight },
-                { label: 'Scan QR', icon: QrCode },
-                { label: 'Transfer History', icon: History },
+                { label: t('sendMoneyAction'), icon: Send },
+                { label: t('requestMoney'), icon: ArrowRight },
+                { label: t('scanQr'), icon: QrCode },
+                { label: t('transferHistory'), icon: History },
               ].map((action) => (
                 <button
                   key={action.label}
@@ -474,16 +526,16 @@ export function TransferPageView() {
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h3 className="mb-4 font-semibold text-gray-900">Recent transfers</h3>
+            <h3 className="mb-4 font-semibold text-gray-900">{t('recentTransfers')}</h3>
             <AsyncState
               loading={transactionsLoading && !transactions.length}
               error={transactionsError}
               onRetry={reloadTransactions}
               isEmpty={recentTransfers.length === 0}
-              emptyTitle="No transfers yet"
-              emptyDescription="Send money to another PrimeFx user and it will appear here."
-              emptyAction={walletTransferCta()}
-              errorTitle="Could not load transfers"
+              emptyTitle={t('noTransfers')}
+              emptyDescription={t('recentEmptyDesc')}
+              emptyAction={<WalletTransferCta />}
+              errorTitle={tTransactions('loadError')}
               compact
               skeleton={<WalletListSkeleton rows={3} />}
             >
@@ -507,18 +559,18 @@ export function TransferPageView() {
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h3 className="mb-4 font-semibold text-gray-900">Transfer status</h3>
+            <h3 className="mb-4 font-semibold text-gray-900">{t('transferStatus')}</h3>
             <ul className="space-y-2 text-sm">
               {[
-                { label: 'Completed', count: statusCounts.completed, color: 'text-emerald-600' },
-                { label: 'Pending', count: statusCounts.pending, color: 'text-amber-600' },
-                { label: 'Processing', count: statusCounts.processing, color: 'text-blue-600' },
-                { label: 'Failed', count: statusCounts.failed, color: 'text-red-600' },
+                { status: 'completed', count: statusCounts.completed, color: 'text-emerald-600' },
+                { status: 'pending', count: statusCounts.pending, color: 'text-amber-600' },
+                { status: 'processing', count: statusCounts.processing, color: 'text-blue-600' },
+                { status: 'failed', count: statusCounts.failed, color: 'text-red-600' },
               ].map((item) => (
-                <li key={item.label} className="flex justify-between">
+                <li key={item.status} className="flex justify-between">
                   <span className="flex items-center gap-2 text-gray-600">
                     <Clock className="h-3.5 w-3.5" />
-                    {item.label}
+                    {walletTxStatusLabel(tWallet, item.status)}
                   </span>
                   <span className={cn('font-semibold', item.color)}>{item.count}</span>
                 </li>
@@ -530,10 +582,10 @@ export function TransferPageView() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {[
-          { icon: Zap, label: 'Instant Transfers' },
-          { icon: Send, label: '1.2% Transfer Fee' },
-          { icon: Shield, label: 'Secure Transfers' },
-          { icon: Clock, label: '24/7 Support' },
+          { icon: Zap, label: t('featureInstant') },
+          { icon: Send, label: t('featureFee') },
+          { icon: Shield, label: t('featureSecure') },
+          { icon: Clock, label: t('featureSupport') },
         ].map((item) => (
           <div
             key={item.label}

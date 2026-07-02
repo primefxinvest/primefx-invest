@@ -19,7 +19,6 @@ export const PROTECTED_ROUTE_PREFIXES = [
   '/transactions',
   '/primeai',
   '/academy',
-  '/reports',
   '/rewards',
   '/community',
   '/referral',

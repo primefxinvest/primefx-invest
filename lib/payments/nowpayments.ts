@@ -87,12 +87,15 @@ export function toNowPaymentsPayCurrency(currency: string): string {
   return currency.toLowerCase().replace(/_/g, '')
 }
 
+const NOWPAYMENTS_FETCH_TIMEOUT_MS = 15_000
+
 export async function fetchNowPaymentsAvailableCurrencies(): Promise<string[]> {
   const response = await fetch(`${getNowPaymentsBaseUrl()}/currencies`, {
     headers: {
       'x-api-key': getNowPaymentsApiKey(),
     },
     next: { revalidate: 300 },
+    signal: AbortSignal.timeout(NOWPAYMENTS_FETCH_TIMEOUT_MS),
   })
 
   const data = (await response.json()) as { currencies?: string[]; message?: string }
@@ -133,6 +136,7 @@ export async function createNowPaymentsInvoice(params: NowPaymentsInvoiceParams)
       'x-api-key': apiKey,
     },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(NOWPAYMENTS_FETCH_TIMEOUT_MS),
   })
 
   const data = (await response.json()) as Record<string, unknown> & {

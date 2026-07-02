@@ -1,5 +1,8 @@
 import { DepositPageView } from '@/components/wallet/DepositPageView'
+import { fetchPaymentProviderOptionsServer } from '@/lib/payments/options-server'
 
-export default function WalletDepositPage() {
-  return <DepositPageView />
+export default async function WalletDepositPage() {
+  const paymentOptions = await fetchPaymentProviderOptionsServer()
+
+  return <DepositPageView initialPaymentOptions={paymentOptions} />
 }

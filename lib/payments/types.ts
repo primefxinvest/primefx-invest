@@ -54,3 +54,10 @@ export interface CreateWithdrawalResult {
   noticeDays?: number
   error?: string
 }
+
+export type PaymentProviderOptions = {
+  depositCurrencies: { value: string; label: string; provider: PaymentProviderId }[]
+  withdrawalCurrencies: { value: string; label: string }[]
+  binancePayEnabled: boolean
+  nowPaymentsEnabled: boolean
+}

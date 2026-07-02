@@ -184,6 +184,7 @@ export async function fetchWalletData(): Promise<WalletData> {
   const userId = await requireUserId()
   if (!userId) return emptyWalletData()
 
+  const { formatPrimeFxId } = await import('@/lib/wallet/transfer-lookup')
   const { data: wallet } = await getWallet(userId)
   const available = toNumber(wallet?.available_balance)
   const pending = toNumber(wallet?.pending_balance)
@@ -197,6 +198,7 @@ export async function fetchWalletData(): Promise<WalletData> {
   ]
 
   return {
+    primeFxId: formatPrimeFxId(userId),
     availableBalance: formatCurrency(available),
     pendingBalance: formatCurrency(pending),
     bonusBalance: formatCurrency(bonus),

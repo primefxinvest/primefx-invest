@@ -53,17 +53,39 @@ export function formatCurrencyLabel(currency: string) {
 
 /** Map NOWPayments API currency codes (e.g. usdttrc20) back to our option values */
 export function normalizeNowPaymentsCurrencyCode(code: string): string {
-  const upper = code.toUpperCase()
+  const compact = code.toUpperCase().replace(/[^A-Z0-9]/g, '')
   const direct = NOW_PAYMENTS_CURRENCIES.find(
-    (item) => item.toUpperCase() === upper || item.replace(/_/g, '').toUpperCase() === upper
+    (item) =>
+      item.toUpperCase() === code.toUpperCase() ||
+      item.replace(/_/g, '').toUpperCase() === compact
   )
   if (direct) return direct
 
-  if (upper === 'USDT') return 'USDT_TRC20'
-  if (upper === 'USDTTRC20') return 'USDT_TRC20'
-  if (upper === 'USDTERC20') return 'USDT_ERC20'
+  if (compact === 'USDT' || compact === 'USDTTRC20' || compact === 'TRC20USDT') {
+    return 'USDT_TRC20'
+  }
+  if (compact === 'USDTERC20' || compact === 'ERC20USDT') {
+    return 'USDT_ERC20'
+  }
 
-  return upper
+  return code.toUpperCase()
+}
+
+/** Apply NOWPayments API whitelist; fall back when the filter removes every known coin */
+export function filterNowPaymentsCurrencies(
+  currencies: readonly string[],
+  whitelist?: string[]
+): string[] {
+  if (!whitelist || whitelist.length === 0) {
+    return [...currencies]
+  }
+
+  const normalized = [
+    ...new Set(whitelist.map((code) => normalizeNowPaymentsCurrencyCode(code))),
+  ]
+  const intersected = currencies.filter((currency) => normalized.includes(currency))
+
+  return intersected.length > 0 ? intersected : [...currencies]
 }
 
 export function buildDepositCurrencyOptions(input?: {
@@ -73,7 +95,6 @@ export function buildDepositCurrencyOptions(input?: {
 }): CurrencyOption[] {
   const nowEnabled = input?.nowPayments !== false
   const binanceEnabled = input?.binancePay !== false
-  const whitelist = input?.nowPaymentsWhitelist?.map((code) => normalizeNowPaymentsCurrencyCode(code))
   const items = new Map<string, CurrencyOption>()
 
   if (binanceEnabled) {
@@ -87,10 +108,12 @@ export function buildDepositCurrencyOptions(input?: {
   }
 
   if (nowEnabled) {
-    for (const currency of NOW_PAYMENTS_CURRENCIES) {
-      if (whitelist && whitelist.length > 0 && !whitelist.includes(currency)) {
-        continue
-      }
+    const allowed = filterNowPaymentsCurrencies(
+      NOW_PAYMENTS_CURRENCIES,
+      input?.nowPaymentsWhitelist
+    )
+
+    for (const currency of allowed) {
       if (!items.has(currency)) {
         items.set(currency, {
           value: currency,
@@ -105,10 +128,7 @@ export function buildDepositCurrencyOptions(input?: {
 }
 
 export function buildWithdrawalCurrencyOptions(whitelist?: string[]) {
-  const allowed =
-    whitelist && whitelist.length > 0
-      ? whitelist.map((code) => normalizeNowPaymentsCurrencyCode(code))
-      : [...NOW_PAYMENTS_CURRENCIES]
+  const allowed = filterNowPaymentsCurrencies(NOW_PAYMENTS_CURRENCIES, whitelist)
 
   return allowed.map((currency) => ({
     value: currency,

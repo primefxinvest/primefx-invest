@@ -5,9 +5,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { requireServerMfaEnabled } from '@/lib/auth/mfa-server'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
-import { getDepositCurrencies, getWithdrawalCurrencies } from '@/lib/payments/config'
-import { isBinancePayConfigured, isNowPaymentsConfigured } from '@/lib/payments/env'
-import { fetchNowPaymentsAvailableCurrencies } from '@/lib/payments/nowpayments'
+import { fetchPaymentProviderOptionsServer } from '@/lib/payments/options-server'
 import { createDepositPayment, createWithdrawalPayment } from '@/lib/payments/service'
 import type { CreateDepositResult, CreateWithdrawalResult } from '@/lib/payments/types'
 
@@ -25,34 +23,7 @@ async function requireUser() {
 }
 
 export async function getPaymentProviderOptions() {
-  const nowPaymentsEnabled = isNowPaymentsConfigured()
-  const binancePayEnabled = isBinancePayConfigured()
-
-  let nowPaymentsWhitelist: string[] | undefined
-  if (nowPaymentsEnabled) {
-    try {
-      nowPaymentsWhitelist = await fetchNowPaymentsAvailableCurrencies()
-    } catch (err) {
-      console.warn('[payments] Could not load NOWPayments currencies, using defaults.', err)
-    }
-  }
-
-  const depositCurrencies = getDepositCurrencies({
-    nowPayments: nowPaymentsEnabled,
-    binancePay: binancePayEnabled,
-    nowPaymentsWhitelist,
-  })
-
-  const withdrawalCurrencies = nowPaymentsEnabled
-    ? getWithdrawalCurrencies(nowPaymentsWhitelist)
-    : []
-
-  return {
-    depositCurrencies,
-    withdrawalCurrencies,
-    binancePayEnabled,
-    nowPaymentsEnabled,
-  }
+  return fetchPaymentProviderOptionsServer()
 }
 
 export async function initiateDeposit(input: {

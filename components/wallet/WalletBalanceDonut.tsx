@@ -1,6 +1,7 @@
 'use client'
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { useTranslations } from 'next-intl'
 import { PieTooltipContent } from '@/components/charts/ChartTooltip'
 import { chartTooltipWrapperProps } from '@/lib/charts/theme'
 import { AsyncState } from '@/components/shared/data-state'
@@ -10,6 +11,7 @@ import { fetchWalletData } from '@/lib/data/queries'
 import { formatCurrency } from '@/lib/data/format'
 
 export default function WalletBalanceDonut() {
+  const t = useTranslations('wallet.balanceDonut')
   const { data: wallet, loading, error, reload } = useAsyncData(() => fetchWalletData(), [])
 
   const chartData =
@@ -22,16 +24,16 @@ export default function WalletBalanceDonut() {
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-bold text-gray-900">Balance Overview</h2>
+      <h2 className="text-sm font-bold text-gray-900">{t('title')}</h2>
 
       <AsyncState
         loading={loading}
         error={error}
         onRetry={reload}
-        errorTitle="Could not load balance overview"
+        errorTitle={t('loadError')}
         isEmpty={chartData.length === 0}
-        emptyTitle="No balance data"
-        emptyDescription="Fund your wallet to see balance distribution."
+        emptyTitle={t('emptyTitle')}
+        emptyDescription={t('emptyDescription')}
         skeleton={<DonutChartSkeleton />}
         compact
       >
@@ -57,7 +59,9 @@ export default function WalletBalanceDonut() {
               </PieChart>
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Total Balance</p>
+              <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">
+                {t('totalBalance')}
+              </p>
               <p className="mt-0.5 text-lg font-bold text-gray-900">{wallet?.totalBalance ?? '$0.00'}</p>
             </div>
           </div>

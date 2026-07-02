@@ -1,6 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
+import { useTranslations } from 'next-intl'
 import { Bitcoin, Building2, CreditCard, Wallet } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
 import { ListSkeleton } from '@/components/shared/skeletons'
@@ -14,33 +15,35 @@ const methodIcons = {
   card: CreditCard,
 }
 
-const badgeStyles = {
-  Primary: 'bg-[#0052ff] text-white',
-  Active: 'bg-emerald-100 text-emerald-700',
-}
-
 export default function PaymentMethodsCard() {
+  const t = useTranslations('wallet.paymentMethods')
   const { data: paymentMethods = [], loading, error, reload } = useAsyncData(
     () => fetchPaymentMethods(),
     []
   )
 
   const handleManage = () => {
-    toast.info('Payment methods', {
-      description: 'Payment method management will open here.',
+    toast.info(t('toastTitle'), {
+      description: t('toastDescription'),
     })
+  }
+
+  const badgeLabel = (badge: string) => {
+    if (badge === 'Primary') return t('badgePrimary')
+    if (badge === 'Active') return t('badgeActive')
+    return badge
   }
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-bold text-gray-900">Payment Methods</h2>
+        <h2 className="text-sm font-bold text-gray-900">{t('title')}</h2>
         <button
           type="button"
           onClick={handleManage}
           className="text-xs font-semibold text-[#0052ff] hover:underline"
         >
-          Manage Methods
+          {t('manage')}
         </button>
       </div>
 
@@ -48,10 +51,10 @@ export default function PaymentMethodsCard() {
         loading={loading}
         error={error}
         onRetry={reload}
-        errorTitle="Could not load payment methods"
+        errorTitle={t('loadError')}
         isEmpty={paymentMethods.length === 0}
-        emptyTitle="No payment methods"
-        emptyDescription="Add a PrimeFx Card or crypto wallet to deposit and withdraw."
+        emptyTitle={t('emptyTitle')}
+        emptyDescription={t('emptyDescription')}
         skeleton={<ListSkeleton rows={3} />}
         compact
       >
@@ -79,10 +82,10 @@ export default function PaymentMethodsCard() {
                 <span
                   className={cn(
                     'rounded-full px-2.5 py-0.5 text-[10px] font-bold',
-                    badgeStyles[method.badge]
+                    method.badge === 'Primary' ? 'bg-[#0052ff] text-white' : 'bg-emerald-100 text-emerald-700'
                   )}
                 >
-                  {method.badge}
+                  {badgeLabel(method.badge)}
                 </span>
               </div>
             )

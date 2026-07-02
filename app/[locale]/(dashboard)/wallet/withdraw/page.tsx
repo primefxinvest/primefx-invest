@@ -1,5 +1,8 @@
 import { WithdrawPageView } from '@/components/wallet/WithdrawPageView'
+import { fetchPaymentProviderOptionsServer } from '@/lib/payments/options-server'
 
-export default function WalletWithdrawPage() {
-  return <WithdrawPageView />
+export default async function WalletWithdrawPage() {
+  const paymentOptions = await fetchPaymentProviderOptionsServer()
+
+  return <WithdrawPageView initialPaymentOptions={paymentOptions} />
 }

@@ -1,9 +1,14 @@
+'use client'
+
 import { Shield } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 export default function WalletHealthCard() {
+  const t = useTranslations('wallet.health')
+
   return (
     <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-bold text-gray-900">Wallet Health</h2>
+      <h2 className="text-sm font-bold text-gray-900">{t('title')}</h2>
 
       <div className="mt-4 flex flex-1 flex-col items-center justify-center">
         <div className="relative flex h-28 w-28 items-center justify-center">
@@ -26,13 +31,11 @@ export default function WalletHealthCard() {
           </div>
         </div>
 
-        <p className="mt-4 text-sm font-semibold text-emerald-600">Secure & Protected</p>
-        <p className="mt-1 text-center text-xs text-gray-500">
-          Your wallet is secure with 256-bit encryption
-        </p>
+        <p className="mt-4 text-sm font-semibold text-emerald-600">{t('secure')}</p>
+        <p className="mt-1 text-center text-xs text-gray-500">{t('encryption')}</p>
 
         <span className="mt-4 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-          All Systems Normal
+          {t('allNormal')}
         </span>
       </div>
     </div>

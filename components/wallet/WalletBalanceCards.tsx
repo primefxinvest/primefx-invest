@@ -1,6 +1,7 @@
 'use client'
 
 import { Wallet, Clock, Gift } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { AsyncState } from '@/components/shared/data-state'
 import { StatusCardGrid, statusCardSurfaceClass } from '@/components/shared/status-cards'
 import { MetricCardsSkeleton } from '@/components/shared/skeletons'
@@ -8,37 +9,38 @@ import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchWalletData } from '@/lib/data/queries'
 
 export default function WalletBalanceCards() {
+  const t = useTranslations('wallet.balances')
   const { data: wallet, loading, error, reload } = useAsyncData(() => fetchWalletData(), [])
 
   const balanceCards = [
     {
-      label: 'Available Balance',
+      label: t('available'),
       value: wallet?.availableBalance ?? '$0.00',
-      subtext: 'Available to use',
+      subtext: t('availableSub'),
       subtextColor: 'text-emerald-500',
       iconBg: 'bg-emerald-50 text-emerald-500',
       icon: Wallet,
     },
     {
-      label: 'Pending Balance',
+      label: t('pending'),
       value: wallet?.pendingBalance ?? '$0.00',
-      subtext: 'In processing',
+      subtext: t('pendingSub'),
       subtextColor: 'text-orange-500',
       iconBg: 'bg-orange-50 text-orange-500',
       icon: Clock,
     },
     {
-      label: 'Bonus Balance',
+      label: t('bonus'),
       value: wallet?.bonusBalance ?? '$0.00',
-      subtext: 'Bonus earnings',
+      subtext: t('bonusSub'),
       subtextColor: 'text-purple-500',
       iconBg: 'bg-purple-50 text-purple-500',
       icon: Gift,
     },
     {
-      label: 'Total Balance',
+      label: t('total'),
       value: wallet?.totalBalance ?? '$0.00',
-      subtext: 'Total funds',
+      subtext: t('totalSub'),
       subtextColor: 'text-[#0052ff]',
       iconBg: 'bg-blue-50 text-[#0052ff]',
       icon: Wallet,
@@ -50,7 +52,7 @@ export default function WalletBalanceCards() {
       loading={loading}
       error={error}
       onRetry={reload}
-      errorTitle="Could not load wallet balances"
+      errorTitle={t('loadError')}
       skeleton={<MetricCardsSkeleton />}
     >
       <StatusCardGrid columns={4}>

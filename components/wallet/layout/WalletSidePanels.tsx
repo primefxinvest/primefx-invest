@@ -1,6 +1,7 @@
 'use client'
 
 import { Link } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { CheckCircle2, Headphones, ShieldCheck } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
 import { WalletListSkeleton } from '@/components/wallet/layout/WalletListSkeleton'
@@ -18,23 +19,25 @@ export function WalletLimitsPanel({
   monthlyMax?: number
   rules: { label: string; value: string }[]
 }) {
+  const t = useTranslations('wallet.sidePanels')
+
   const dailyPct = Math.min(100, Math.round((dailyUsed / dailyMax) * 100))
   const monthlyPct = Math.min(100, Math.round((monthlyUsed / monthlyMax) * 100))
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-gray-900">Limits</h3>
+        <h3 className="font-semibold text-gray-900">{t('limits')}</h3>
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
           <CheckCircle2 className="h-3.5 w-3.5" />
-          Verified Account
+          {t('verifiedAccount')}
         </span>
       </div>
 
       <div className="space-y-4">
         <div>
           <div className="mb-1 flex justify-between text-xs text-gray-500">
-            <span>Daily limit</span>
+            <span>{t('dailyLimit')}</span>
             <span>
               ${dailyUsed.toLocaleString()} / ${dailyMax.toLocaleString()}
             </span>
@@ -45,7 +48,7 @@ export function WalletLimitsPanel({
         </div>
         <div>
           <div className="mb-1 flex justify-between text-xs text-gray-500">
-            <span>Monthly limit</span>
+            <span>{t('monthlyLimit')}</span>
             <span>
               ${monthlyUsed.toLocaleString()} / ${monthlyMax.toLocaleString()}
             </span>
@@ -74,8 +77,8 @@ export function WalletRecentPanel({
   loading = false,
   error = null,
   onRetry,
-  emptyTitle = 'No recent activity',
-  emptyDescription = 'Your latest wallet activity will show up here.',
+  emptyTitle = '',
+  emptyDescription = '',
   emptyAction,
 }: {
   title: string
@@ -85,6 +88,7 @@ export function WalletRecentPanel({
     sublabel?: string
     amount: string
     status: string
+    statusKey?: string
     time: string
     positive?: boolean
   }[]
@@ -95,6 +99,10 @@ export function WalletRecentPanel({
   emptyDescription?: string
   emptyAction?: React.ReactNode
 }) {
+  const t = useTranslations('wallet.sidePanels')
+  const resolvedEmptyTitle = emptyTitle || t('noActivity')
+  const resolvedEmptyDescription = emptyDescription || t('noActivityDesc')
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <h3 className="mb-4 font-semibold text-gray-900">{title}</h3>
@@ -103,10 +111,10 @@ export function WalletRecentPanel({
         error={error}
         onRetry={onRetry}
         isEmpty={items.length === 0}
-        emptyTitle={emptyTitle}
-        emptyDescription={emptyDescription}
+        emptyTitle={resolvedEmptyTitle}
+        emptyDescription={resolvedEmptyDescription}
         emptyAction={emptyAction}
-        errorTitle="Could not load activity"
+        errorTitle={t('loadActivityError')}
         skeleton={<WalletListSkeleton rows={4} />}
         compact
       >
@@ -135,9 +143,9 @@ export function WalletRecentPanel({
                 <span
                   className={cn(
                     'mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase',
-                    item.status.toLowerCase() === 'completed'
+                    (item.statusKey ?? item.status).toLowerCase() === 'completed'
                       ? 'bg-emerald-50 text-emerald-700'
-                      : item.status.toLowerCase() === 'pending'
+                      : (item.statusKey ?? item.status).toLowerCase() === 'pending'
                         ? 'bg-amber-50 text-amber-700'
                         : 'bg-red-50 text-red-700'
                   )}
@@ -153,29 +161,45 @@ export function WalletRecentPanel({
   )
 }
 
-export function walletDepositCta() {
+export function WalletDepositCta() {
+  const t = useTranslations('wallet.sidePanels')
+
   return (
     <Link
       href="/wallet/deposit"
       className="inline-flex rounded-lg bg-[#0052ff] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
     >
-      Make a deposit
+      {t('makeDeposit')}
     </Link>
   )
 }
 
-export function walletTransferCta() {
+/** @deprecated Use WalletDepositCta */
+export function walletDepositCta() {
+  return <WalletDepositCta />
+}
+
+export function WalletTransferCta() {
+  const t = useTranslations('wallet.sidePanels')
+
   return (
     <Link
       href="/wallet/transfer"
       className="inline-flex rounded-lg bg-[#0052ff] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
     >
-      Send a transfer
+      {t('sendTransfer')}
     </Link>
   )
 }
 
+/** @deprecated Use WalletTransferCta */
+export function walletTransferCta() {
+  return <WalletTransferCta />
+}
+
 export function WalletHelpPanel() {
+  const t = useTranslations('wallet.sidePanels')
+
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="flex items-start gap-3">
@@ -183,16 +207,14 @@ export function WalletHelpPanel() {
           <Headphones className="h-5 w-5" />
         </div>
         <div>
-          <h3 className="font-semibold text-gray-900">Need help?</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Our support team is available 24/7 for wallet and payment questions.
-          </p>
+          <h3 className="font-semibold text-gray-900">{t('needHelp')}</h3>
+          <p className="mt-1 text-sm text-gray-500">{t('supportBody')}</p>
           <Link
             href="/support"
             className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#0052ff] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
           >
             <Headphones className="h-4 w-4" />
-            Contact Support
+            {t('contactSupport')}
           </Link>
         </div>
       </div>

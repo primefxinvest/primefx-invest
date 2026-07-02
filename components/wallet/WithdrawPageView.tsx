@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
+import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import {
   ArrowRight,
@@ -26,25 +27,35 @@ import { AsyncState } from '@/components/shared/data-state'
 import { MetricCardsSkeleton } from '@/components/shared/skeletons'
 import { useWalletPageData } from '@/lib/hooks/useWalletPageData'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
+import { kycBlockReason, kycFallbackMessage } from '@/lib/investor/kyc-i18n'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
-import { getPaymentProviderOptions } from '@/lib/payments/actions'
+import type { PaymentProviderOptions } from '@/lib/payments/types'
 import {
   buildWithdrawalCurrencyOptions,
   DEFAULT_WITHDRAW_CURRENCY,
 } from '@/lib/payments/currency-options'
-import { initiateWithdrawal, submitManualWithdrawal } from '@/lib/wallet/actions'
+import { initiateWithdrawal } from '@/lib/wallet/actions'
+import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { calculateWithdrawalFee, WITHDRAWAL_NOTICE_DAYS } from '@/lib/fees/constants'
 import { cn } from '@/lib/utils'
 
 const WITHDRAW_METHODS = [
-  { id: 'nowpayments', label: 'NOWPayments', icon: Bitcoin, eta: '~5-30 mins' },
-  { id: 'card', label: 'PrimeFx Card', icon: CreditCard, eta: 'Instant' },
+  { id: 'nowpayments', labelKey: 'methodNowPayments', icon: Bitcoin, etaKey: 'etaCrypto' },
 ] as const
 
 const FEE_RATE = INVESTOR_RULES.financial.withdrawalFeeRate
 
-export function WithdrawPageView() {
+type WithdrawPageViewProps = {
+  initialPaymentOptions: PaymentProviderOptions
+}
+
+export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProps) {
+  const t = useTranslations('wallet.withdraw')
+  const tDeposit = useTranslations('wallet.deposit')
+  const tBalances = useTranslations('wallet.balances')
+  const tWallet = useTranslations('wallet')
+  const tCompliance = useTranslations('compliance')
   const router = useRouter()
   const kyc = useFinancialKycAccess()
   const {
@@ -59,36 +70,22 @@ export function WithdrawPageView() {
   } = useWalletPageData()
   const [method, setMethod] = useState<(typeof WITHDRAW_METHODS)[number]['id']>('nowpayments')
   const [amount, setAmount] = useState('500')
-  const [currency, setCurrency] = useState(DEFAULT_WITHDRAW_CURRENCY)
+  const [currency, setCurrency] = useState(() => {
+    const first = initialPaymentOptions.withdrawalCurrencies[0]?.value
+    if (first) return first
+    return DEFAULT_WITHDRAW_CURRENCY
+  })
   const [address, setAddress] = useState('')
   const [note, setNote] = useState('')
   const [pin, setPin] = useState('')
   const [twoFa, setTwoFa] = useState('')
   const [showPin, setShowPin] = useState(false)
-  const [currencies, setCurrencies] = useState(() => buildWithdrawalCurrencyOptions())
-  const [nowPaymentsEnabled, setNowPaymentsEnabled] = useState(true)
+  const currencies =
+    initialPaymentOptions.withdrawalCurrencies.length > 0
+      ? initialPaymentOptions.withdrawalCurrencies
+      : buildWithdrawalCurrencyOptions()
+  const nowPaymentsEnabled = initialPaymentOptions.nowPaymentsEnabled
   const [pending, startTransition] = useTransition()
-
-  useEffect(() => {
-    getPaymentProviderOptions()
-      .then((options) => {
-        setNowPaymentsEnabled(options.nowPaymentsEnabled)
-
-        if (options.withdrawalCurrencies.length > 0) {
-          setCurrencies(options.withdrawalCurrencies)
-          setCurrency((current) =>
-            options.withdrawalCurrencies.some((item) => item.value === current)
-              ? current
-              : options.withdrawalCurrencies[0].value
-          )
-        }
-      })
-      .catch(() => {
-        toast.error('Could not refresh withdrawal currencies', {
-          description: 'Using default crypto options. Try again if withdrawal fails.',
-        })
-      })
-  }, [])
 
   const available = useMemo(() => {
     const match = wallet?.availableBalance?.replace(/[^0-9.-]/g, '')
@@ -105,14 +102,15 @@ export function WithdrawPageView() {
         .slice(0, 5)
         .map((tx) => ({
           id: tx.id,
-          label: tx.type,
+          label: walletTxTypeLabel(tWallet, tx.type),
           sublabel: tx.referenceId,
           amount: tx.amount,
-          status: tx.status,
+          status: walletTxStatusLabel(tWallet, tx.status),
+          statusKey: tx.status.toLowerCase(),
           time: `${tx.date}${tx.time ? ` · ${tx.time}` : ''}`,
           positive: false,
         })),
-    [transactions]
+    [transactions, tWallet]
   )
 
   const pendingWithdrawals = transactions.filter(
@@ -130,50 +128,33 @@ export function WithdrawPageView() {
       showKycRequiredToast({
         status: kyc.status,
         action: 'withdrawal',
-        fallback: kyc.summary ?? 'Complete KYC before withdrawing funds.',
+        title: tCompliance('kycToastTitle'),
+        description:
+          kycBlockReason(tCompliance, kyc.status, 'withdrawal') ??
+          kyc.summary ??
+          kycFallbackMessage(tCompliance, 'withdrawal'),
       })
       return
     }
 
     if (amountNum < minWithdrawal) {
-      toast.error(`Minimum withdrawal is $${minWithdrawal.toFixed(2)}`)
+      toast.error(t('minWithdrawalError', { amount: `$${minWithdrawal.toFixed(2)}` }))
       return
     }
     if (amountNum > available) {
-      toast.error('Amount exceeds available balance')
-      return
-    }
-
-    if (method === 'card') {
-      startTransition(async () => {
-        const result = await submitManualWithdrawal({
-          amountUsd: amountNum,
-          methodLabel: 'PrimeFx Card',
-          note,
-        })
-        if (!result.success) {
-          toast.error('Withdrawal failed', { description: result.error })
-          return
-        }
-        toast.success('Withdrawal submitted', {
-          description: `Reference ${result.referenceId}. Your PrimeFx Card payout is being processed.`,
-        })
-        setAmount('')
-        setNote('')
-        router.refresh()
-      })
+      toast.error(t('exceedsBalance'))
       return
     }
 
     if (method === 'nowpayments' && !nowPaymentsEnabled) {
-      toast.error('NOWPayments withdrawals are not configured', {
-        description: 'Add NOWPAYMENTS_API_KEY and NOWPAYMENTS_IPN_SECRET to your environment.',
+      toast.error(tDeposit('nowPaymentsConfigError'), {
+        description: tDeposit('nowPaymentsConfigHint'),
       })
       return
     }
 
     if (!address.trim()) {
-      toast.error('Enter your crypto wallet address')
+      toast.error(t('addressRequired'))
       return
     }
 
@@ -184,11 +165,11 @@ export function WithdrawPageView() {
         address: address.trim(),
       })
       if (!result.success) {
-        toast.error('Withdrawal failed', { description: result.error })
+        toast.error(t('failed'), { description: result.error })
         return
       }
-      toast.success('Withdrawal submitted', {
-        description: 'Your payout is being processed via NOWPayments.',
+      toast.success(t('submitted'), {
+        description: t('nowPaymentsProcessing'),
       })
       setAmount('')
       setAddress('')
@@ -199,10 +180,7 @@ export function WithdrawPageView() {
 
   return (
     <div className="space-y-6">
-      <WalletPageHeader
-        title="Withdrawal"
-        description="Withdraw to NOWPayments crypto or your PrimeFx Card"
-      />
+      <WalletPageHeader title={t('title')} description={t('description')} />
 
       <KycFinancialBanner />
 
@@ -210,34 +188,34 @@ export function WithdrawPageView() {
         loading={walletLoading && !wallet}
         error={walletError}
         onRetry={reloadWallet}
-        errorTitle="Could not load wallet"
+        errorTitle={t('loadWalletError')}
         skeleton={<MetricCardsSkeleton count={4} />}
       >
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <WalletStatCard
-            label="Available Balance"
+            label={tBalances('available')}
             value={wallet?.availableBalance ?? '$0.00'}
-            subtext="USD Wallet"
+            subtext={tBalances('usdWallet')}
             icon={Wallet}
           />
           <WalletStatCard
-            label="Withdrawable Balance"
+            label={t('withdrawableBalance')}
             value={`$${Math.max(0, available - fee).toFixed(2)}`}
-            subtext="After fees"
+            subtext={tBalances('afterFees')}
             icon={CreditCard}
             iconClassName="bg-emerald-50 text-emerald-600"
           />
           <WalletStatCard
-            label="Pending Withdrawal"
-            value={`$${pendingWithdrawals.reduce((s, t) => s + Math.abs(t.amountValue), 0).toFixed(2)}`}
-            subtext={`${pendingWithdrawals.length} request${pendingWithdrawals.length === 1 ? '' : 's'}`}
+            label={t('pendingWithdrawal')}
+            value={`$${pendingWithdrawals.reduce((s, tx) => s + Math.abs(tx.amountValue), 0).toFixed(2)}`}
+            subtext={`${pendingWithdrawals.length} ${pendingWithdrawals.length === 1 ? t('request') : t('requests')}`}
             icon={Loader2}
             iconClassName="bg-amber-50 text-amber-600"
           />
           <WalletStatCard
-            label="Total Withdrawn"
+            label={t('totalWithdrawn')}
             value={`$${totalWithdrawn.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-            subtext="All time"
+            subtext={tBalances('allTime')}
             icon={ArrowRight}
             iconClassName="bg-orange-50 text-orange-600"
           />
@@ -247,7 +225,7 @@ export function WithdrawPageView() {
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_340px]">
         <div className="space-y-6">
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900">1. Select withdrawal method</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t('selectMethod')}</h2>
             <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
               {WITHDRAW_METHODS.map((item) => {
                 const Icon = item.icon
@@ -263,8 +241,8 @@ export function WithdrawPageView() {
                     )}
                   >
                     <Icon className="h-5 w-5 text-[#0052ff]" />
-                    <p className="mt-2 text-sm font-semibold text-gray-900">{item.label}</p>
-                    <p className="mt-1 text-xs text-gray-500">{item.eta}</p>
+                    <p className="mt-2 text-sm font-semibold text-gray-900">{tDeposit(item.labelKey)}</p>
+                    <p className="mt-1 text-xs text-gray-500">{tDeposit(item.etaKey)}</p>
                   </button>
                 )
               })}
@@ -272,32 +250,24 @@ export function WithdrawPageView() {
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900">2. Withdrawal details</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t('withdrawDetails')}</h2>
             <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="space-y-4">
-                {method === 'nowpayments' ? (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">Crypto currency</label>
-                    <CustomSelect
-                      value={currency}
-                      onValueChange={setCurrency}
-                      options={currencies}
-                      disabled={pending || currencies.length === 0}
-                      placeholder="Select currency"
-                    />
-                    {!nowPaymentsEnabled ? (
-                      <p className="mt-1 text-xs text-amber-700">
-                        NOWPayments is not configured yet. Crypto withdrawals are unavailable.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-                    Funds will be sent to your linked PrimeFx Card.
-                  </div>
-                )}
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">Amount (USD)</label>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('cryptoCurrency')}</label>
+                  <CustomSelect
+                    value={currency}
+                    onValueChange={setCurrency}
+                    options={currencies}
+                    disabled={pending || currencies.length === 0}
+                    placeholder={t('selectCurrency')}
+                  />
+                  {!nowPaymentsEnabled ? (
+                    <p className="mt-1 text-xs text-amber-700">{t('nowPaymentsNotConfigured')}</p>
+                  ) : null}
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('amountUsd')}</label>
                   <input
                     type="number"
                     min="10"
@@ -310,21 +280,19 @@ export function WithdrawPageView() {
                     Min: ${minWithdrawal.toFixed(2)} · Max: $5,000.00 · Available: ${available.toFixed(2)}
                   </p>
                 </div>
-                {method === 'nowpayments' ? (
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-gray-700">Wallet address</label>
-                    <input
-                      type="text"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="Enter your crypto payout address"
-                      className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-[#0052ff] focus:outline-none"
-                      disabled={pending}
-                    />
-                  </div>
-                ) : null}
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">Note (optional)</label>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('walletAddress')}</label>
+                  <input
+                    type="text"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder={t('addressPlaceholder')}
+                    className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-[#0052ff] focus:outline-none"
+                    disabled={pending}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('noteOptional')}</label>
                   <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
@@ -336,24 +304,24 @@ export function WithdrawPageView() {
                 </div>
               </div>
               <div className="rounded-xl bg-blue-50 p-5">
-                <p className="text-sm text-gray-600">You will receive</p>
+                <p className="text-sm text-gray-600">{t('youWillReceive')}</p>
                 <p className="mt-1 text-3xl font-bold text-gray-900">${receive.toFixed(2)}</p>
                 <p className="mt-2 text-sm text-gray-500">
-                  Fee: ${fee.toFixed(2)} ({(FEE_RATE * 100).toFixed(1)}%)
+                  {t('fee')}: ${fee.toFixed(2)} ({(FEE_RATE * 100).toFixed(1)}%)
                 </p>
                 <p className="mt-2 text-sm text-amber-700">
-                  {WITHDRAWAL_NOTICE_DAYS}-day notice required before funds are released.
+                  {t('noticeRequired', { days: WITHDRAWAL_NOTICE_DAYS })}
                 </p>
               </div>
             </div>
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900">3. Security verification</h2>
+            <h2 className="text-lg font-bold text-gray-900">{t('securityVerification')}</h2>
             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Withdrawal PIN <span className="font-normal text-gray-400">(optional)</span>
+                  {t('withdrawalPin')} <span className="font-normal text-gray-400">{t('optional')}</span>
                 </label>
                 <div className="relative">
                   <input
@@ -373,29 +341,27 @@ export function WithdrawPageView() {
                 </div>
               </div>
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">2FA code</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">{t('twoFaCode')}</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={twoFa}
                     onChange={(e) => setTwoFa(e.target.value)}
                     maxLength={6}
-                    placeholder="6 digit code"
+                    placeholder={t('twoFaPlaceholder')}
                     className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm"
                   />
                   <button
                     type="button"
                     className="shrink-0 rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
                   >
-                    Get Code
+                    {t('getCode')}
                   </button>
                 </div>
               </div>
             </div>
             <div className="mt-4">
-              <WalletSecurityNotice>
-                For your security, withdrawals above $1,000 require email confirmation.
-              </WalletSecurityNotice>
+              <WalletSecurityNotice>{t('securityNotice')}</WalletSecurityNotice>
             </div>
             <button
               type="button"
@@ -404,7 +370,7 @@ export function WithdrawPageView() {
               className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0052ff] px-6 py-3.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
             >
               {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Review Withdrawal
+              {t('reviewWithdrawal')}
               <ArrowRight className="h-4 w-4" />
             </button>
           </div>
@@ -413,20 +379,20 @@ export function WithdrawPageView() {
         <div className="space-y-4">
           <WalletLimitsPanel
             rules={[
-              { label: 'Min withdrawal', value: '$10.00' },
-              { label: 'Max per transaction', value: '$10,000.00' },
-              { label: 'Withdrawal fee', value: '5%' },
-              { label: 'Notice period', value: `${WITHDRAWAL_NOTICE_DAYS} days` },
+              { label: t('limitsMin'), value: '$10.00' },
+              { label: t('limitsMax'), value: '$10,000.00' },
+              { label: t('limitsFee'), value: '5%' },
+              { label: t('limitsNotice'), value: `${WITHDRAWAL_NOTICE_DAYS} ${t('days')}` },
             ]}
           />
           <WalletRecentPanel
-            title="Recent withdrawals"
+            title={t('recentWithdrawals')}
             items={recentWithdrawals}
             loading={transactionsLoading && !transactions.length}
             error={transactionsError}
             onRetry={reloadTransactions}
-            emptyTitle="No withdrawals yet"
-            emptyDescription="Withdrawal requests will show up here once you cash out."
+            emptyTitle={t('noWithdrawalsTitle')}
+            emptyDescription={t('noWithdrawalsDesc')}
           />
           <WalletHelpPanel />
         </div>

@@ -69,10 +69,10 @@ export default function PrimeAIAnalysisCard({ analysis }: AIAnalysisProps) {
         </Link>
         <div className="grid grid-cols-2 gap-2">
           <Link
-            href="/reports"
+            href="/portfolio"
             className="rounded-lg border border-slate-200 bg-white py-2 text-center text-[12px] font-medium text-slate-700 transition-colors hover:bg-slate-50"
           >
-            Generate Report
+            View Portfolio
           </Link>
           <Link
             href="/primeai"

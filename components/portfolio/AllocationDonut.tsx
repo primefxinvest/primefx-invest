@@ -64,7 +64,7 @@ export default function AllocationDonut({ data, totalValue }: AllocationDonutPro
       </div>
 
       <Link
-        href="/reports"
+        href="/portfolio"
         className="mt-5 block w-full rounded-lg border border-slate-200 py-2 text-center text-[13px] font-medium text-slate-700 transition-colors hover:bg-slate-50"
       >
         View Details

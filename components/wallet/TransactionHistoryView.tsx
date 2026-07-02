@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -22,23 +23,35 @@ import {
 import { toast } from 'sonner'
 import { AsyncState, ErrorState } from '@/components/shared/data-state'
 import { StatusCardGrid, statusCardSurfaceClass } from '@/components/shared/status-cards'
-import { walletDepositCta, walletTransferCta } from '@/components/wallet/layout/WalletSidePanels'
+import { WalletDepositCta, WalletTransferCta } from '@/components/wallet/layout/WalletSidePanels'
 import { PageHeaderSkeleton, TableSkeleton } from '@/components/shared/skeletons'
 import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchWalletTransactions } from '@/lib/data/queries'
 import type { TransactionItem } from '@/lib/data/types'
+import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { CustomSelect } from '@/components/ui/custom-select'
 import { cn } from '@/lib/utils'
 
-const FILTER_TABS = [
-  'Transactions',
-  'Deposits',
-  'Withdrawals',
-  'Transfers Sent',
-  'Transfers Received',
-  'Internal Transfers',
+const FILTER_TAB_IDS = [
+  'all',
+  'deposits',
+  'withdrawals',
+  'transfersSent',
+  'transfersReceived',
+  'internal',
 ] as const
+
+type FilterTabId = (typeof FILTER_TAB_IDS)[number]
+
+const TAB_LABEL_KEYS: Record<FilterTabId, string> = {
+  all: 'tabAll',
+  deposits: 'tabDeposits',
+  withdrawals: 'tabWithdrawals',
+  transfersSent: 'tabTransfersSent',
+  transfersReceived: 'tabTransfersReceived',
+  internal: 'tabInternal',
+}
 
 const typeIcons: Record<string, typeof Download> = {
   Deposit: Download,
@@ -58,8 +71,11 @@ function statusStyles(status: string) {
   return 'bg-amber-100 text-amber-700'
 }
 
-function exportTransactionsCsv(rows: TransactionItem[]) {
-  const header = ['Type', 'Description', 'Amount', 'Status', 'Date', 'Time', 'Reference']
+function exportTransactionsCsv(
+  rows: TransactionItem[],
+  headers: [string, string, string, string, string, string, string]
+) {
+  const header = headers
   const lines = rows.map((tx) =>
     [tx.type, tx.description ?? '', tx.amount, tx.status, tx.date, tx.time ?? '', tx.referenceId ?? '']
       .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
@@ -76,8 +92,10 @@ function exportTransactionsCsv(rows: TransactionItem[]) {
 }
 
 export function TransactionHistoryView() {
+  const t = useTranslations('wallet.transactions')
+  const tWallet = useTranslations('wallet')
   const [search, setSearch] = useState('')
-  const [activeTab, setActiveTab] = useState<(typeof FILTER_TABS)[number]>('Transactions')
+  const [activeTab, setActiveTab] = useState<FilterTabId>('all')
   const [page, setPage] = useState(1)
   const perPage = 10
 
@@ -89,12 +107,12 @@ export function TransactionHistoryView() {
   const filtered = useMemo(() => {
     return transactions.filter((tx) => {
       const tabMatch =
-        activeTab === 'Transactions' ||
-        (activeTab === 'Deposits' && tx.type === 'Deposit') ||
-        (activeTab === 'Withdrawals' && tx.type === 'Withdrawal') ||
-        (activeTab === 'Transfers Sent' && tx.type === 'Transfer' && !tx.isCredit) ||
-        (activeTab === 'Transfers Received' && tx.type === 'Transfer' && tx.isCredit) ||
-        (activeTab === 'Internal Transfers' && tx.type === 'Transfer')
+        activeTab === 'all' ||
+        (activeTab === 'deposits' && tx.type === 'Deposit') ||
+        (activeTab === 'withdrawals' && tx.type === 'Withdrawal') ||
+        (activeTab === 'transfersSent' && tx.type === 'Transfer' && !tx.isCredit) ||
+        (activeTab === 'transfersReceived' && tx.type === 'Transfer' && tx.isCredit) ||
+        (activeTab === 'internal' && tx.type === 'Transfer')
 
       const matchesStatus = true
 
@@ -132,17 +150,27 @@ export function TransactionHistoryView() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / perPage))
   const paged = filtered.slice((page - 1) * perPage, page * perPage)
 
-  const hasFilters = search.trim().length > 0 || activeTab !== 'Transactions'
+  const hasFilters = search.trim().length > 0 || activeTab !== 'all'
   const isTrulyEmpty = transactions.length === 0
 
   const copyReference = async (referenceId: string) => {
     try {
       await navigator.clipboard.writeText(referenceId)
-      toast.success('Reference copied')
+      toast.success(t('referenceCopied'))
     } catch {
-      toast.error('Failed to copy reference')
+      toast.error(t('referenceCopyFailed'))
     }
   }
+
+  const csvHeaders: [string, string, string, string, string, string, string] = [
+    t('type'),
+    t('descriptionCol'),
+    t('amount'),
+    t('status'),
+    t('dateTime'),
+    t('dateTime'),
+    t('reference'),
+  ]
 
   if (loading && !transactions.length) {
     return (
@@ -156,15 +184,8 @@ export function TransactionHistoryView() {
   if (error && isTrulyEmpty) {
     return (
       <div className="space-y-6">
-        <WalletPageHeader
-          title="Transaction History"
-          description="View all your wallet transactions in one place"
-        />
-        <ErrorState
-          title="Could not load transactions"
-          description={error}
-          onRetry={reload}
-        />
+        <WalletPageHeader title={t('title')} description={t('description')} />
+        <ErrorState title={t('loadError')} description={error} onRetry={reload} />
       </div>
     )
   }
@@ -172,31 +193,31 @@ export function TransactionHistoryView() {
   return (
     <div className="space-y-6">
       <WalletPageHeader
-        title="Transaction History"
-        description="View all your wallet transactions in one place"
+        title={t('title')}
+        description={t('description')}
         actions={
           <>
             <button
               type="button"
               onClick={() => {
                 if (!filtered.length) {
-                  toast.error('No transactions to export')
+                  toast.error(t('nothingToExport'))
                   return
                 }
-                exportTransactionsCsv(filtered)
-                toast.success('Transactions exported')
+                exportTransactionsCsv(filtered, csvHeaders)
+                toast.success(t('exported'))
               }}
               className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
             >
               <Download className="h-4 w-4" />
-              Export
+              {t('export')}
             </button>
             <button
               type="button"
               className="inline-flex items-center gap-2 rounded-lg bg-[#0052ff] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
             >
               <Filter className="h-4 w-4" />
-              Filter
+              {t('filter')}
             </button>
           </>
         }
@@ -204,11 +225,11 @@ export function TransactionHistoryView() {
 
       <StatusCardGrid columns={5}>
         {[
-          { label: 'Total Deposits', value: summary.deposits, icon: ArrowDownLeft, tone: 'text-[#0052ff]' },
-          { label: 'Total Withdrawals', value: summary.withdrawals, icon: ArrowUpRight, tone: 'text-emerald-600' },
-          { label: 'Transfers Sent', value: summary.sent, icon: Send, tone: 'text-blue-600' },
-          { label: 'Transfers Received', value: summary.received, icon: ArrowLeftRight, tone: 'text-orange-600' },
-          { label: 'Total Transactions', value: summary.total, icon: ArrowLeftRight, tone: 'text-[#0052ff]', isCount: true },
+          { label: t('totalDeposits'), value: summary.deposits, icon: ArrowDownLeft, tone: 'text-[#0052ff]' },
+          { label: t('totalWithdrawals'), value: summary.withdrawals, icon: ArrowUpRight, tone: 'text-emerald-600' },
+          { label: t('transfersSent'), value: summary.sent, icon: Send, tone: 'text-blue-600' },
+          { label: t('transfersReceived'), value: summary.received, icon: ArrowLeftRight, tone: 'text-orange-600' },
+          { label: t('totalTransactions'), value: summary.total, icon: ArrowLeftRight, tone: 'text-[#0052ff]', isCount: true },
         ].map((card) => {
           const Icon = card.icon
           return (
@@ -232,22 +253,22 @@ export function TransactionHistoryView() {
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="flex flex-col gap-3 border-b border-gray-100 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex gap-2 overflow-x-auto pb-1">
-            {FILTER_TABS.map((tab) => (
+            {FILTER_TAB_IDS.map((tabId) => (
               <button
-                key={tab}
+                key={tabId}
                 type="button"
                 onClick={() => {
-                  setActiveTab(tab)
+                  setActiveTab(tabId)
                   setPage(1)
                 }}
                 className={cn(
                   'shrink-0 rounded-lg px-3 py-1.5 text-sm font-medium',
-                  activeTab === tab
+                  activeTab === tabId
                     ? 'bg-[#0052ff] text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 )}
               >
-                {tab}
+                {t(TAB_LABEL_KEYS[tabId])}
               </button>
             ))}
           </div>
@@ -257,7 +278,7 @@ export function TransactionHistoryView() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search transactions..."
+              placeholder={t('searchPlaceholder')}
               className="w-full min-w-[180px] bg-transparent text-sm outline-none"
             />
           </div>
@@ -269,35 +290,35 @@ export function TransactionHistoryView() {
           onRetry={reload}
           isEmpty={paged.length === 0}
           emptyIcon={History}
-          emptyTitle={isTrulyEmpty ? 'No transactions yet' : 'No matching transactions'}
+          emptyTitle={isTrulyEmpty ? t('noTransactionsTitle') : t('noMatchingTitle')}
           emptyDescription={
             isTrulyEmpty
-              ? 'Fund your wallet or send a transfer to start building your history.'
+              ? t('emptyFundWallet')
               : hasFilters
-                ? 'Try a different search term or filter.'
-                : 'No transactions match this filter yet.'
+                ? t('emptyTrySearch')
+                : t('emptyNoFilter')
           }
           emptyAction={
             isTrulyEmpty ? (
               <div className="flex flex-wrap justify-center gap-2">
-                {walletDepositCta()}
-                {walletTransferCta()}
+                <WalletDepositCta />
+                <WalletTransferCta />
               </div>
             ) : undefined
           }
-          errorTitle="Could not load transactions"
+          errorTitle={t('loadError')}
           skeleton={<TableSkeleton rows={6} cols={6} />}
         >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  <th className="px-4 py-3">Date & Time</th>
-                  <th className="px-4 py-3">Type</th>
-                  <th className="px-4 py-3">Description</th>
-                  <th className="px-4 py-3">Reference</th>
-                  <th className="px-4 py-3 text-right">Amount</th>
-                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">{t('dateTime')}</th>
+                  <th className="px-4 py-3">{t('type')}</th>
+                  <th className="px-4 py-3">{t('descriptionCol')}</th>
+                  <th className="px-4 py-3">{t('reference')}</th>
+                  <th className="px-4 py-3 text-right">{t('amount')}</th>
+                  <th className="px-4 py-3">{t('status')}</th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -313,7 +334,7 @@ export function TransactionHistoryView() {
                       <td className="px-4 py-4">
                         <span className="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">
                           <Icon className="h-3.5 w-3.5" />
-                          {tx.type}
+                          {walletTxTypeLabel(tWallet, tx.type)}
                         </span>
                       </td>
                       <td className="px-4 py-4">
@@ -345,7 +366,7 @@ export function TransactionHistoryView() {
                           ) : (
                             <Clock className="h-3 w-3" />
                           )}
-                          {tx.status}
+                          {walletTxStatusLabel(tWallet, tx.status)}
                         </span>
                       </td>
                       <td className="px-4 py-4">
@@ -363,8 +384,11 @@ export function TransactionHistoryView() {
 
         <div className="flex flex-col gap-3 border-t border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-gray-500">
-            Showing {(page - 1) * perPage + 1} to {Math.min(page * perPage, filtered.length)} of{' '}
-            {filtered.length} transactions
+            {t('showing', {
+              from: (page - 1) * perPage + 1,
+              to: Math.min(page * perPage, filtered.length),
+              total: filtered.length,
+            })}
           </p>
           <div className="flex items-center gap-2">
             <button
@@ -373,10 +397,10 @@ export function TransactionHistoryView() {
               onClick={() => setPage((p) => p - 1)}
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm disabled:opacity-40"
             >
-              Prev
+              {t('prev')}
             </button>
             <span className="text-sm text-gray-600">
-              Page {page} of {totalPages}
+              {t('pageOf', { page, total: totalPages })}
             </span>
             <button
               type="button"
@@ -384,12 +408,12 @@ export function TransactionHistoryView() {
               onClick={() => setPage((p) => p + 1)}
               className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm disabled:opacity-40"
             >
-              Next
+              {t('next')}
             </button>
             <CustomSelect
               value={String(perPage)}
               onValueChange={() => {}}
-              options={[{ value: '10', label: '10 per page' }]}
+              options={[{ value: '10', label: t('perPage', { count: 10 }) }]}
               size="sm"
               className="min-w-[7rem]"
             />

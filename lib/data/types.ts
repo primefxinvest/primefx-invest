@@ -51,6 +51,7 @@ export interface TransactionItem {
 }
 
 export interface WalletData {
+  primeFxId?: string
   availableBalance: string
   pendingBalance: string
   bonusBalance: string

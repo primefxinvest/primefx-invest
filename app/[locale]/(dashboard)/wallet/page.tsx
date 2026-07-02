@@ -1,6 +1,7 @@
 'use client'
 
 import { Settings } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import WalletBalanceCards from '@/components/wallet/WalletBalanceCards'
 import WalletActionCards from '@/components/wallet/WalletActionCards'
@@ -14,17 +15,19 @@ import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
 import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
 
 export default function WalletPage() {
+  const t = useTranslations('wallet.overview')
+
   const handleSettings = () => {
-    toast.info('Wallet settings', {
-      description: 'Configure limits, notifications, and security preferences.',
+    toast.info(t('settingsToastTitle'), {
+      description: t('settingsToastDescription'),
     })
   }
 
   return (
     <div className="space-y-6">
       <WalletPageHeader
-        title="Wallet Overview"
-        description="Manage your funds, track balances, and perform secure transactions"
+        title={t('title')}
+        description={t('description')}
         actions={
           <button
             type="button"
@@ -32,7 +35,7 @@ export default function WalletPage() {
             className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
           >
             <Settings className="h-4 w-4" />
-            Wallet Settings
+            {t('settings')}
           </button>
         }
       />
