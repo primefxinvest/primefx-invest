@@ -4,6 +4,8 @@ import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { getKycBlockReason } from '@/lib/investor/kyc'
 import { generatePaymentReference } from '@/lib/payments/reference'
 import { notifyInvestmentCreated } from '@/lib/notifications/service'
+import { markReferralActiveOnFirstActivity } from '@/lib/referral/commission-service'
+import { processReferralWelcomeBonus } from '@/lib/referral/welcome-bonus'
 import {
   assertSufficientBalance,
   creditInvestorWallet,
@@ -205,6 +207,9 @@ export async function executeInvestment(
       .eq('id', input.planId)
 
     await notifyInvestmentCreated(input.userId, String(plan.name), amount, referenceId)
+
+    await markReferralActiveOnFirstActivity(input.userId)
+    await processReferralWelcomeBonus(input.userId)
 
     return {
       success: true,

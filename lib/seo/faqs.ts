@@ -12,7 +12,7 @@ export const LANDING_FAQS = [
   {
     question: 'How often can I withdraw my profits?',
     answer:
-      'Withdrawals are processed every 7 days on all plans. You can also access your capital anytime with no lock-in periods.',
+      'Profits are credited to your wallet every trading day (Monday–Friday). You can withdraw anytime, and capital has no lock-in periods.',
   },
   {
     question: 'How does the AI investment system work?',

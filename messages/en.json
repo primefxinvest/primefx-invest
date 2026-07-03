@@ -455,7 +455,15 @@
     "date": "Date",
     "time": "Time",
     "noActivity": "No activity recorded yet.",
-    "loadProfileFailed": "Failed to load profile"
+    "loadProfileFailed": "Failed to load profile",
+    "transferIds": {
+      "title": "PrimeFx ID",
+      "description": "Share your PrimeFx ID so others can send you money from Wallet → Transfer.",
+      "primeFxIdLabel": "PrimeFx ID",
+      "copyPrimeFxId": "Copy PrimeFx ID",
+      "primeFxIdCopied": "PrimeFx ID copied",
+      "copyFailed": "Failed to copy"
+    }
   },
   "compliance": {
     "kycRejected": "KYC verification rejected",
@@ -535,7 +543,7 @@
     "dashboardTitle": "Investor Dashboard",
     "dashboardDescription": "Private investor dashboard for PrimeFx Invest.",
     "marketingTitle": "Invest Smarter with AI",
-    "marketingDescription": "Grow your wealth with PrimeFx Invest — AI-powered investment plans, secure wallets, weekly payouts, and a full investor dashboard.",
+    "marketingDescription": "Grow your wealth with PrimeFx Invest — AI-powered investment plans, secure wallets, daily payouts, and a full investor dashboard.",
     "aboutTitle": "About Us",
     "aboutDescription": "Learn about PrimeFx Invest and our mission to democratize AI-powered investing.",
     "contactTitle": "Contact Us",
@@ -839,9 +847,9 @@
       "methodUsername": "Username",
       "methodId": "PrimeFx ID",
       "yourIdTitle": "Your PrimeFx ID",
-      "yourIdDesc": "Share this ID to receive transfers. Others can send to you using “PrimeFx ID”.",
+      "yourIdDesc": "Share your PrimeFx ID to receive transfers. Others can send using “PrimeFx ID”.",
       "primeFxIdLabel": "PrimeFx ID",
-      "copyId": "Copy ID",
+      "copyId": "Copy PrimeFx ID",
       "copied": "PrimeFx ID copied",
       "copyFailed": "Failed to copy PrimeFx ID",
       "loadWalletError": "Could not load wallet",

@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/daily-profits",
+      "schedule": "0 22 * * 1-5"
+    },
+    {
+      "path": "/api/cron/weekly-commissions",
+      "schedule": "0 23 * * 5"
+    },
+    {
+      "path": "/api/cron/process-withdrawals",
+      "schedule": "0 * * * *"
+    }
+  ]
+}

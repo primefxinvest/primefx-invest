@@ -32,7 +32,7 @@ export const planThemes: Record<string, PlanTheme> = {
     avatarColors: ['bg-emerald-400', 'bg-teal-400', 'bg-green-500'],
     primeAiScore: 88,
     features: [
-      'Weekly Profit Distribution',
+      'Daily Profit Distribution',
       'Flexible Exit',
       'PrimeAI Monitoring',
       '24/7 Support',
@@ -52,7 +52,7 @@ export const planThemes: Record<string, PlanTheme> = {
     avatarColors: ['bg-blue-400', 'bg-indigo-400', 'bg-sky-500'],
     primeAiScore: 90,
     features: [
-      'Weekly Profit Distribution',
+      'Daily Profit Distribution',
       'Flexible Exit',
       'PrimeAI Monitoring',
       '24/7 Support',
@@ -72,7 +72,7 @@ export const planThemes: Record<string, PlanTheme> = {
     avatarColors: ['bg-purple-400', 'bg-violet-400', 'bg-fuchsia-500'],
     primeAiScore: 94,
     features: [
-      'Weekly Profit Distribution',
+      'Daily Profit Distribution',
       'Flexible Exit',
       'PrimeAI Monitoring',
       '24/7 Support',
@@ -93,7 +93,7 @@ export const planThemes: Record<string, PlanTheme> = {
     avatarColors: ['bg-orange-400', 'bg-amber-400', 'bg-yellow-500'],
     primeAiScore: 98,
     features: [
-      'Weekly Profit Distribution',
+      'Daily Profit Distribution',
       'Flexible Exit',
       'PrimeAI Monitoring',
       '24/7 Support',

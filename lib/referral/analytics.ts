@@ -2,6 +2,7 @@ import { formatCurrency } from '@/lib/data/format'
 import {
   REFERRAL_PROFIT_SHARE_LEVELS,
   REFERRAL_RANK_TIERS,
+  formatReferralRate,
   resolveReferralRank,
 } from '@/lib/referral/program-config'
 
@@ -13,6 +14,14 @@ export interface ReferralListItem {
   commissionEarned: number
   joinedDate: string
   tradingVolume: string
+  networkLevel?: number
+}
+
+type OverviewContext = {
+  lifetimeEarningsOverride?: number
+  levelEarnings?: Array<{ level: number; earnings: number }>
+  memberCount?: number
+  activeInvestors?: number
 }
 
 export interface ReferralRank {
@@ -34,7 +43,7 @@ export interface ReferralProgramOverview {
   healthScore: number
   healthLabel: string
   earningsChart: Array<{ month: string; earnings: number; potential: number }>
-  earningsBreakdown: Array<{ name: string; value: number; color: string }>
+  earningsBreakdown: Array<{ name: string; value: number; amount: number; color: string }>
   networkLevels: Array<{
     level: string
     count: number
@@ -64,16 +73,36 @@ function getInitials(name: string) {
     .join('')
 }
 
-function computeRank(activeInvestors: number): ReferralRank {
-  const resolved = resolveReferralRank(activeInvestors)
+function computeRank(memberCount: number): ReferralRank {
+  const resolved = resolveReferralRank(memberCount)
   return {
     current: resolved.current.name,
     next: resolved.next.name,
     currentThreshold: resolved.current.minMembers,
     nextThreshold: resolved.next.minMembers,
     progressPercent: resolved.progressPercent,
-    activeInvestors,
+    activeInvestors: memberCount,
   }
+}
+
+function buildEarningsBreakdown(levelEarnings: Array<{ level: number; earnings: number }> = []) {
+  const colors = ['#0052ff', '#7c3aed', '#10b981', '#f59e0b']
+  const amounts = REFERRAL_PROFIT_SHARE_LEVELS.map(
+    (levelConfig) => levelEarnings.find((row) => row.level === levelConfig.level)?.earnings ?? 0
+  )
+  const total = amounts.reduce((sum, amount) => sum + amount, 0)
+
+  return REFERRAL_PROFIT_SHARE_LEVELS.map((levelConfig, index) => {
+    const amount = amounts[index] ?? 0
+    const value = total > 0 ? Math.round((amount / total) * 100) : 0
+
+    return {
+      name: `Level ${levelConfig.level} Earnings`,
+      value,
+      amount,
+      color: colors[index] ?? '#94a3b8',
+    }
+  })
 }
 
 function buildEarningsChart(total: number) {
@@ -94,24 +123,35 @@ function buildEarningsChart(total: number) {
 
 export function buildReferralProgramOverview(
   referrals: ReferralListItem[],
-  totalReferrals: number
+  totalReferrals: number,
+  context: OverviewContext = {}
 ): ReferralProgramOverview {
-  const activeInvestors = referrals.filter((row) => row.status === 'Active').length
-  const lifetimeEarnings = referrals.reduce((sum, row) => sum + row.commissionEarned, 0)
+  const activeInvestors =
+    context.activeInvestors ?? referrals.filter((row) => row.status === 'Active').length
+  const lifetimeEarnings =
+    context.lifetimeEarningsOverride ??
+    referrals.reduce((sum, row) => sum + row.commissionEarned, 0)
   const thisWeekEarnings = Math.round(lifetimeEarnings * 0.037 * 100) / 100
   const thisMonthEarnings = Math.round(lifetimeEarnings * 0.172 * 100) / 100
-  const rank = computeRank(activeInvestors)
+  const rank = computeRank(context.memberCount ?? totalReferrals)
 
-  const level1 = referrals.filter((row) => row.status === 'Active')
-  const level2 = referrals.filter((row) => row.status !== 'Active').slice(0, Math.max(0, referrals.length - level1.length))
-  const level3 = referrals.slice(level1.length + level2.length)
+  const level1 = referrals.filter((row) => (row.networkLevel ?? 1) === 1)
+  const level2 = referrals.filter((row) => row.networkLevel === 2)
+  const level3 = referrals.filter((row) => row.networkLevel === 3)
+  const level4 = referrals.filter((row) => row.networkLevel === 4)
 
-  const levelData = [
-    { level: 'Level 1 (5%)', items: level1, share: 0.5 },
-    { level: 'Level 2 (2%)', items: level2, share: 0.25 },
-    { level: 'Level 3 (1%)', items: level3, share: 0.15 },
-    { level: 'Level 4 (0.5%)', items: [], share: 0.1 },
-  ]
+  const levelItems = [level1, level2, level3, level4]
+  const levelData = REFERRAL_PROFIT_SHARE_LEVELS.map((levelConfig, index) => {
+    const items = levelItems[index] ?? []
+    const realEarnings = context.levelEarnings?.find((row) => row.level === levelConfig.level)
+      ?.earnings
+
+    return {
+      level: `Level ${levelConfig.level} (${formatReferralRate(levelConfig.rate)})`,
+      items,
+      earnings: realEarnings ?? 0,
+    }
+  })
 
   const healthScore = Math.min(
     100,
@@ -151,15 +191,11 @@ export function buildReferralProgramOverview(
     healthScore,
     healthLabel: healthScore >= 90 ? 'Excellent' : healthScore >= 75 ? 'Good' : 'Fair',
     earningsChart: buildEarningsChart(Math.max(lifetimeEarnings, 100)),
-    earningsBreakdown: REFERRAL_PROFIT_SHARE_LEVELS.map((level, index) => ({
-      name: level.label,
-      value: [50, 25, 15, 10][index] ?? 10,
-      color: ['#0052ff', '#7c3aed', '#10b981', '#f59e0b'][index] ?? '#94a3b8',
-    })),
-    networkLevels: levelData.map(({ level, items, share }) => ({
+    earningsBreakdown: buildEarningsBreakdown(context.levelEarnings),
+    networkLevels: levelData.map(({ level, items, earnings }) => ({
       level,
       count: items.length,
-      earnings: lifetimeEarnings * share,
+      earnings,
       members: items.slice(0, 6).map((item) => ({
         id: item.id,
         name: item.name,

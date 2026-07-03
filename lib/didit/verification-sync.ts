@@ -125,6 +125,11 @@ export async function syncUserVerificationFromDidit(input: {
     await notifyKycStatusChange(input.userId, kycStatus)
   }
 
+  if (kycStatus === 'Verified') {
+    const { processWelcomeBonusAfterKycApproval } = await import('@/lib/referral/welcome-bonus')
+    await processWelcomeBonusAfterKycApproval(input.userId)
+  }
+
   return {
     userId: input.userId,
     verificationStatus,

@@ -3,6 +3,7 @@ import { ReactNode } from 'react'
 import { getTranslations } from 'next-intl/server'
 import { getLocale } from 'next-intl/server'
 import AppLayout from '@/components/shared/AppLayout'
+import { TermsAcknowledgementBanner } from '@/components/compliance/TermsAcknowledgementBanner'
 import { ReferralAccessProvider } from '@/lib/referral/access-context'
 import { getReferralAccessForUser } from '@/lib/referral/settings'
 import { buildPageMetadata } from '@/lib/seo/metadata'
@@ -37,7 +38,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   return (
     <ReferralAccessProvider access={referralAccess}>
-      <AppLayout>{children}</AppLayout>
+      <AppLayout>
+        <TermsAcknowledgementBanner />
+        {children}
+      </AppLayout>
     </ReferralAccessProvider>
   )
 }

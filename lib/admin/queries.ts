@@ -813,3 +813,98 @@ export async function getAdminVerificationSessions(input: {
     stats,
   }
 }
+
+export type AdminWithdrawalQueueRow = {
+  id: string
+  kind: 'wallet' | 'capital'
+  user_id: string
+  user_email: string
+  amount_usd: number
+  status: string
+  requested_at: string
+  available_at: string
+  reference_id: string | null
+}
+
+export async function getAdminWithdrawalQueue(): Promise<AdminWithdrawalQueueRow[]> {
+  const db = getDb()
+  const [{ data: walletRows }, { data: capitalRows }, { data: users }] = await Promise.all([
+    db.from('withdrawal_requests').select('*').order('requested_at', { ascending: false }).limit(100),
+    db.from('investment_withdrawal_requests').select('*').order('requested_at', { ascending: false }).limit(100),
+    db.from('users').select('id, email'),
+  ])
+
+  const emailById = new Map((users ?? []).map((u) => [String(u.id), String(u.email ?? '')]))
+
+  const wallet = (walletRows ?? []).map((row) => ({
+    id: String(row.id),
+    kind: 'wallet' as const,
+    user_id: String(row.user_id),
+    user_email: emailById.get(String(row.user_id)) ?? '—',
+    amount_usd: Number(row.amount_usd ?? 0),
+    status: String(row.status ?? 'pending'),
+    requested_at: String(row.requested_at ?? ''),
+    available_at: String(row.available_at ?? ''),
+    reference_id: (row.reference_id as string) ?? null,
+  }))
+
+  const capital = (capitalRows ?? []).map((row) => ({
+    id: String(row.id),
+    kind: 'capital' as const,
+    user_id: String(row.user_id),
+    user_email: emailById.get(String(row.user_id)) ?? '—',
+    amount_usd: Number(row.amount_usd ?? 0),
+    status: String(row.status ?? 'pending'),
+    requested_at: String(row.requested_at ?? ''),
+    available_at: String(row.available_at ?? ''),
+    reference_id: (row.reference_id as string) ?? null,
+  }))
+
+  return [...wallet, ...capital].sort(
+    (a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime()
+  )
+}
+
+export type AdminRankRewardRow = {
+  id: string
+  user_id: string
+  user_email: string
+  rank_key: string
+  cash_bonus_usd: number
+  perks: string[]
+  status: string
+  paid_at: string | null
+  fulfilled_at: string | null
+  admin_notes: string | null
+}
+
+export async function getAdminReferralRankRewards(): Promise<AdminRankRewardRow[]> {
+  const db = getDb()
+  const { data: rewards, error } = await db
+    .from('referral_rank_rewards')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  if (error) throw new Error(error.message)
+
+  const userIds = [...new Set((rewards ?? []).map((r) => String(r.user_id)))]
+  const { data: users } = userIds.length
+    ? await db.from('users').select('id, email').in('id', userIds)
+    : { data: [] }
+
+  const emailById = new Map((users ?? []).map((u) => [String(u.id), String(u.email ?? '')]))
+
+  return (rewards ?? []).map((row) => ({
+    id: String(row.id),
+    user_id: String(row.user_id),
+    user_email: emailById.get(String(row.user_id)) ?? '—',
+    rank_key: String(row.rank_key),
+    cash_bonus_usd: Number(row.cash_bonus_usd ?? 0),
+    perks: Array.isArray(row.perks) ? (row.perks as string[]) : [],
+    status: String(row.status ?? 'pending'),
+    paid_at: (row.paid_at as string) ?? null,
+    fulfilled_at: (row.fulfilled_at as string) ?? null,
+    admin_notes: (row.admin_notes as string) ?? null,
+  }))
+}

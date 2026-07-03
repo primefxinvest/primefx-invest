@@ -6,7 +6,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
-export async function POST() {
+export async function POST(request: Request) {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
@@ -16,6 +16,21 @@ export async function POST() {
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  let requestedUserId: string | undefined
+  try {
+    const body = (await request.json()) as { userId?: unknown }
+    requestedUserId =
+      typeof body.userId === 'string' && body.userId.trim() ? body.userId.trim() : undefined
+  } catch {
+    requestedUserId = undefined
+  }
+
+  if (requestedUserId && requestedUserId !== user.id) {
+    return NextResponse.json({ error: 'Profile user mismatch.' }, { status: 403 })
+  }
+
+  const userId = requestedUserId ?? user.id
 
   const adminDb = createAdminSupabaseClient()
   if (!adminDb) {
@@ -28,7 +43,7 @@ export async function POST() {
   const { data: profile } = await adminDb
     .from('users')
     .select('is_verified, kyc_status, verification_status')
-    .eq('id', user.id)
+    .eq('id', userId)
     .maybeSingle()
 
   if (profile?.is_verified || String(profile?.kyc_status).toLowerCase() === 'verified') {
@@ -37,7 +52,7 @@ export async function POST() {
 
   try {
     const session = await createDiditVerificationSession({
-      userId: user.id,
+      userId,
       email: user.email,
     })
 
@@ -50,14 +65,14 @@ export async function POST() {
         kyc_verification_detail: 'in_progress',
         updated_at: new Date().toISOString(),
       })
-      .eq('id', user.id)
+      .eq('id', userId)
 
     await upsertVerificationSession({
       sessionId: session.session_id,
-      vendorData: user.id,
+      vendorData: userId,
       status: session.status ?? 'Not Started',
       workflowId: session.workflow_id ?? null,
-      userId: user.id,
+      userId,
     })
 
     return NextResponse.json({

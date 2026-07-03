@@ -3,7 +3,7 @@ import 'server-only'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 
 import type { TransferRecipientMethod, TransferRecipientPreview } from './types'
-import { formatPrimeFxId } from '@/lib/wallet/primefx-id'
+import { formatPrimeFxId, parsePrimeFxIdPrefix } from '@/lib/wallet/primefx-id'
 
 export type { TransferRecipientMethod, TransferRecipientPreview }
 
@@ -78,8 +78,8 @@ export async function lookupTransferRecipient(
     return mapRecipient(byName as { id: string; email: string; full_name: string | null; kyc_status: string | null })
   }
 
-  const rawId = trimmed.replace(/^PFX/i, '').toLowerCase()
-  if (!rawId) return null
+  const prefix = parsePrimeFxIdPrefix(trimmed)
+  if (!prefix) return null
 
   const { data: users, error } = await db
     .from('users')
@@ -88,7 +88,7 @@ export async function lookupTransferRecipient(
   if (error || !users?.length) return null
 
   const match = users.find((row) =>
-    String(row.id).replace(/-/g, '').toLowerCase().startsWith(rawId)
+    String(row.id).replace(/-/g, '').toLowerCase().startsWith(prefix)
   )
 
   if (!match) return null

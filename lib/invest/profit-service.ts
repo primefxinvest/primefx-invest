@@ -1,6 +1,11 @@
 import 'server-only'
 
-import { getPreviousTradingWeek, weeklyProfitMultiplier } from '@/lib/invest/trading-calendar'
+import {
+  dailyProfitMultiplier,
+  getPreviousTradingDay,
+  getPreviousTradingWeek,
+  weeklyProfitMultiplier,
+} from '@/lib/invest/trading-calendar'
 import { accrueReferralCommissionsForProfit } from '@/lib/referral/commission-service'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { creditInvestorWallet } from '@/lib/payments/wallet-ledger'
@@ -18,10 +23,16 @@ function formatDate(date: Date) {
   return date.toISOString().slice(0, 10)
 }
 
-export async function runWeeklyInvestmentProfits() {
-  const { start, end, tradingDays } = getPreviousTradingWeek()
-  const periodStart = formatDate(start)
-  const periodEnd = formatDate(end)
+type InvestmentProfitRunInput = {
+  periodStart: string
+  periodEnd: string
+  tradingDays: number
+  profitDescription: string
+  calculateProfit: (amount: number, weeklyRoi: number) => number
+}
+
+async function runInvestmentProfits(input: InvestmentProfitRunInput) {
+  const { periodStart, periodEnd, tradingDays, profitDescription, calculateProfit } = input
   const db = getDb()
 
   const { data: existing } = await db
@@ -37,7 +48,7 @@ export async function runWeeklyInvestmentProfits() {
 
   const { data: investments, error } = await db
     .from('investments')
-    .select('id, user_id, amount, current_value, roi_percentage, status, plan_id')
+    .select('id, user_id, amount, current_value, roi_percentage, status, plan_id, start_date')
     .eq('status', 'Active')
 
   if (error) throw new Error(error.message)
@@ -50,7 +61,12 @@ export async function runWeeklyInvestmentProfits() {
     const weeklyRoi = Number(investment.roi_percentage ?? 0)
     if (amount <= 0 || weeklyRoi <= 0) continue
 
-    const profit = Math.round(amount * weeklyProfitMultiplier(weeklyRoi, tradingDays) * 100) / 100
+    const startDate = investment.start_date
+      ? formatDate(new Date(investment.start_date as string))
+      : null
+    if (startDate && startDate > periodEnd) continue
+
+    const profit = Math.round(calculateProfit(amount, weeklyRoi) * 100) / 100
     if (profit <= 0) continue
 
     const userId = investment.user_id as string
@@ -91,7 +107,7 @@ export async function runWeeklyInvestmentProfits() {
       type: 'profit',
       amount: profit,
       status: 'Completed',
-      description: `Weekly XAU/USD profit (${tradingDays} trading days)`,
+      description: profitDescription,
       reference_id: referenceId,
     })
 
@@ -122,4 +138,33 @@ export async function runWeeklyInvestmentProfits() {
     processed,
     totalProfitUsd: Math.round(totalProfitUsd * 100) / 100,
   }
+}
+
+export async function runDailyInvestmentProfits() {
+  const tradingDay = getPreviousTradingDay()
+  const periodStart = formatDate(tradingDay)
+  const periodEnd = periodStart
+
+  return runInvestmentProfits({
+    periodStart,
+    periodEnd,
+    tradingDays: 1,
+    profitDescription: `Daily XAU/USD profit (${periodStart})`,
+    calculateProfit: (amount, weeklyRoi) => amount * dailyProfitMultiplier(weeklyRoi),
+  })
+}
+
+export async function runWeeklyInvestmentProfits() {
+  const { start, end, tradingDays } = getPreviousTradingWeek()
+  const periodStart = formatDate(start)
+  const periodEnd = formatDate(end)
+
+  return runInvestmentProfits({
+    periodStart,
+    periodEnd,
+    tradingDays,
+    profitDescription: `Weekly XAU/USD profit (${tradingDays} trading days)`,
+    calculateProfit: (amount, weeklyRoi) =>
+      amount * weeklyProfitMultiplier(weeklyRoi, tradingDays),
+  })
 }

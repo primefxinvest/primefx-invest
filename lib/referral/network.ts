@@ -81,14 +81,15 @@ export async function refreshUserReferralStats(userId: string) {
   }
 
   const { resolveReferralRank } = await import('@/lib/referral/program-config')
-  const rank = resolveReferralRank(activeCount)
+  const memberCount = totalCount ?? 0
+  const rank = resolveReferralRank(memberCount)
 
   await admin.from('user_referral_stats').upsert(
     {
       user_id: userId,
       rank_key: rank.current.key,
       active_member_count: activeCount,
-      total_member_count: totalCount ?? 0,
+      total_member_count: memberCount,
       updated_at: new Date().toISOString(),
       rank_achieved_at: new Date().toISOString(),
     },
@@ -105,7 +106,7 @@ async function ensureRankRewardRecord(
   perks: readonly string[]
 ) {
   const admin = getDb()
-  if (!admin || cashBonusUsd <= 0) return
+  if (!admin || (cashBonusUsd <= 0 && perks.length === 0)) return
 
   const { data: existing } = await admin
     .from('referral_rank_rewards')
@@ -121,7 +122,7 @@ async function ensureRankRewardRecord(
     rank_key: rankKey,
     cash_bonus_usd: cashBonusUsd,
     perks: [...perks],
-    status: 'pending',
+    status: cashBonusUsd > 0 ? 'pending' : 'awaiting_fulfillment',
   })
 }
 
@@ -139,5 +140,22 @@ export async function getReferralAncestors(userId: string, maxLevel = 4) {
   return (data ?? []).map((row) => ({
     referrerId: row.ancestor_id as string,
     level: Number(row.depth),
+  }))
+}
+
+export async function getReferralNetworkDescendants(userId: string, maxDepth = 4) {
+  const admin = getDb()
+  if (!admin) return []
+
+  const { data } = await admin
+    .from('referral_network')
+    .select('descendant_id, depth')
+    .eq('ancestor_id', userId)
+    .lte('depth', maxDepth)
+    .order('depth', { ascending: true })
+
+  return (data ?? []).map((row) => ({
+    descendantId: row.descendant_id as string,
+    depth: Number(row.depth),
   }))
 }

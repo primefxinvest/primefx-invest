@@ -137,6 +137,11 @@ export function TransferPageView() {
     if (query.length < 3) return
     if (method === 'email' && !query.includes('@')) return
 
+    if (method === 'id') {
+      const prefix = query.trim().replace(/^PFX/i, '')
+      if (prefix.length < 4) return
+    }
+
     const timer = window.setTimeout(async () => {
       setLookupPending(true)
       try {
@@ -281,20 +286,24 @@ export function TransferPageView() {
                   <h2 className="text-lg font-bold text-gray-900">{t('yourIdTitle')}</h2>
                   <p className="mt-1 text-sm text-gray-600">{t('yourIdDesc')}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleCopyPrimeFxId}
-                  className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  <Copy className="h-4 w-4" />
-                  {t('copyId')}
-                </button>
               </div>
               <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
-                <p className="text-xs font-semibold text-gray-500">{t('primeFxIdLabel')}</p>
-                <p className="mt-1 break-all font-mono text-sm font-semibold text-gray-900">
-                  {wallet.primeFxId}
-                </p>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-gray-500">{t('primeFxIdLabel')}</p>
+                    <p className="mt-1 break-all font-mono text-sm font-semibold text-gray-900">
+                      {wallet.primeFxId}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyPrimeFxId}
+                    className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                  >
+                    <Copy className="h-4 w-4" />
+                    {t('copyId')}
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}

@@ -23,6 +23,7 @@ import AllocationDonut from '@/components/portfolio/AllocationDonut'
 import PrimeAIAnalysisCard from '@/components/portfolio/PrimeAIAnalysisCard'
 import MonthlyReturnsChart from '@/components/portfolio/MonthlyReturnsChart'
 import DistributionMap from '@/components/portfolio/DistributionMap'
+import { CapitalWithdrawButton } from '@/components/portfolio/CapitalWithdrawButton'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import {
   fetchAssetAllocation,
@@ -201,20 +202,21 @@ export default function PortfolioPage() {
                   <th className="px-3 py-3">Current Value</th>
                   <th className="px-3 py-3">ROI %</th>
                   <th className="px-5 py-3">Status</th>
+                  <th className="px-5 py-3">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {investmentsLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i}>
-                      <td colSpan={5} className="px-5 py-3">
+                      <td colSpan={6} className="px-5 py-3">
                         <div className="h-10 animate-pulse rounded-md bg-gray-200/80" />
                       </td>
                     </tr>
                   ))
                 ) : investmentsError ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-6">
+                    <td colSpan={6} className="px-5 py-6">
                       <ErrorState
                         description={investmentsError}
                         onRetry={reloadInvestments}
@@ -224,7 +226,7 @@ export default function PortfolioPage() {
                   </tr>
                 ) : portfolioActiveInvestments.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-8 text-center text-[13px] text-slate-400">
+                    <td colSpan={6} className="px-5 py-8 text-center text-[13px] text-slate-400">
                       No active investments yet.{' '}
                       <Link href="/invest" className="font-medium text-[#0052ff] hover:underline">
                         Start investing
@@ -260,6 +262,9 @@ export default function PortfolioPage() {
                         <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
                           {inv.status}
                         </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <CapitalWithdrawButton investmentId={inv.id} planName={inv.plan} />
                       </td>
                     </tr>
                   )

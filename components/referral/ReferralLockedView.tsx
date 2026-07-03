@@ -2,6 +2,7 @@
 
 import { Gift, Lock, Share2, Sparkles } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
+import { formatReferralRate, getMaxProfitShareRate } from '@/lib/referral/program-config'
 
 export function ReferralLockedView({
   globalEnabled = false,
@@ -36,7 +37,7 @@ export function ReferralLockedView({
               </li>
               <li className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-violet-600" />
-                Up to 5% weekly profit share across 4 network levels
+                Up to {formatReferralRate(getMaxProfitShareRate())} weekly profit share across 4 network levels
               </li>
               <li className="flex items-center gap-2">
                 <Share2 className="h-4 w-4 text-emerald-600" />

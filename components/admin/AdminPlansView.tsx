@@ -22,7 +22,7 @@ const EMPTY_FORM = {
   minimum_investment: '50',
   max_investment: '',
   duration: 'Flexible',
-  payout_frequency: 'Every 7 Days',
+  payout_frequency: 'Daily',
   description: '',
   visibility: 'public',
   max_investors: '',
@@ -38,7 +38,7 @@ function planToForm(plan: AdminPlanRow): PlanFormState {
     minimum_investment: String(plan.minimum_investment),
     max_investment: plan.max_investment != null ? String(plan.max_investment) : '',
     duration: plan.duration ?? 'Flexible',
-    payout_frequency: plan.payout_frequency ?? 'Every 7 Days',
+    payout_frequency: plan.payout_frequency ?? 'Daily',
     description: plan.description ?? '',
     visibility: plan.visibility ?? 'public',
     max_investors: plan.max_investors != null ? String(plan.max_investors) : '',
@@ -167,7 +167,7 @@ export function AdminPlansView({ plans }: { plans: AdminPlanRow[] }) {
                 <div>
                   <h3 className="text-lg font-bold text-foreground">{plan.name}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {plan.visibility ?? 'public'} · {plan.payout_frequency ?? 'Weekly'}
+                    {plan.visibility ?? 'public'} · {plan.payout_frequency ?? 'Daily'}
                   </p>
                 </div>
                 <button

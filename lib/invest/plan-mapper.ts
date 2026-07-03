@@ -65,9 +65,11 @@ export function mapDbPlansToInvestmentPlans(rows: DbInvestmentPlanRow[]): Invest
       minAmount,
       duration: plan.duration === 'Flexible' ? 'No Lock Period' : (plan.duration ?? 'Flexible'),
       payout:
-        plan.payout_frequency === 'Every 7 Days'
-          ? 'Weekly Distribution'
-          : (plan.payout_frequency ?? 'Weekly Distribution'),
+        plan.payout_frequency === 'Daily'
+          ? 'Daily Distribution'
+          : plan.payout_frequency === 'Every 7 Days'
+            ? 'Weekly Distribution'
+            : (plan.payout_frequency ?? 'Daily Distribution'),
       capitalAccess: 'Withdraw Anytime',
       investors: `${toNumber(plan.investor_count).toLocaleString()}+`,
       badge: meta.badge,

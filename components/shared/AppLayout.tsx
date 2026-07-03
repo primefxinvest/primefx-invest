@@ -26,7 +26,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
           )}
         >
           <NotificationPushListener />
-          <div className="mx-auto max-w-8xl px-4 py-4 sm:px-6 sm:py-6">
+          <div className="px-4 py-4 sm:px-6 sm:py-6">
             <MfaSessionGuard>{children}</MfaSessionGuard>
           </div>
         </main>

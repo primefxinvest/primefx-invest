@@ -455,7 +455,15 @@
     "date": "Datum",
     "time": "Uhrzeit",
     "noActivity": "Noch keine Aktivität erfasst.",
-    "loadProfileFailed": "Profil konnte nicht geladen werden"
+    "loadProfileFailed": "Profil konnte nicht geladen werden",
+    "transferIds": {
+      "title": "PrimeFx-ID",
+      "description": "Teilen Sie Ihre PrimeFx-ID, damit andere Ihnen Geld senden können (Wallet → Überweisung).",
+      "primeFxIdLabel": "PrimeFx-ID",
+      "copyPrimeFxId": "PrimeFx-ID kopieren",
+      "primeFxIdCopied": "PrimeFx-ID kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen"
+    }
   },
   "compliance": {
     "kycRejected": "KYC-Verifizierung abgelehnt",
@@ -842,9 +850,9 @@
       "methodUsername": "Benutzername",
       "methodId": "PrimeFx-ID",
       "yourIdTitle": "Ihre PrimeFx-ID",
-      "yourIdDesc": "Teilen Sie diese ID, um Überweisungen zu empfangen. Andere können mit „PrimeFx-ID“ an Sie senden.",
+      "yourIdDesc": "Teilen Sie Ihre PrimeFx-ID, um Überweisungen zu empfangen.",
       "primeFxIdLabel": "PrimeFx-ID",
-      "copyId": "ID kopieren",
+      "copyId": "PrimeFx-ID kopieren",
       "copied": "PrimeFx-ID kopiert",
       "copyFailed": "PrimeFx-ID konnte nicht kopiert werden",
       "loadWalletError": "Wallet konnte nicht geladen werden",

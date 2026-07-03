@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server'
 import { verifyCronSecret } from '@/lib/cron/auth'
-import { runWeeklyInvestmentProfits } from '@/lib/invest/profit-service'
+import { runWeeklyReferralDistribution } from '@/lib/referral/commission-service'
 import {
-  distributePendingReferralCommissions,
-  payPendingRankCashBonuses,
-} from '@/lib/referral/commission-service'
+  listDueInvestmentCapitalWithdrawals,
+  processInvestmentCapitalWithdrawal,
+} from '@/lib/invest/capital-withdrawal'
 
 export async function GET(request: Request) {
   if (!verifyCronSecret(request)) {
@@ -12,19 +12,23 @@ export async function GET(request: Request) {
   }
 
   try {
-    const profitRun = await runWeeklyInvestmentProfits()
-    const commissions = await distributePendingReferralCommissions()
-    const rankBonuses = await payPendingRankCashBonuses()
+    const referral = await runWeeklyReferralDistribution()
+
+    const dueCapital = await listDueInvestmentCapitalWithdrawals()
+    let capitalProcessed = 0
+    for (const row of dueCapital) {
+      await processInvestmentCapitalWithdrawal(row.id as string)
+      capitalProcessed += 1
+    }
 
     return NextResponse.json({
       ok: true,
-      profitRun,
-      commissions,
-      rankBonuses,
+      referral,
+      capitalWithdrawals: { processed: capitalProcessed, totalDue: dueCapital.length },
     })
   } catch (err) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Weekly commission run failed' },
+      { error: err instanceof Error ? err.message : 'Weekly distribution failed' },
       { status: 500 }
     )
   }

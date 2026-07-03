@@ -52,8 +52,8 @@ const featureHighlights = [
   {
     icon: Wallet,
     iconBg: 'bg-purple-100 text-purple-600',
-    title: 'Weekly Payouts',
-    description: 'Profits paid out every 7 days.',
+    title: 'Daily Payouts',
+    description: 'Profits credited every trading day (Mon–Fri).',
   },
   {
     icon: Headphones,

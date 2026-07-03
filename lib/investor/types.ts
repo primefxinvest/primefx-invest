@@ -20,7 +20,7 @@ export type InvestorFeature =
   | 'full_dashboard'
   | 'advanced_dashboard'
   | 'premium_dashboard'
-  | 'weekly_payouts'
+  | 'daily_payouts'
   | 'standard_support'
   | 'priority_support'
   | 'dedicated_support'

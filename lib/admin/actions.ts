@@ -106,7 +106,7 @@ export async function createInvestmentPlan(input: {
       minimum_investment: input.minimum_investment,
       max_investment: input.max_investment ?? null,
       duration: input.duration ?? 'Flexible',
-      payout_frequency: input.payout_frequency ?? 'Every 7 Days',
+      payout_frequency: input.payout_frequency ?? 'Daily',
       description: input.description ?? null,
       visibility: input.visibility ?? 'public',
       max_investors: input.max_investors ?? null,
@@ -507,5 +507,59 @@ export async function updateInvestmentPlan(
   })
 
   revalidatePath('/admin/plans')
+  return { success: true }
+}
+
+export async function adminFulfillRankReward(
+  rewardId: string,
+  note?: string
+): Promise<AdminMutationResult> {
+  const context = await getContext()
+  assertModuleAccess(context, 'rewards_referral')
+
+  const db = getDb()
+  const { data: before } = await db.from('referral_rank_rewards').select('*').eq('id', rewardId).single()
+  if (!before) return { success: false, error: 'Reward not found.' }
+
+  await db
+    .from('referral_rank_rewards')
+    .update({
+      status: 'fulfilled',
+      fulfilled_at: new Date().toISOString(),
+      admin_notes: note?.trim() || before.admin_notes,
+    })
+    .eq('id', rewardId)
+
+  await logAdminAction({
+    context,
+    module: 'rewards_referral',
+    action: 'rank_reward_fulfilled',
+    targetResource: rewardId,
+    targetUserId: String(before.user_id),
+    beforeState: before as Record<string, unknown>,
+    afterState: { status: 'fulfilled' },
+  })
+
+  revalidatePath('/admin/rewards')
+  return { success: true }
+}
+
+export async function adminPublishTermsUpdate(message: string): Promise<AdminMutationResult> {
+  const context = await getContext()
+  assertModuleAccess(context, 'platform_configuration')
+
+  const { notifyAllUsersOfTermsUpdate, ensurePlatformTermsPublished } = await import(
+    '@/lib/terms/service'
+  )
+  await ensurePlatformTermsPublished()
+  const result = await notifyAllUsersOfTermsUpdate(message)
+
+  await logAdminAction({
+    context,
+    module: 'platform_configuration',
+    action: 'terms_published',
+    afterState: { notified: result.notified },
+  })
+
   return { success: true }
 }

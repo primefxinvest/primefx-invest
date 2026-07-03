@@ -36,7 +36,27 @@ export function getPreviousTradingWeek(): { start: Date; end: Date; tradingDays:
   }
 }
 
+/** Most recent completed Mon–Fri session (never includes today). */
+export function getPreviousTradingDay(): Date {
+  const cursor = new Date(Date.UTC(
+    new Date().getUTCFullYear(),
+    new Date().getUTCMonth(),
+    new Date().getUTCDate()
+  ))
+  cursor.setUTCDate(cursor.getUTCDate() - 1)
+
+  while (!isTradingDay(cursor)) {
+    cursor.setUTCDate(cursor.getUTCDate() - 1)
+  }
+
+  return cursor
+}
+
 export function weeklyProfitMultiplier(weeklyRoiPercent: number, tradingDays: number): number {
   const dailyRate = weeklyRoiPercent / 100 / 5
   return dailyRate * tradingDays
+}
+
+export function dailyProfitMultiplier(weeklyRoiPercent: number): number {
+  return weeklyProfitMultiplier(weeklyRoiPercent, 1)
 }

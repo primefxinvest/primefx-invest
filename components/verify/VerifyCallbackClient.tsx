@@ -6,6 +6,7 @@ import { Link } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { AlertCircle, CheckCircle2, Clock, Loader2 } from 'lucide-react'
 import { VerifyIdentityButton } from '@/components/VerifyIdentityButton'
+import { getUserProfile } from '@/lib/profile/actions'
 
 type VerificationResult = {
   sessionId: string
@@ -25,6 +26,15 @@ export function VerifyCallbackClient() {
   const [loading, setLoading] = useState(true)
   const [result, setResult] = useState<VerificationResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [profileUserId, setProfileUserId] = useState<string | undefined>()
+
+  useEffect(() => {
+    getUserProfile()
+      .then((profile) => {
+        if (profile.id) setProfileUserId(profile.id)
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!sessionId) {
@@ -133,7 +143,10 @@ export function VerifyCallbackClient() {
 
       <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
         {!isApproved ? (
-          <VerifyIdentityButton verificationStatus={result?.verificationStatus ?? 'pending'} />
+          <VerifyIdentityButton
+            userId={profileUserId}
+            verificationStatus={result?.verificationStatus ?? 'pending'}
+          />
         ) : null}
         <Link
           href="/dashboard"

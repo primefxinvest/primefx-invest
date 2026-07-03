@@ -1,7 +1,12 @@
 import 'server-only'
 
-import { getProfitShareRate } from '@/lib/referral/program-config'
+import {
+  AMBASSADOR_TEAM_PROFIT_RATE,
+  formatReferralRate,
+  getProfitShareRate,
+} from '@/lib/referral/program-config'
 import { getReferralAncestors } from '@/lib/referral/network'
+import { getReferralProgramEnabled } from '@/lib/referral/settings'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { creditInvestorWallet } from '@/lib/payments/wallet-ledger'
 import { generatePaymentReference } from '@/lib/payments/reference'
@@ -22,6 +27,9 @@ export async function accrueReferralCommissionsForProfit(input: {
 }) {
   if (input.profitUsd <= 0) return
 
+  const enabled = await getReferralProgramEnabled()
+  if (!enabled) return
+
   const ancestors = await getReferralAncestors(input.sourceUserId, 4)
   if (!ancestors.length) return
 
@@ -38,6 +46,7 @@ export async function accrueReferralCommissionsForProfit(input: {
       commission_usd: commission,
       period_start: input.periodStart,
       period_end: input.periodEnd,
+      commission_type: 'profit_share',
       status: commission > 0 ? 'pending' : 'cancelled',
     }
   })
@@ -49,10 +58,115 @@ export async function accrueReferralCommissionsForProfit(input: {
   if (error) throw new Error(error.message)
 }
 
+/** Mark referral active on first deposit/investment; welcome bonus pays after KYC. */
+export async function markReferralActiveOnFirstActivity(sourceUserId: string) {
+  const db = getDb()
+  const { data: referral } = await db
+    .from('referrals')
+    .select('id, status')
+    .eq('referred_user_id', sourceUserId)
+    .maybeSingle()
+
+  if (!referral || referral.status === 'Active') return
+
+  await db.from('referrals').update({ status: 'Active' }).eq('id', referral.id)
+
+  const { data: referrerRow } = await db
+    .from('referrals')
+    .select('referrer_id')
+    .eq('referred_user_id', sourceUserId)
+    .maybeSingle()
+
+  if (referrerRow?.referrer_id) {
+    const { refreshUserReferralStats } = await import('@/lib/referral/network')
+    await refreshUserReferralStats(referrerRow.referrer_id as string)
+  }
+}
+
+export async function accrueAmbassadorTeamProfits(input: {
+  periodStart: string
+  periodEnd: string
+}) {
+  const enabled = await getReferralProgramEnabled()
+  if (!enabled) return { accrued: 0 }
+
+  const db = getDb()
+  const { data: ambassadors } = await db
+    .from('user_referral_stats')
+    .select('user_id')
+    .eq('rank_key', 'ambassador')
+
+  if (!ambassadors?.length) return { accrued: 0 }
+
+  const periodStartIso = `${input.periodStart}T00:00:00.000Z`
+  const periodEndIso = `${input.periodEnd}T23:59:59.999Z`
+  let accrued = 0
+
+  for (const ambassador of ambassadors) {
+    const ambassadorId = ambassador.user_id as string
+
+    const { data: descendants } = await db
+      .from('referral_network')
+      .select('descendant_id')
+      .eq('ancestor_id', ambassadorId)
+
+    const descendantIds = (descendants ?? []).map((row) => row.descendant_id as string)
+    if (!descendantIds.length) continue
+
+    const { data: profitTx } = await db
+      .from('transactions')
+      .select('amount')
+      .eq('type', 'profit')
+      .eq('status', 'Completed')
+      .in('user_id', descendantIds)
+      .gte('created_at', periodStartIso)
+      .lte('created_at', periodEndIso)
+
+    const teamProfit = (profitTx ?? []).reduce((sum, row) => sum + Number(row.amount ?? 0), 0)
+    if (teamProfit <= 0) continue
+
+    const commission = Math.round(teamProfit * AMBASSADOR_TEAM_PROFIT_RATE * 100) / 100
+    if (commission <= 0) continue
+
+    const { data: existing } = await db
+      .from('referral_commissions')
+      .select('id')
+      .eq('referrer_id', ambassadorId)
+      .eq('commission_type', 'ambassador_team')
+      .eq('period_start', input.periodStart)
+      .eq('period_end', input.periodEnd)
+      .maybeSingle()
+
+    if (existing) continue
+
+    await db.from('referral_commissions').insert({
+      referrer_id: ambassadorId,
+      source_user_id: ambassadorId,
+      level: 0,
+      gross_profit_usd: teamProfit,
+      commission_rate: AMBASSADOR_TEAM_PROFIT_RATE,
+      commission_usd: commission,
+      period_start: input.periodStart,
+      period_end: input.periodEnd,
+      commission_type: 'ambassador_team',
+      status: 'pending',
+    })
+
+    accrued += 1
+  }
+
+  return { accrued }
+}
+
 export async function distributePendingReferralCommissions(periodEnd?: string) {
   const db = getDb()
 
-  let query = db.from('referral_commissions').select('*').eq('status', 'pending').limit(500)
+  let query = db
+    .from('referral_commissions')
+    .select('*')
+    .eq('status', 'pending')
+    .limit(500)
+
   if (periodEnd) {
     query = query.lte('period_end', periodEnd)
   }
@@ -70,6 +184,12 @@ export async function distributePendingReferralCommissions(periodEnd?: string) {
 
     const referenceId = generatePaymentReference('referral')
     const referrerId = row.referrer_id as string
+    const commissionType = String(row.commission_type ?? 'profit_share')
+
+    const description =
+      commissionType === 'ambassador_team'
+        ? `Ambassador team profit share ${formatReferralRate(Number(row.commission_rate))} (${row.period_start} – ${row.period_end})`
+        : `Level ${row.level} referral profit share (${row.period_start} – ${row.period_end})`
 
     await creditInvestorWallet(referrerId, commission)
 
@@ -78,7 +198,7 @@ export async function distributePendingReferralCommissions(periodEnd?: string) {
       type: 'referral',
       amount: commission,
       status: 'Completed',
-      description: `Level ${row.level} referral profit share (${row.period_start} – ${row.period_end})`,
+      description,
       reference_id: referenceId,
     })
 
@@ -97,17 +217,14 @@ export async function distributePendingReferralCommissions(periodEnd?: string) {
       .eq('user_id', referrerId)
       .maybeSingle()
 
-    await db
-      .from('user_referral_stats')
-      .upsert(
-        {
-          user_id: referrerId,
-          lifetime_commission_usd:
-            Number(stats?.lifetime_commission_usd ?? 0) + commission,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'user_id' }
-      )
+    await db.from('user_referral_stats').upsert(
+      {
+        user_id: referrerId,
+        lifetime_commission_usd: Number(stats?.lifetime_commission_usd ?? 0) + commission,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'user_id' }
+    )
 
     paid += 1
     totalUsd += commission
@@ -153,4 +270,23 @@ export async function payPendingRankCashBonuses(limit = 100) {
   }
 
   return { paid }
+}
+
+export async function runWeeklyReferralDistribution() {
+  const { getPreviousTradingWeek } = await import('@/lib/invest/trading-calendar')
+  const { start, end } = getPreviousTradingWeek()
+  const periodStart = start.toISOString().slice(0, 10)
+  const periodEnd = end.toISOString().slice(0, 10)
+
+  const ambassador = await accrueAmbassadorTeamProfits({ periodStart, periodEnd })
+  const commissions = await distributePendingReferralCommissions(periodEnd)
+  const rankBonuses = await payPendingRankCashBonuses()
+
+  return {
+    periodStart,
+    periodEnd,
+    ambassador,
+    commissions,
+    rankBonuses,
+  }
 }

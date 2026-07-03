@@ -1,14 +1,16 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState, useTransition } from 'react'
+import { Link } from '@/i18n/navigation'
 import { AlertCircle, FileText, Lock, Shield } from 'lucide-react'
+import { INVESTMENT_TERMS_SECTIONS } from '@/lib/legal/investment-terms'
 
 const documents = [
   {
     icon: FileText,
-    title: 'Terms of Service',
-    desc: 'Our terms and conditions for using PrimeFx Invest',
-    link: '#terms',
+    title: 'Investment Terms & Fees',
+    desc: 'Referral program, investment terms, and platform fees',
+    link: '#investment-terms',
   },
   {
     icon: Shield,
@@ -58,21 +60,20 @@ export function LegalContent() {
         ))}
       </div>
 
-      <section id="terms" className="mb-12 scroll-mt-24 rounded-lg border border-border bg-card p-8">
-        <h2 className="mb-4 text-2xl font-bold">Terms of Service</h2>
-        <div className="space-y-4 text-muted-foreground">
-          <p>
-            These Terms of Service govern your use of PrimeFx Invest platform. By accessing and
-            using our services, you agree to be bound by these terms.
-          </p>
-          <p>
-            Users must be at least 18 years old and comply with all applicable laws and regulations
-            in their jurisdiction.
-          </p>
-          <p>
-            Investment decisions carry inherent risks. Past performance does not guarantee future
-            results. Always conduct your own research and consult with a financial advisor.
-          </p>
+      <section
+        id="investment-terms"
+        className="mb-12 scroll-mt-24 rounded-lg border border-border bg-card p-8"
+      >
+        <h2 className="mb-6 text-2xl font-bold">PrimeFx Invest — Referral Program, Investment Terms and Fees</h2>
+        <div className="space-y-8">
+          {INVESTMENT_TERMS_SECTIONS.map((section) => (
+            <div key={section.id}>
+              <h3 className="mb-3 text-lg font-semibold text-foreground">{section.title}</h3>
+              <div className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                {section.body}
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -90,10 +91,6 @@ export function LegalContent() {
             We use industry-standard encryption (256-bit SSL) to protect all data transmitted
             through our platform.
           </p>
-          <p>
-            Your data is never shared with third parties without your explicit consent, except as
-            required by law.
-          </p>
         </div>
       </section>
 
@@ -101,17 +98,10 @@ export function LegalContent() {
         <h2 className="mb-4 text-2xl font-bold">Risk Disclosure</h2>
         <div className="space-y-4 text-muted-foreground">
           <p>
-            Investment in financial markets involves substantial risk of loss. No investment strategy
-            is guaranteed to succeed.
+            Investment in financial markets involves substantial risk of loss. Gold (XAU/USD)
+            trading carries market, liquidity, and leverage risks.
           </p>
-          <p>
-            Forex, cryptocurrency, and stock investments can result in significant losses. Only
-            invest money you can afford to lose.
-          </p>
-          <p>
-            Past performance, projections, and forward-looking statements do not guarantee future
-            results.
-          </p>
+          <p>Only invest money you can afford to lose.</p>
         </div>
       </section>
 
@@ -126,7 +116,6 @@ export function LegalContent() {
             <li>Anti-Money Laundering (AML) Policies</li>
             <li>Know Your Customer (KYC) Verification</li>
             <li>Data Protection Regulations (GDPR)</li>
-            <li>Financial Conduct Authority (FCA) Standards</li>
             <li>Bank-Level Security (256-bit Encryption)</li>
           </ul>
         </div>

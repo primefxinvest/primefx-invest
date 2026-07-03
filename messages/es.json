@@ -455,7 +455,15 @@
     "date": "Fecha",
     "time": "Hora",
     "noActivity": "Aún no hay actividad registrada.",
-    "loadProfileFailed": "No se pudo cargar el perfil"
+    "loadProfileFailed": "No se pudo cargar el perfil",
+    "transferIds": {
+      "title": "ID PrimeFx",
+      "description": "Comparte tu ID PrimeFx para recibir transferencias desde Cartera → Transferir.",
+      "primeFxIdLabel": "ID PrimeFx",
+      "copyPrimeFxId": "Copiar ID PrimeFx",
+      "primeFxIdCopied": "ID PrimeFx copiado",
+      "copyFailed": "Error al copiar"
+    }
   },
   "compliance": {
     "kycRejected": "Verificación KYC rechazada",
@@ -842,9 +850,9 @@
       "methodUsername": "Nombre de usuario",
       "methodId": "ID de PrimeFx",
       "yourIdTitle": "Tu ID de PrimeFx",
-      "yourIdDesc": "Comparte este ID para recibir transferencias. Otros pueden enviarte usando “ID de PrimeFx”.",
+      "yourIdDesc": "Comparte tu ID PrimeFx para recibir transferencias.",
       "primeFxIdLabel": "ID de PrimeFx",
-      "copyId": "Copiar ID",
+      "copyId": "Copiar ID PrimeFx",
       "copied": "ID de PrimeFx copiado",
       "copyFailed": "No se pudo copiar el ID de PrimeFx",
       "loadWalletError": "No se pudo cargar la billetera",

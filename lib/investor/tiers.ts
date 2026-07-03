@@ -14,7 +14,7 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
     badge: '🌱',
     features: [
       'basic_dashboard',
-      'weekly_payouts',
+      'daily_payouts',
       'standard_support',
       'basic_primeai_access',
       'academy_access',
@@ -29,7 +29,7 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
     badge: '📈',
     features: [
       'full_dashboard',
-      'weekly_payouts',
+      'daily_payouts',
       'priority_support',
       'enhanced_primeai_access',
       'academy_access',
@@ -45,7 +45,7 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
     badge: '💎',
     features: [
       'advanced_dashboard',
-      'weekly_payouts',
+      'daily_payouts',
       'dedicated_support',
       'full_primeai_access',
       'academy_access',
@@ -63,7 +63,7 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
     badge: '👑',
     features: [
       'premium_dashboard',
-      'weekly_payouts',
+      'daily_payouts',
       'vip_support',
       'unlimited_primeai_access',
       'academy_access',

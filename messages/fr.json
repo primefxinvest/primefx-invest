@@ -455,7 +455,15 @@
     "date": "Date",
     "time": "Heure",
     "noActivity": "Aucune activité enregistrée pour le moment.",
-    "loadProfileFailed": "Impossible de charger le profil"
+    "loadProfileFailed": "Impossible de charger le profil",
+    "transferIds": {
+      "title": "ID PrimeFx",
+      "description": "Partagez votre ID PrimeFx pour recevoir des virements via Portefeuille → Transfert.",
+      "primeFxIdLabel": "ID PrimeFx",
+      "copyPrimeFxId": "Copier l'ID PrimeFx",
+      "primeFxIdCopied": "ID PrimeFx copié",
+      "copyFailed": "Échec de la copie"
+    }
   },
   "compliance": {
     "kycRejected": "Vérification KYC refusée",
@@ -842,9 +850,9 @@
       "methodUsername": "Nom d'utilisateur",
       "methodId": "ID PrimeFx",
       "yourIdTitle": "Votre ID PrimeFx",
-      "yourIdDesc": "Partagez cet ID pour recevoir des transferts. Les autres peuvent vous envoyer via « ID PrimeFx ».",
+      "yourIdDesc": "Partagez votre ID PrimeFx pour recevoir des transferts.",
       "primeFxIdLabel": "ID PrimeFx",
-      "copyId": "Copier l’ID",
+      "copyId": "Copier l'ID PrimeFx",
       "copied": "ID PrimeFx copié",
       "copyFailed": "Impossible de copier l’ID PrimeFx",
       "loadWalletError": "Impossible de charger le portefeuille",

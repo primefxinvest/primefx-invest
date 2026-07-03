@@ -6,6 +6,7 @@ import { Calendar, CheckCircle, Edit2, Shield, AlertCircle } from 'lucide-react'
 import EditProfileModal from '@/components/profile/EditProfileModal'
 import { VerifyIdentityButton } from '@/components/VerifyIdentityButton'
 import { DiditVerificationPanel } from '@/components/verification/DiditVerificationPanel'
+import { UserTransferIdsCard } from '@/components/profile/UserTransferIdsCard'
 import { ErrorState } from '@/components/shared/data-state'
 import { ProfileSkeleton } from '@/components/shared/skeletons'
 import { getProfileActivity, getUserProfile, logProfileActivity } from '@/lib/profile/actions'
@@ -141,6 +142,7 @@ export default function ProfilePage() {
                     {tVerification('verificationPending')}
                   </div>
                   <VerifyIdentityButton
+                    userId={profile.id}
                     isVerified={profile.isVerified}
                     verificationStatus={profile.verificationStatus}
                     size="sm"
@@ -159,6 +161,8 @@ export default function ProfilePage() {
       </div>
 
       <DiditVerificationPanel profile={profile} />
+
+      <UserTransferIdsCard userId={profile.id} />
 
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
         <h2 className="mb-6 text-lg font-semibold text-foreground">{t('personalInformation')}</h2>

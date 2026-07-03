@@ -198,6 +198,7 @@ export async function fetchWalletData(): Promise<WalletData> {
   ]
 
   return {
+    userId,
     primeFxId: formatPrimeFxId(userId),
     availableBalance: formatCurrency(available),
     pendingBalance: formatCurrency(pending),

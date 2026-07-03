@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 type VerifyIdentityButtonProps = {
+  userId?: string
   isVerified?: boolean
   verificationStatus?: 'pending' | 'approved' | 'declined' | 'expired' | string
   className?: string
@@ -14,6 +15,7 @@ type VerifyIdentityButtonProps = {
 }
 
 export function VerifyIdentityButton({
+  userId,
   isVerified = false,
   verificationStatus = 'pending',
   className,
@@ -48,7 +50,11 @@ export function VerifyIdentityButton({
   const handleClick = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/api/verify/start', { method: 'POST' })
+      const response = await fetch('/api/verify/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userId ? { userId } : {}),
+      })
       const payload = (await response.json()) as { url?: string; error?: string }
 
       if (!response.ok || !payload.url) {
@@ -68,7 +74,7 @@ export function VerifyIdentityButton({
       onClick={handleClick}
       disabled={loading}
       className={cn(
-        'inline-flex items-center gap-2 rounded-lg bg-[#0052ff] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70',
+        'inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-lg bg-[#0052ff] px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70',
         size === 'sm' && 'px-3 py-2 text-xs',
         className
       )}
