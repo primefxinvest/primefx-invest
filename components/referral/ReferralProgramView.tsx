@@ -1189,30 +1189,36 @@ export function ReferralProgramView({
           <ReferralRankProgressPanel rank={overview.rank} />
 
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-2">
-              <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:col-span-2">
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <h3 className="font-semibold text-gray-900">Earnings Overview</h3>
-                <div className="flex rounded-lg border border-gray-200 p-0.5 text-xs">
+                <div className="grid w-full grid-cols-3 gap-0.5 rounded-lg border border-gray-200 bg-gray-50/80 p-0.5 text-[11px] sm:flex sm:w-auto sm:gap-0 sm:bg-transparent">
                   {(['30', '90', '365'] as const).map((period) => (
                     <button
                       key={period}
                       type="button"
                       onClick={() => setChartPeriod(period)}
                       className={cn(
-                        'rounded-md px-2.5 py-1 font-medium',
+                        'rounded-md px-2 py-2 font-semibold whitespace-nowrap sm:px-3 sm:py-1.5',
                         chartPeriod === period
-                          ? 'bg-[#0052ff] text-white'
-                          : 'text-gray-600 hover:bg-gray-50'
+                          ? 'bg-[#0052ff] text-white shadow-sm'
+                          : 'text-gray-600 hover:bg-white sm:hover:bg-gray-50'
                       )}
                     >
-                      {period} Days
+                      <span className="sm:hidden">{period === '365' ? '1Y' : `${period}D`}</span>
+                      <span className="hidden sm:inline">
+                        {period === '365' ? '365 Days' : `${period} Days`}
+                      </span>
                     </button>
                   ))}
                 </div>
               </div>
               {chartsReady ? (
                 <ResponsiveContainer width="100%" height={240}>
-                  <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <AreaChart
+                    data={chartData}
+                    margin={{ top: 8, right: 4, left: -8, bottom: 0 }}
+                  >
                     <defs>
                       <linearGradient id="referralEarnings" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#0052ff" stopOpacity={0.22} />
@@ -1227,7 +1233,7 @@ export function ReferralProgramView({
                       interval={chartAxisInterval}
                       minTickGap={12}
                     />
-                    <YAxis {...chartAxisStyle} width={48} tickFormatter={(v) => `$${v}`} />
+                    <YAxis {...chartAxisStyle} width={40} tickFormatter={(v) => `$${v}`} />
                     <Tooltip
                       {...chartTooltipWrapperProps}
                       cursor={chartTooltipCursor}
