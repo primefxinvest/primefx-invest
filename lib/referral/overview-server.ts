@@ -5,6 +5,7 @@ import type { ReferralData } from '@/lib/data/types'
 import { buildReferralProgramOverview } from '@/lib/referral/analytics'
 import type { ReferralListItem } from '@/lib/referral/analytics'
 import { REFERRAL_PROFIT_SHARE_LEVELS, formatReferralRate } from '@/lib/referral/program-config'
+import { buildDailyEarningsTimeline } from '@/lib/referral/earnings-chart'
 import { getReferralNetworkDescendants } from '@/lib/referral/network'
 import { getSiteUrl } from '@/lib/seo/site'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
@@ -22,7 +23,7 @@ async function fetchCommissionTimeline(referrerId: string) {
     return {
       thisWeekEarnings: 0,
       thisMonthEarnings: 0,
-      earningsChart: [] as Array<{ month: string; earnings: number; potential: number }>,
+      earningsTimeline: [],
       periodTrends: { week: '+0%', month: '+0%', lifetime: '+0%' },
     }
   }
@@ -47,9 +48,6 @@ async function fetchCommissionTimeline(referrerId: string) {
   let priorWeekEarnings = 0
   let priorMonthEarnings = 0
   let lifetimeBeforeMonth = 0
-  const monthlyMap = new Map<number, number>()
-  const year = now.getFullYear()
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
   for (const row of data ?? []) {
     const amount = Number(row.commission_usd ?? 0)
@@ -61,22 +59,9 @@ async function fetchCommissionTimeline(referrerId: string) {
     if (created >= monthStart) thisMonthEarnings += amount
     else if (created >= prevMonthStart && created <= prevMonthEnd) priorMonthEarnings += amount
     else if (created < monthStart) lifetimeBeforeMonth += amount
-
-    if (created.getFullYear() === year) {
-      const monthIndex = created.getMonth()
-      monthlyMap.set(monthIndex, (monthlyMap.get(monthIndex) ?? 0) + amount)
-    }
   }
 
-  let cumulative = 0
-  const earningsChart = months.map((month, index) => {
-    cumulative += monthlyMap.get(index) ?? 0
-    return {
-      month,
-      earnings: Math.round(cumulative * 100) / 100,
-      potential: Math.round(cumulative * 1.1 * 100) / 100,
-    }
-  })
+  const earningsTimeline = buildDailyEarningsTimeline(data ?? [], 365)
 
   const formatTrend = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? '+100%' : '+0%'
@@ -87,7 +72,7 @@ async function fetchCommissionTimeline(referrerId: string) {
   return {
     thisWeekEarnings: Math.round(thisWeekEarnings * 100) / 100,
     thisMonthEarnings: Math.round(thisMonthEarnings * 100) / 100,
-    earningsChart,
+    earningsTimeline,
     periodTrends: {
       week: formatTrend(thisWeekEarnings, priorWeekEarnings),
       month: formatTrend(thisMonthEarnings, priorMonthEarnings),
@@ -259,7 +244,7 @@ export async function fetchReferralProgramOverviewServer(
       activeInvestors: Number(stats?.active_member_count ?? referralList.filter((r) => r.status === 'Active').length),
       thisWeekEarnings: commissionTimeline.thisWeekEarnings,
       thisMonthEarnings: commissionTimeline.thisMonthEarnings,
-      earningsChart: commissionTimeline.earningsChart,
+      earningsTimeline: commissionTimeline.earningsTimeline,
       periodTrends: commissionTimeline.periodTrends,
       referralDates,
     }),

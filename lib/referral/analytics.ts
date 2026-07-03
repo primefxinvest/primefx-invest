@@ -1,5 +1,8 @@
 import { formatCurrency } from '@/lib/data/format'
 import {
+  type EarningsTimelineDay,
+} from '@/lib/referral/earnings-chart'
+import {
   buildReferralBadgeState,
   type ReferralBadgeState,
   type ReferralStreakState,
@@ -29,7 +32,7 @@ type OverviewContext = {
   activeInvestors?: number
   thisWeekEarnings?: number
   thisMonthEarnings?: number
-  earningsChart?: Array<{ month: string; earnings: number; potential: number }>
+  earningsTimeline?: EarningsTimelineDay[]
   periodTrends?: {
     week?: string
     month?: string
@@ -57,7 +60,7 @@ export interface ReferralProgramOverview {
   rank: ReferralRank
   healthScore: number
   healthLabel: string
-  earningsChart: Array<{ month: string; earnings: number; potential: number }>
+  earningsTimeline: EarningsTimelineDay[]
   earningsBreakdown: Array<{ name: string; value: number; amount: number; color: string }>
   networkLevels: Array<{
     level: string
@@ -134,31 +137,6 @@ function buildEarningsBreakdown(levelEarnings: Array<{ level: number; earnings: 
     }
   })
 }
-
-function buildEarningsChart(total: number) {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const weights = [0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.1, 0.11, 0.12, 0.1, 0.09, 0.09]
-  let cumulative = 0
-
-  return months.map((month, index) => {
-    const earnings = Math.round(total * weights[index] * 10) / 10
-    cumulative += earnings
-    return {
-      month,
-      earnings: cumulative,
-      potential: Math.round(cumulative * 1.18 * 100) / 100,
-    }
-  })
-}
-
-function buildEarningsChartFromData(
-  rows: Array<{ month: string; earnings: number; potential: number }>,
-  fallbackTotal: number
-) {
-  if (rows.length > 0) return rows
-  return buildEarningsChart(fallbackTotal)
-}
-
 
 export function buildReferralProgramOverview(
   referrals: ReferralListItem[],
@@ -239,10 +217,7 @@ export function buildReferralProgramOverview(
     rank,
     healthScore,
     healthLabel: healthScore >= 90 ? 'Excellent' : healthScore >= 75 ? 'Good' : 'Fair',
-    earningsChart: buildEarningsChartFromData(
-      context.earningsChart ?? [],
-      Math.max(lifetimeEarnings, 100)
-    ),
+    earningsTimeline: context.earningsTimeline ?? [],
     earningsBreakdown: buildEarningsBreakdown(context.levelEarnings),
     networkLevels: levelData.map(({ level, items, earnings }) => ({
       level,

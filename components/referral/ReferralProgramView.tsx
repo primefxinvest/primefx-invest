@@ -54,6 +54,11 @@ import {
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { formatCurrency } from '@/lib/data/format'
 import { fetchReferralProgramOverviewAction } from '@/lib/referral/actions'
+import {
+  buildEarningsChartForPeriod,
+  getChartAxisInterval,
+  type ReferralChartPeriod,
+} from '@/lib/referral/earnings-chart'
 import type { ReferralListItem, ReferralProgramOverview } from '@/lib/referral/analytics'
 import type { ReferralProgramPageData } from '@/lib/referral/overview-server'
 import {
@@ -1045,9 +1050,18 @@ export function ReferralProgramView({
 
   const chartData = useMemo(() => {
     if (!overview) return []
-    const slice = chartPeriod === '30' ? 6 : chartPeriod === '90' ? 9 : 12
-    return overview.earningsChart.slice(-slice)
+    const period = Number(chartPeriod) as ReferralChartPeriod
+    return buildEarningsChartForPeriod(
+      overview.earningsTimeline,
+      period,
+      Math.max(overview.lifetimeEarnings, 0)
+    )
   }, [overview, chartPeriod])
+
+  const chartAxisInterval = useMemo(() => {
+    const period = Number(chartPeriod) as ReferralChartPeriod
+    return getChartAxisInterval(period, chartData.length)
+  }, [chartPeriod, chartData.length])
 
   if (loading && !data) {
     return (
@@ -1206,7 +1220,13 @@ export function ReferralProgramView({
                       </linearGradient>
                     </defs>
                     <CartesianGrid {...chartGridStyle} />
-                    <XAxis dataKey="month" {...chartAxisStyle} dy={8} />
+                    <XAxis
+                      dataKey="label"
+                      {...chartAxisStyle}
+                      dy={8}
+                      interval={chartAxisInterval}
+                      minTickGap={12}
+                    />
                     <YAxis {...chartAxisStyle} width={48} tickFormatter={(v) => `$${v}`} />
                     <Tooltip
                       {...chartTooltipWrapperProps}
