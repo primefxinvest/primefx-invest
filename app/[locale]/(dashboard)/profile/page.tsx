@@ -9,6 +9,7 @@ import { DiditVerificationPanel } from '@/components/verification/DiditVerificat
 import { UserTransferIdsCard } from '@/components/profile/UserTransferIdsCard'
 import { ErrorState } from '@/components/shared/data-state'
 import { ProfileSkeleton } from '@/components/shared/skeletons'
+import { ScrollTable } from '@/components/shared/ScrollTable'
 import { getProfileActivity, getUserProfile, logProfileActivity } from '@/lib/profile/actions'
 import type { ProfileActivity, UserProfile } from '@/lib/profile/types'
 import { getCurrentUser } from '@/lib/supabase'
@@ -103,10 +104,10 @@ export default function ProfilePage() {
   const isVerified = profile.isVerified || profile.kycStatus === 'Verified'
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-6 sm:space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">{t('title')}</h1>
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">{t('title')}</h1>
           <p className="mt-1 text-muted-foreground">{t('description')}</p>
         </div>
         <button
@@ -119,7 +120,7 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-8 shadow-sm">
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-8">
         <div className="flex flex-col items-start gap-6 sm:flex-row">
           <img
             src={profile.avatarUrl}
@@ -233,9 +234,9 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h2 className="mb-6 text-lg font-semibold text-foreground">{t('activityHistory')}</h2>
-        <div className="overflow-x-auto">
+      <div className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
+        <h2 className="mb-4 text-lg font-semibold text-foreground sm:mb-6">{t('activityHistory')}</h2>
+        <ScrollTable>
           <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-border bg-secondary text-left">
@@ -270,7 +271,7 @@ export default function ProfilePage() {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollTable>
       </div>
 
       <EditProfileModal

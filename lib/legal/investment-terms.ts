@@ -19,9 +19,7 @@ PrimeFx Ambassador — 2,500 Members — Company Car, AcademyFx Office, $1,000 M
     body: `Level 1 (L1): 5% of profits every week
 Level 2 (L2): 2% of profits every week
 Level 3 (L3): 1% of profits every week
-Level 4 (L4): 0.5% of profits every week
-
-Welcome Bonus: You and your referred friend each receive $10 investment credit after the referred user's first deposit and KYC approval.`,
+Level 4 (L4): 0.5% of profits every week`,
   },
   {
     id: 'management',

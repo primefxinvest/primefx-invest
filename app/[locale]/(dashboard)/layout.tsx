@@ -6,6 +6,7 @@ import AppLayout from '@/components/shared/AppLayout'
 import { TermsAcknowledgementBanner } from '@/components/compliance/TermsAcknowledgementBanner'
 import { ReferralAccessProvider } from '@/lib/referral/access-context'
 import { getReferralAccessForUser } from '@/lib/referral/settings'
+import { getTermsAcknowledgementState } from '@/lib/terms/server'
 import { buildPageMetadata } from '@/lib/seo/metadata'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from '@/i18n/navigation'
@@ -35,11 +36,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   const referralAccess = await getReferralAccessForUser(user!.id)
+  const termsAcknowledgement = await getTermsAcknowledgementState(user!.id)
 
   return (
     <ReferralAccessProvider access={referralAccess}>
       <AppLayout>
-        <TermsAcknowledgementBanner />
+        <TermsAcknowledgementBanner
+          required={termsAcknowledgement.required}
+          version={termsAcknowledgement.version}
+        />
         {children}
       </AppLayout>
     </ReferralAccessProvider>

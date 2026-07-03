@@ -4,19 +4,20 @@ import { useTransition } from 'react'
 import { Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { AdminTableCard } from '@/components/admin/AdminTableCard'
 import type { AdminWithdrawalQueueRow } from '@/lib/admin/queries'
 import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/referral/program-config'
 
 export function AdminWithdrawalsView({ rows }: { rows: AdminWithdrawalQueueRow[] }) {
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <AdminPageHeader
         title="Withdrawal Queue"
         description={`Wallet and investment capital requests with ${WITHDRAWAL_NOTICE_DAYS}-day notice.`}
       />
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full text-sm">
+      <AdminTableCard>
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="border-b border-border bg-background">
             <tr>
               <th className="px-4 py-3 text-left font-semibold">Type</th>
@@ -52,7 +53,7 @@ export function AdminWithdrawalsView({ rows }: { rows: AdminWithdrawalQueueRow[]
             )}
           </tbody>
         </table>
-      </div>
+      </AdminTableCard>
     </div>
   )
 }

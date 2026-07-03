@@ -1,5 +1,5 @@
 import { convertToModelMessages, streamText, type UIMessage } from 'ai'
-import { getActiveAiProviderLabel, getAiConfigError, getChatModel } from '@/lib/ai/provider'
+import { getActiveAiProviderLabel, getChatModel, getPrimeAiConfigError } from '@/lib/ai/provider'
 import { getPrimeAIInvestContext } from '@/lib/ai/invest-context'
 
 export const runtime = 'nodejs'
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
   try {
     const model = getChatModel()
     if (!model) {
-      return new Response(JSON.stringify({ error: getAiConfigError() }), {
+      return new Response(JSON.stringify({ error: getPrimeAiConfigError() }), {
         status: 503,
         headers: { 'Content-Type': 'application/json' },
       })

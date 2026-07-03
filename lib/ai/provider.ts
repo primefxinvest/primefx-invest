@@ -4,6 +4,9 @@ import type { LanguageModel } from 'ai'
 
 export type AiProviderName = 'gemini' | 'openai'
 
+const DEFAULT_GEMINI_CHAT_MODEL = 'gemini-2.0-flash'
+const DEFAULT_GEMINI_VISION_MODEL = 'gemini-2.0-flash'
+
 export function getGeminiApiKey(): string | undefined {
   return (
     process.env.GEMINI_API_KEY?.trim() ||
@@ -16,14 +19,8 @@ export function getOpenAiApiKey(): string | undefined {
   return process.env.OPENAI_API_KEY?.trim() || undefined
 }
 
-export function getActiveAiProvider(): AiProviderName | null {
-  if (getGeminiApiKey()) return 'gemini'
-  if (getOpenAiApiKey()) return 'openai'
-  return null
-}
-
-export function getAiConfigError(): string {
-  return 'AI is not configured. Add GEMINI_API_KEY (free at https://aistudio.google.com/apikey) or OPENAI_API_KEY.'
+export function getGeminiChatModelId(): string {
+  return process.env.GEMINI_CHAT_MODEL?.trim() || DEFAULT_GEMINI_CHAT_MODEL
 }
 
 function createGeminiProvider() {
@@ -32,25 +29,43 @@ function createGeminiProvider() {
   return createGoogleGenerativeAI({ apiKey })
 }
 
+/** PrimeAI chat — Google Gemini only. */
+export function getChatModel(): LanguageModel | null {
+  const gemini = createGeminiProvider()
+  if (!gemini) return null
+  return gemini(getGeminiChatModelId())
+}
+
+/** Document vision — prefers Gemini; OpenAI optional fallback for KYC only. */
 export function getVisionModel(): LanguageModel | null {
   const gemini = createGeminiProvider()
-  if (gemini) return gemini('gemini-2.0-flash')
+  if (gemini) {
+    const modelId = process.env.GEMINI_VISION_MODEL?.trim() || DEFAULT_GEMINI_VISION_MODEL
+    return gemini(modelId)
+  }
   const openaiKey = getOpenAiApiKey()
   if (openaiKey) return openai('gpt-4o-mini')
   return null
 }
 
-export function getChatModel(): LanguageModel | null {
-  const gemini = createGeminiProvider()
-  if (gemini) return gemini('gemini-2.0-flash')
-  const openaiKey = getOpenAiApiKey()
-  if (openaiKey) return openai('gpt-4o-mini')
+export function getPrimeAiConfigError(): string {
+  return 'PrimeAI requires GEMINI_API_KEY. Get a free key at https://aistudio.google.com/apikey'
+}
+
+export function getAiConfigError(): string {
+  return 'AI is not configured. Add GEMINI_API_KEY (https://aistudio.google.com/apikey) or OPENAI_API_KEY for KYC document scanning.'
+}
+
+export function isPrimeAiConfigured(): boolean {
+  return Boolean(getGeminiApiKey())
+}
+
+export function getActiveAiProvider(): AiProviderName | null {
+  if (getGeminiApiKey()) return 'gemini'
+  if (getOpenAiApiKey()) return 'openai'
   return null
 }
 
 export function getActiveAiProviderLabel(): string {
-  const provider = getActiveAiProvider()
-  if (provider === 'gemini') return 'Google Gemini'
-  if (provider === 'openai') return 'OpenAI'
-  return 'Not configured'
+  return 'Google Gemini'
 }

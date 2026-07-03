@@ -17,6 +17,7 @@ import {
   setPushNotificationsEnabled,
 } from '@/lib/notifications/push-client'
 import { cn } from '@/lib/utils'
+import { fetchUserPreferences, saveUserPreferences } from '@/lib/data/queries'
 
 export default function SettingsPage() {
   const t = useTranslations('settings')
@@ -35,6 +36,18 @@ export default function SettingsPage() {
   const [currency, setCurrency] = useState('usd')
   const [profileVisibility, setProfileVisibility] = useState('public')
   const [pushEnabled, setPushEnabled] = useState(false)
+  const [emailNotifications, setEmailNotifications] = useState(true)
+  const [investmentAlerts, setInvestmentAlerts] = useState(true)
+  const [securityAlerts, setSecurityAlerts] = useState(true)
+
+  const persistPreferences = useCallback(async (patch: Parameters<typeof saveUserPreferences>[0]) => {
+    const result = await saveUserPreferences(patch)
+    if (!result.ok) {
+      toast.error(t('saveFailed'), { description: result.error })
+      return
+    }
+    toast.success(t('saved'))
+  }, [t])
 
   const languageOptions = routing.locales.map((value) => ({
     value,
@@ -79,6 +92,14 @@ export default function SettingsPage() {
   useEffect(() => {
     loadMfaStatus()
     setPushEnabled(isPushNotificationsEnabled())
+    fetchUserPreferences().then((prefs) => {
+      setTheme(prefs.theme)
+      setCurrency(prefs.currency)
+      setProfileVisibility(prefs.profileVisibility)
+      setEmailNotifications(prefs.emailNotifications)
+      setInvestmentAlerts(prefs.investmentAlerts)
+      setSecurityAlerts(prefs.securityAlerts)
+    })
     window.addEventListener('primefx:profile-updated', loadMfaStatus)
     return () => window.removeEventListener('primefx:profile-updated', loadMfaStatus)
   }, [loadMfaStatus])
@@ -113,8 +134,11 @@ export default function SettingsPage() {
       key: 'email',
       label: t('emailNotifications'),
       desc: t('emailNotificationsDescription'),
-      enabled: true,
-      disabled: true,
+      enabled: emailNotifications,
+      onChange: (enabled: boolean) => {
+        setEmailNotifications(enabled)
+        void persistPreferences({ emailNotifications: enabled })
+      },
     },
     {
       key: 'push',
@@ -127,15 +151,21 @@ export default function SettingsPage() {
       key: 'investment',
       label: t('investmentAlerts'),
       desc: t('investmentAlertsDescription'),
-      enabled: true,
-      disabled: true,
+      enabled: investmentAlerts,
+      onChange: (enabled: boolean) => {
+        setInvestmentAlerts(enabled)
+        void persistPreferences({ investmentAlerts: enabled })
+      },
     },
     {
       key: 'security',
       label: t('securityAlerts'),
       desc: t('securityAlertsDescription'),
-      enabled: true,
-      disabled: true,
+      enabled: securityAlerts,
+      onChange: (enabled: boolean) => {
+        setSecurityAlerts(enabled)
+        void persistPreferences({ securityAlerts: enabled })
+      },
     },
   ]
 
@@ -175,7 +205,10 @@ export default function SettingsPage() {
             </div>
             <CustomSelect
               value={theme}
-              onValueChange={setTheme}
+              onValueChange={(value) => {
+                setTheme(value)
+                void persistPreferences({ theme: value })
+              }}
               options={themeOptions}
               placeholder={t('theme')}
             />
@@ -191,7 +224,10 @@ export default function SettingsPage() {
             </div>
             <CustomSelect
               value={currency}
-              onValueChange={setCurrency}
+              onValueChange={(value) => {
+                setCurrency(value)
+                void persistPreferences({ currency: value })
+              }}
               options={currencyOptions}
               placeholder={t('currency')}
             />
@@ -278,7 +314,6 @@ export default function SettingsPage() {
                 type="checkbox"
                 className="h-5 w-5"
                 checked={notif.enabled}
-                disabled={notif.disabled}
                 onChange={(e) => notif.onChange?.(e.target.checked)}
               />
             </div>
@@ -296,7 +331,10 @@ export default function SettingsPage() {
             </div>
             <CustomSelect
               value={profileVisibility}
-              onValueChange={setProfileVisibility}
+              onValueChange={(value) => {
+                setProfileVisibility(value)
+                void persistPreferences({ profileVisibility: value })
+              }}
               options={visibilityOptions}
               placeholder={t('profileVisibility')}
               size="sm"

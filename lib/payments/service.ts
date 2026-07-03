@@ -29,7 +29,6 @@ import {
   notifyWithdrawalCompleted,
 } from '@/lib/notifications/service'
 import { markReferralActiveOnFirstActivity } from '@/lib/referral/commission-service'
-import { processReferralWelcomeBonus } from '@/lib/referral/welcome-bonus'
 
 export async function createDepositPayment(input: {
   userId: string
@@ -214,7 +213,6 @@ export async function completeDepositFromWebhook(orderId: string) {
   await notifyDepositCompleted(userId, amount, orderId)
 
   await markReferralActiveOnFirstActivity(userId)
-  await processReferralWelcomeBonus(userId)
 }
 
 export async function failDepositFromWebhook(

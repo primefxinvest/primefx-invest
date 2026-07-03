@@ -21,7 +21,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         <Navbar />
         <main
           className={cn(
-            'primefx-scrollbar fixed bottom-0 left-0 right-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] overflow-y-auto',
+            'primefx-scrollbar fixed bottom-0 left-0 right-0 top-[calc(3.5rem+env(safe-area-inset-top,0px))] overflow-x-hidden overflow-y-auto',
             SIDEBAR_OFFSET_CLASS
           )}
         >

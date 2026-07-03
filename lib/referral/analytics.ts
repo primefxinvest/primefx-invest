@@ -1,5 +1,10 @@
 import { formatCurrency } from '@/lib/data/format'
 import {
+  buildReferralBadgeState,
+  type ReferralBadgeState,
+  type ReferralStreakState,
+} from '@/lib/referral/badges'
+import {
   REFERRAL_PROFIT_SHARE_LEVELS,
   REFERRAL_RANK_TIERS,
   formatReferralRate,
@@ -22,6 +27,15 @@ type OverviewContext = {
   levelEarnings?: Array<{ level: number; earnings: number }>
   memberCount?: number
   activeInvestors?: number
+  thisWeekEarnings?: number
+  thisMonthEarnings?: number
+  earningsChart?: Array<{ month: string; earnings: number; potential: number }>
+  periodTrends?: {
+    week?: string
+    month?: string
+    lifetime?: string
+  }
+  referralDates?: Date[]
 }
 
 export interface ReferralRank {
@@ -31,6 +45,7 @@ export interface ReferralRank {
   nextThreshold: number
   progressPercent: number
   activeInvestors: number
+  membersRemaining: number
 }
 
 export interface ReferralProgramOverview {
@@ -53,7 +68,18 @@ export interface ReferralProgramOverview {
   channels: Array<{ name: string; percent: number; color: string }>
   funnel: { clicks: number; signups: number; activeInvestors: number; conversionRate: number }
   recentActivities: Array<{ id: string; message: string; amount: string; time: string }>
-  achievements: Array<{ id: string; label: string; unlocked: boolean }>
+  badges: ReferralBadgeState[]
+  streak: ReferralStreakState
+  /** @deprecated Use badges — kept for type compatibility during migration */
+  achievements: Array<{
+    id: string
+    label: string
+    minMembers: number
+    cashBonusUsd: number
+    perks: readonly string[]
+    unlocked: boolean
+    membersRemaining: number
+  }>
   challenges: Array<{ id: string; title: string; progress: number; target: number; reward: string }>
   leaderboard: Array<{ rank: number; name: string; earnings: number }>
   trends: {
@@ -73,15 +99,19 @@ function getInitials(name: string) {
     .join('')
 }
 
-function computeRank(memberCount: number): ReferralRank {
-  const resolved = resolveReferralRank(memberCount)
+function computeRank(activeInvestors: number): ReferralRank {
+  const resolved = resolveReferralRank(activeInvestors)
   return {
     current: resolved.current.name,
     next: resolved.next.name,
     currentThreshold: resolved.current.minMembers,
     nextThreshold: resolved.next.minMembers,
     progressPercent: resolved.progressPercent,
-    activeInvestors: memberCount,
+    activeInvestors,
+    membersRemaining:
+      resolved.current.key === resolved.next.key
+        ? 0
+        : Math.max(0, resolved.next.minMembers - activeInvestors),
   }
 }
 
@@ -97,7 +127,7 @@ function buildEarningsBreakdown(levelEarnings: Array<{ level: number; earnings: 
     const value = total > 0 ? Math.round((amount / total) * 100) : 0
 
     return {
-      name: `Level ${levelConfig.level} Earnings`,
+      name: `Level ${levelConfig.level}`,
       value,
       amount,
       color: colors[index] ?? '#94a3b8',
@@ -121,6 +151,15 @@ function buildEarningsChart(total: number) {
   })
 }
 
+function buildEarningsChartFromData(
+  rows: Array<{ month: string; earnings: number; potential: number }>,
+  fallbackTotal: number
+) {
+  if (rows.length > 0) return rows
+  return buildEarningsChart(fallbackTotal)
+}
+
+
 export function buildReferralProgramOverview(
   referrals: ReferralListItem[],
   totalReferrals: number,
@@ -131,9 +170,9 @@ export function buildReferralProgramOverview(
   const lifetimeEarnings =
     context.lifetimeEarningsOverride ??
     referrals.reduce((sum, row) => sum + row.commissionEarned, 0)
-  const thisWeekEarnings = Math.round(lifetimeEarnings * 0.037 * 100) / 100
-  const thisMonthEarnings = Math.round(lifetimeEarnings * 0.172 * 100) / 100
-  const rank = computeRank(context.memberCount ?? totalReferrals)
+  const thisWeekEarnings = context.thisWeekEarnings ?? 0
+  const thisMonthEarnings = context.thisMonthEarnings ?? 0
+  const rank = computeRank(activeInvestors)
 
   const level1 = referrals.filter((row) => (row.networkLevel ?? 1) === 1)
   const level2 = referrals.filter((row) => row.networkLevel === 2)
@@ -177,9 +216,19 @@ export function buildReferralProgramOverview(
       earnings: entry.commissionEarned,
     }))
 
-  const clicks = Math.max(totalReferrals * 48, 120)
-  const signups = Math.max(totalReferrals * 12, 24)
-  const conversionRate = clicks > 0 ? Math.round((activeInvestors / clicks) * 10000) / 100 : 0
+  const signups = Math.max(totalReferrals, 0)
+  const conversionRate = signups > 0 ? Math.round((activeInvestors / signups) * 10000) / 100 : 0
+
+  const priorWeek = context.periodTrends?.week
+  const priorMonth = context.periodTrends?.month
+  const priorLifetime = context.periodTrends?.lifetime
+
+  const { badges, streak } = buildReferralBadgeState({
+    activeInvestors,
+    totalReferrals,
+    thisMonthEarnings,
+    referralDates: context.referralDates ?? [],
+  })
 
   return {
     lifetimeEarnings,
@@ -190,7 +239,10 @@ export function buildReferralProgramOverview(
     rank,
     healthScore,
     healthLabel: healthScore >= 90 ? 'Excellent' : healthScore >= 75 ? 'Good' : 'Fair',
-    earningsChart: buildEarningsChart(Math.max(lifetimeEarnings, 100)),
+    earningsChart: buildEarningsChartFromData(
+      context.earningsChart ?? [],
+      Math.max(lifetimeEarnings, 100)
+    ),
     earningsBreakdown: buildEarningsBreakdown(context.levelEarnings),
     networkLevels: levelData.map(({ level, items, earnings }) => ({
       level,
@@ -202,24 +254,24 @@ export function buildReferralProgramOverview(
         initials: getInitials(item.name),
       })),
     })),
-    channels: [
-      { name: 'WhatsApp', percent: 48, color: '#22c55e' },
-      { name: 'Telegram', percent: 28, color: '#0052ff' },
-      { name: 'Direct Link', percent: 15, color: '#7c3aed' },
-      { name: 'Facebook', percent: 6, color: '#3b82f6' },
-      { name: 'Other', percent: 3, color: '#94a3b8' },
-    ],
+    channels: [],
     funnel: {
-      clicks,
+      clicks: signups,
       signups,
       activeInvestors,
       conversionRate,
     },
     recentActivities,
+    badges,
+    streak,
     achievements: REFERRAL_RANK_TIERS.map((tier) => ({
       id: tier.key,
       label: tier.name,
+      minMembers: tier.minMembers,
+      cashBonusUsd: tier.cashBonusUsd,
+      perks: tier.perks,
       unlocked: activeInvestors >= tier.minMembers,
+      membersRemaining: Math.max(0, tier.minMembers - activeInvestors),
     })),
     challenges: [
       {
@@ -239,10 +291,10 @@ export function buildReferralProgramOverview(
     ],
     leaderboard,
     trends: {
-      lifetime: lifetimeEarnings > 0 ? '+24.5%' : '+0%',
-      week: thisWeekEarnings > 0 ? '+18.7%' : '+0%',
-      month: thisMonthEarnings > 0 ? '+32.4%' : '+0%',
-      newInvestors: `+${Math.max(0, activeInvestors - 1)} new`,
+      lifetime: priorLifetime ?? (lifetimeEarnings > 0 ? '+100%' : '+0%'),
+      week: priorWeek ?? (thisWeekEarnings > 0 ? '+100%' : '+0%'),
+      month: priorMonth ?? (thisMonthEarnings > 0 ? '+100%' : '+0%'),
+      newInvestors: `+${Math.max(0, activeInvestors)} new`,
     },
   }
 }

@@ -1,7 +1,5 @@
 /** PrimeFx Invest — referral program terms (single source of truth). */
 
-export const REFERRAL_WELCOME_BONUS_USD = 10
-
 /** One-time commission on a referred member's first deposit or investment. */
 export const REFERRAL_INVESTMENT_COMMISSION_RATE = 0.02
 

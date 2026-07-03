@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 import { AsyncState } from '@/components/shared/data-state'
 import { MetricCardsSkeleton, PlanCardsSkeleton } from '@/components/shared/skeletons'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
-import { fetchRewardAchievements, fetchRewardsData } from '@/lib/data/queries'
+import { fetchRewardAchievements, fetchRewardCatalogItems, fetchRewardsData, fetchRewardTiers } from '@/lib/data/queries'
 import type { RewardAchievement } from '@/lib/data/types'
 import type { LucideIcon } from 'lucide-react'
 
@@ -61,6 +61,17 @@ export default function RewardsPage() {
     error: achievementsError,
     reload: reloadAchievements,
   } = useAsyncData(() => fetchRewardAchievements(), [])
+  const { data: tierRows = [] } = useAsyncData(() => fetchRewardTiers(), [])
+  const { data: catalog = [] } = useAsyncData(() => fetchRewardCatalogItems(), [])
+
+  const tierBenefitsFromDb =
+    tierRows.length > 0
+      ? tierRows.map((row) => ({
+          tier: row.tier,
+          points: row.points,
+          benefits: row.benefits,
+        }))
+      : tierBenefits
 
   const totalPoints = rewards?.totalPoints ?? 0
   const earnedCount = achievements.filter((a) => a.earned).length
@@ -144,7 +155,7 @@ export default function RewardsPage() {
       <div className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
         <h2 className="mb-6 text-lg font-semibold text-foreground">Tier Benefits</h2>
         <div className="space-y-3">
-          {tierBenefits.map((tier) => (
+          {tierBenefitsFromDb.map((tier) => (
             <div key={tier.tier} className="rounded-lg border border-border p-4">
               <div className="mb-2 flex items-start justify-between gap-2">
                 <div>
@@ -166,12 +177,19 @@ export default function RewardsPage() {
       <div className="rounded-lg border border-border bg-card p-4 shadow-sm sm:p-6">
         <h2 className="mb-6 text-lg font-semibold text-foreground">Redeem Points</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { name: 'Trading Credit', cost: 500, icon: CreditCard },
-            { name: 'Premium Course', cost: 750, icon: BookOpen },
-            { name: 'Month of Premium', cost: 1000, icon: Sparkles },
-            { name: 'Exclusive Report', cost: 300, icon: BarChart3 },
-          ].map((item) => {
+          {(catalog.length > 0
+            ? catalog.map((item) => ({
+                name: item.name,
+                cost: item.pointsCost,
+                icon: CreditCard,
+              }))
+            : [
+                { name: 'Trading Credit', cost: 500, icon: CreditCard },
+                { name: 'Premium Course', cost: 750, icon: BookOpen },
+                { name: 'Month of Premium', cost: 1000, icon: Sparkles },
+                { name: 'Exclusive Report', cost: 300, icon: BarChart3 },
+              ]
+          ).map((item) => {
             const Icon = item.icon
             return (
               <button

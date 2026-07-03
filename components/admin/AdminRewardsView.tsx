@@ -1,6 +1,7 @@
 'use client'
 
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { AdminTableCard } from '@/components/admin/AdminTableCard'
 
 interface RewardTier {
   id: string
@@ -12,11 +13,11 @@ interface RewardTier {
 
 export function AdminRewardsView({ tiers }: { tiers: RewardTier[] }) {
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <AdminPageHeader title="Rewards Management" description="Manage reward tiers and benefits" />
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full">
+      <AdminTableCard>
+        <table className="w-full min-w-[560px]">
           <thead className="border-b border-border bg-background">
             <tr>
               <th className="px-6 py-3 text-left text-sm font-semibold">Tier</th>
@@ -50,7 +51,7 @@ export function AdminRewardsView({ tiers }: { tiers: RewardTier[] }) {
             )}
           </tbody>
         </table>
-      </div>
+      </AdminTableCard>
     </div>
   )
 }

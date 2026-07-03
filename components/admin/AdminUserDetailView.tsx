@@ -13,6 +13,7 @@ import {
 import { AdminKycDocumentsSection } from '@/components/admin/AdminKycDocumentsSection'
 import { AdminKycReviewControls } from '@/components/admin/AdminKycReviewControls'
 import { AdminReferralAccessToggle } from '@/components/admin/AdminReferralAccessToggle'
+import { ScrollTable } from '@/components/shared/ScrollTable'
 import type { AdminUserDetail } from '@/lib/admin/types'
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from '@/lib/data/format'
 import { getDefaultAvatarUrl } from '@/lib/profile/avatar'
@@ -58,12 +59,12 @@ function SectionCard({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-6 py-4">
+    <section className="min-w-0 rounded-lg border border-border bg-card">
+      <div className="border-b border-border px-4 py-3 sm:px-6 sm:py-4">
         <h3 className="text-base font-semibold text-foreground">{title}</h3>
         {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
       </div>
-      <div className="p-6">{children}</div>
+      <div className="p-4 sm:p-6">{children}</div>
     </section>
   )
 }
@@ -95,37 +96,39 @@ export function AdminUserDetailView({
   const avatarSrc = profile.avatar_url || getDefaultAvatarUrl(profile.full_name ?? profile.email)
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="flex items-start gap-4">
+    <div className="min-w-0 space-y-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
           <Link
             href="/admin/users"
-            className="mt-1 inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground"
+            className="inline-flex w-fit items-center gap-1 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-background hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
           </Link>
-          <img
-            src={avatarSrc}
-            alt=""
-            className="h-16 w-16 rounded-full border border-border object-cover"
-          />
-          <div>
-            <h2 className="text-3xl font-bold text-foreground">
-              {profile.full_name || 'Unnamed investor'}
-            </h2>
-            <p className="mt-1 text-muted-foreground">{profile.email}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <StatusBadge label={profile.investor_tier ?? 'Starter'} tone="neutral" />
-              <StatusBadge label={profile.kyc_status ?? 'Pending'} tone={profile.kyc_status === 'Verified' ? 'success' : profile.kyc_status === 'Rejected' ? 'danger' : 'warning'} />
-              <StatusBadge label={mfaLabel} tone={mfaTone} />
-              <StatusBadge label={profile.account_status ?? 'active'} tone={accountTone} />
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
+            <img
+              src={avatarSrc}
+              alt=""
+              className="h-14 w-14 shrink-0 rounded-full border border-border object-cover sm:h-16 sm:w-16"
+            />
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold text-foreground sm:text-3xl">
+                {profile.full_name || 'Unnamed investor'}
+              </h2>
+              <p className="mt-1 truncate text-muted-foreground">{profile.email}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <StatusBadge label={profile.investor_tier ?? 'Starter'} tone="neutral" />
+                <StatusBadge label={profile.kyc_status ?? 'Pending'} tone={profile.kyc_status === 'Verified' ? 'success' : profile.kyc_status === 'Rejected' ? 'danger' : 'warning'} />
+                <StatusBadge label={mfaLabel} tone={mfaTone} />
+                <StatusBadge label={profile.account_status ?? 'active'} tone={accountTone} />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         {[
           {
             label: 'Wallet balance',
@@ -148,12 +151,12 @@ export function AdminUserDetailView({
             icon: User,
           },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-border bg-card p-5">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
+          <div key={stat.label} className="rounded-lg border border-border bg-card p-3 sm:p-5">
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
+              <p className="text-xs text-muted-foreground sm:text-sm">{stat.label}</p>
+              <stat.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
             </div>
-            <p className="mt-2 text-2xl font-bold text-foreground">{stat.value}</p>
+            <p className="mt-1 text-lg font-bold text-foreground sm:mt-2 sm:text-2xl">{stat.value}</p>
           </div>
         ))}
       </div>
@@ -299,7 +302,7 @@ export function AdminUserDetailView({
         {investments.length === 0 ? (
           <p className="text-sm text-muted-foreground">No investments yet.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollTable>
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-border text-left text-sm text-muted-foreground">
@@ -324,7 +327,7 @@ export function AdminUserDetailView({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollTable>
         )}
       </SectionCard>
 
@@ -332,7 +335,7 @@ export function AdminUserDetailView({
         {transactions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No transactions yet.</p>
         ) : (
-          <div className="overflow-x-auto">
+          <ScrollTable>
             <table className="w-full min-w-[640px]">
               <thead>
                 <tr className="border-b border-border text-left text-sm text-muted-foreground">
@@ -355,7 +358,7 @@ export function AdminUserDetailView({
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollTable>
         )}
       </SectionCard>
 

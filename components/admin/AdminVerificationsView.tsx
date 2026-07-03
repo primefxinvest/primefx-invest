@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { AdminTableCard } from '@/components/admin/AdminTableCard'
 import { StatusCardGrid, statusCardAdminSurfaceClass } from '@/components/shared/status-cards'
 import {
   DialogBackdrop,
@@ -327,8 +328,7 @@ export function AdminVerificationsView({
         </button>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <div className="overflow-x-auto">
+      <AdminTableCard>
           <table className="w-full min-w-[960px]">
             <thead className="border-b border-border bg-background">
               <tr>
@@ -457,10 +457,9 @@ export function AdminVerificationsView({
               )}
             </tbody>
           </table>
-        </div>
-      </div>
+      </AdminTableCard>
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted-foreground">
           Page {page} of {totalPages} · {total} sessions
         </p>

@@ -16,6 +16,86 @@ export type ReferralProgramPageData = {
   overview: ReturnType<typeof buildReferralProgramOverview>
 }
 
+async function fetchCommissionTimeline(referrerId: string) {
+  const admin = createAdminSupabaseClient()
+  if (!admin) {
+    return {
+      thisWeekEarnings: 0,
+      thisMonthEarnings: 0,
+      earningsChart: [] as Array<{ month: string; earnings: number; potential: number }>,
+      periodTrends: { week: '+0%', month: '+0%', lifetime: '+0%' },
+    }
+  }
+
+  const { data } = await admin
+    .from('referral_commissions')
+    .select('commission_usd, created_at, status')
+    .eq('referrer_id', referrerId)
+    .eq('status', 'paid')
+
+  const now = new Date()
+  const weekStart = new Date(now)
+  weekStart.setDate(now.getDate() - 7)
+  const prevWeekStart = new Date(weekStart)
+  prevWeekStart.setDate(prevWeekStart.getDate() - 7)
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
+
+  let thisWeekEarnings = 0
+  let thisMonthEarnings = 0
+  let priorWeekEarnings = 0
+  let priorMonthEarnings = 0
+  let lifetimeBeforeMonth = 0
+  const monthlyMap = new Map<number, number>()
+  const year = now.getFullYear()
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+  for (const row of data ?? []) {
+    const amount = Number(row.commission_usd ?? 0)
+    const created = new Date(row.created_at as string)
+
+    if (created >= weekStart) thisWeekEarnings += amount
+    else if (created >= prevWeekStart && created < weekStart) priorWeekEarnings += amount
+
+    if (created >= monthStart) thisMonthEarnings += amount
+    else if (created >= prevMonthStart && created <= prevMonthEnd) priorMonthEarnings += amount
+    else if (created < monthStart) lifetimeBeforeMonth += amount
+
+    if (created.getFullYear() === year) {
+      const monthIndex = created.getMonth()
+      monthlyMap.set(monthIndex, (monthlyMap.get(monthIndex) ?? 0) + amount)
+    }
+  }
+
+  let cumulative = 0
+  const earningsChart = months.map((month, index) => {
+    cumulative += monthlyMap.get(index) ?? 0
+    return {
+      month,
+      earnings: Math.round(cumulative * 100) / 100,
+      potential: Math.round(cumulative * 1.1 * 100) / 100,
+    }
+  })
+
+  const formatTrend = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? '+100%' : '+0%'
+    const pct = ((current - previous) / previous) * 100
+    return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`
+  }
+
+  return {
+    thisWeekEarnings: Math.round(thisWeekEarnings * 100) / 100,
+    thisMonthEarnings: Math.round(thisMonthEarnings * 100) / 100,
+    earningsChart,
+    periodTrends: {
+      week: formatTrend(thisWeekEarnings, priorWeekEarnings),
+      month: formatTrend(thisMonthEarnings, priorMonthEarnings),
+      lifetime: formatTrend(thisMonthEarnings + lifetimeBeforeMonth, lifetimeBeforeMonth),
+    },
+  }
+}
+
 async function fetchLevelEarnings(referrerId: string) {
   const admin = createAdminSupabaseClient()
   if (!admin) {
@@ -53,7 +133,7 @@ export async function fetchReferralProgramOverviewServer(
     supabase.from('users').select('referral_code').eq('id', userId).maybeSingle(),
     supabase
       .from('referrals')
-      .select('id, referred_user_id, bonus_earned, status, created_at, welcome_bonus_paid')
+      .select('id, referred_user_id, bonus_earned, status, created_at')
       .eq('referrer_id', userId)
       .order('created_at', { ascending: false }),
   ])
@@ -74,8 +154,7 @@ export async function fetchReferralProgramOverviewServer(
     )
   }
 
-  const welcomeBonusTotal = referralRows.filter((r) => r.welcome_bonus_paid).length * 10
-  const totalEarnings = totalCommissionEarnings + welcomeBonusTotal
+  const totalEarnings = totalCommissionEarnings
 
   const referralCode = (user?.referral_code as string | undefined)?.trim() || userId.slice(0, 8)
   const origin = getSiteUrl()
@@ -129,9 +208,7 @@ export async function fetchReferralProgramOverviewServer(
             name: referred?.full_name || `Investor ${member.descendantId.slice(0, 8)}`,
             email: referred?.email || 'Network member',
             status: (directRow?.status as string) ?? 'Active',
-            commissionEarned: directRow
-              ? toNumber(directRow.bonus_earned) + (directRow.welcome_bonus_paid ? 10 : 0)
-              : 0,
+            commissionEarned: directRow ? toNumber(directRow.bonus_earned) : 0,
             joinedDate: directRow
               ? formatDate(directRow.created_at as string)
               : '—',
@@ -150,7 +227,7 @@ export async function fetchReferralProgramOverviewServer(
             name: referred?.full_name || `Investor ${referredId.slice(0, 8)}`,
             email: referred?.email || 'Referred investor',
             status: (row.status as string) ?? 'Pending',
-            commissionEarned: toNumber(row.bonus_earned) + (row.welcome_bonus_paid ? 10 : 0),
+            commissionEarned: toNumber(row.bonus_earned),
             joinedDate: formatDate(row.created_at as string),
             tradingVolume: formatCurrency(toNumber(row.bonus_earned) * 20),
             networkLevel: 1,
@@ -158,6 +235,7 @@ export async function fetchReferralProgramOverviewServer(
         })
 
   const levelEarnings = await fetchLevelEarnings(userId)
+  const commissionTimeline = await fetchCommissionTimeline(userId)
 
   const { data: stats } = admin
     ? await admin
@@ -167,6 +245,10 @@ export async function fetchReferralProgramOverviewServer(
         .maybeSingle()
     : { data: null }
 
+  const referralDates = referralRows
+    .map((row) => new Date(row.created_at as string))
+    .filter((date) => !Number.isNaN(date.getTime()))
+
   return {
     referralData,
     referrals: referralList,
@@ -175,6 +257,11 @@ export async function fetchReferralProgramOverviewServer(
       levelEarnings,
       memberCount: Number(stats?.total_member_count ?? referralRows.length),
       activeInvestors: Number(stats?.active_member_count ?? referralList.filter((r) => r.status === 'Active').length),
+      thisWeekEarnings: commissionTimeline.thisWeekEarnings,
+      thisMonthEarnings: commissionTimeline.thisMonthEarnings,
+      earningsChart: commissionTimeline.earningsChart,
+      periodTrends: commissionTimeline.periodTrends,
+      referralDates,
     }),
   }
 }

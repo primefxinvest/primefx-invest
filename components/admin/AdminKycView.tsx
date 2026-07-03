@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Clock, Eye, Loader2, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { AdminTableCard } from '@/components/admin/AdminTableCard'
 import { updateUserKycStatus } from '@/lib/admin/actions'
 import type { AdminKycQueueRow } from '@/lib/admin/types'
 import { formatDate, formatDateTime } from '@/lib/data/format'
@@ -87,7 +88,7 @@ export function AdminKycView({ queue }: { queue: AdminKycQueueRow[] }) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <AdminPageHeader
         title="KYC Verification"
         description="Review submitted identity documents and approve or reject verification"
@@ -104,8 +105,8 @@ export function AdminKycView({ queue }: { queue: AdminKycQueueRow[] }) {
         />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full">
+      <AdminTableCard>
+        <table className="w-full min-w-[640px]">
           <thead className="border-b border-border bg-background">
             <tr>
               <th className="px-6 py-3 text-left text-sm font-semibold">User</th>
@@ -176,7 +177,7 @@ export function AdminKycView({ queue }: { queue: AdminKycQueueRow[] }) {
             )}
           </tbody>
         </table>
-      </div>
+      </AdminTableCard>
 
       <ActionDialog />
     </div>

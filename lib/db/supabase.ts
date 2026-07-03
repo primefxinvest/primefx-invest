@@ -208,6 +208,139 @@ export async function getUserCourses(userId: string) {
   }
 }
 
+export async function getAcademyCourses() {
+  try {
+    const { data, error } = await supabase
+      .from('academy_courses')
+      .select('*')
+      .order('created_at', { ascending: true })
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getCommunityPosts(limit = 50) {
+  try {
+    const { data, error } = await supabase
+      .from('community_posts')
+      .select(`
+        *,
+        users ( full_name, email )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getSupportTickets(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function createSupportTicket(ticket: {
+  user_id: string
+  subject: string
+  description: string
+  priority?: string
+}) {
+  try {
+    const { data, error } = await supabase
+      .from('support_tickets')
+      .insert([
+        {
+          user_id: ticket.user_id,
+          subject: ticket.subject,
+          description: ticket.description,
+          priority: ticket.priority ?? 'medium',
+        },
+      ])
+      .select()
+      .single()
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getUserPreferences(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', userId)
+      .maybeSingle()
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function upsertUserPreferences(
+  userId: string,
+  preferences: Record<string, unknown>
+) {
+  try {
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .upsert({ user_id: userId, ...preferences, updated_at: new Date().toISOString() })
+      .select()
+      .single()
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getMarketInsights() {
+  try {
+    const { data, error } = await supabase
+      .from('market_insights')
+      .select('*')
+      .eq('active', true)
+      .order('published_at', { ascending: false })
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getRewardsTiers() {
+  try {
+    const { data, error } = await supabase
+      .from('rewards_tiers')
+      .select('*')
+      .order('minimum_points', { ascending: true })
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getRewardCatalog() {
+  try {
+    const { data, error } = await supabase
+      .from('reward_catalog')
+      .select('*')
+      .eq('active', true)
+      .order('points_cost', { ascending: true })
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
 export async function getMarketAssets() {
   try {
     const { data, error } = await supabase

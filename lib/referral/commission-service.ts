@@ -58,7 +58,7 @@ export async function accrueReferralCommissionsForProfit(input: {
   if (error) throw new Error(error.message)
 }
 
-/** Mark referral active on first deposit/investment; welcome bonus pays after KYC. */
+/** Mark referral active on first deposit/investment. */
 export async function markReferralActiveOnFirstActivity(sourceUserId: string) {
   const db = getDb()
   const { data: referral } = await db

@@ -128,3 +128,88 @@ export interface WalletActivitySummary {
   transfers: { value: string; change: string; trend: 'up' | 'down' }
   bonuses: { value: string; change: string; trend: 'up' | 'down' }
 }
+
+export interface AcademyCourseItem {
+  id: string
+  title: string
+  category: string
+  lessons: number
+  duration: string
+  difficulty: string
+  progress: number
+  completed: boolean
+  locked: boolean
+  lockReason?: string
+}
+
+export interface AcademyStats {
+  coursesCompleted: number
+  totalCourses: number
+  xpEarned: number
+  learningStreakDays: number
+}
+
+export interface CommunityPostItem {
+  id: string
+  author: string
+  avatar: string
+  title: string
+  content: string
+  category: string
+  likes: number
+  comments: number
+  timestamp: string
+}
+
+export interface CommunityMemberItem {
+  id: string
+  name: string
+  posts: number
+  engagement: number
+  avatar: string
+}
+
+export interface SupportTicketItem {
+  id: string
+  subject: string
+  description: string
+  status: string
+  priority: string
+  created: string
+  updated: string
+}
+
+export interface MarketInsightItem {
+  id: string
+  title: string
+  summary: string
+  tag: string
+  sentiment: 'bullish' | 'neutral' | 'bearish'
+}
+
+export interface UserPreferencesData {
+  theme: string
+  currency: string
+  profileVisibility: string
+  emailNotifications: boolean
+  investmentAlerts: boolean
+  securityAlerts: boolean
+}
+
+export interface WalletHealthData {
+  score: number
+  statusKey: 'excellent' | 'good' | 'fair' | 'actionRequired'
+}
+
+export interface RewardTierItem {
+  tier: string
+  points: string
+  benefits: string[]
+}
+
+export interface RewardCatalogItem {
+  id: string
+  name: string
+  description: string
+  pointsCost: number
+}

@@ -2,9 +2,23 @@
 
 import { Shield } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { fetchWalletHealth } from '@/lib/data/queries'
+
+const statusColors = {
+  excellent: { stroke: '#10b981', text: 'text-emerald-600', bg: 'bg-emerald-100 text-emerald-700' },
+  good: { stroke: '#22c55e', text: 'text-emerald-600', bg: 'bg-emerald-100 text-emerald-700' },
+  fair: { stroke: '#f59e0b', text: 'text-amber-600', bg: 'bg-amber-100 text-amber-700' },
+  actionRequired: { stroke: '#ef4444', text: 'text-red-600', bg: 'bg-red-100 text-red-700' },
+}
 
 export default function WalletHealthCard() {
   const t = useTranslations('wallet.health')
+  const { data: health } = useAsyncData(() => fetchWalletHealth(), [])
+
+  const score = (health?.score ?? 0) / 100
+  const statusKey = health?.statusKey ?? 'actionRequired'
+  const colors = statusColors[statusKey]
 
   return (
     <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -19,10 +33,10 @@ export default function WalletHealthCard() {
               cy="56"
               r="48"
               fill="none"
-              stroke="#10b981"
+              stroke={colors.stroke}
               strokeWidth="8"
               strokeDasharray={`${2 * Math.PI * 48}`}
-              strokeDashoffset={`${2 * Math.PI * 48 * (1 - 0.92)}`}
+              strokeDashoffset={`${2 * Math.PI * 48 * (1 - score)}`}
               strokeLinecap="round"
             />
           </svg>
@@ -31,11 +45,11 @@ export default function WalletHealthCard() {
           </div>
         </div>
 
-        <p className="mt-4 text-sm font-semibold text-emerald-600">{t('secure')}</p>
+        <p className={`mt-4 text-sm font-semibold ${colors.text}`}>{t(statusKey)}</p>
         <p className="mt-1 text-center text-xs text-gray-500">{t('encryption')}</p>
 
-        <span className="mt-4 inline-flex rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-          {t('allNormal')}
+        <span className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${colors.bg}`}>
+          {statusKey === 'actionRequired' ? t('completeKyc') : t('allNormal')}
         </span>
       </div>
     </div>

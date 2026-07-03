@@ -5,7 +5,7 @@ import { Loader2, Share2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { adminSetReferralProgramEnabled } from '@/lib/referral/settings-actions'
-import { REFERRAL_PROFIT_SHARE_LEVELS, REFERRAL_RANK_TIERS, REFERRAL_WELCOME_BONUS_USD } from '@/lib/referral/program-config'
+import { REFERRAL_PROFIT_SHARE_LEVELS, REFERRAL_RANK_TIERS } from '@/lib/referral/program-config'
 import { cn } from '@/lib/utils'
 
 interface AdminReferralSettingsProps {
@@ -107,8 +107,7 @@ export function AdminReferralSettings({ enabled, configured }: AdminReferralSett
             ))}
           </ul>
           <p className="mt-3 text-xs text-muted-foreground">
-            Welcome bonus: ${REFERRAL_WELCOME_BONUS_USD} to referrer and friend after first deposit &
-            KYC. Commissions accrue daily and pay weekly (Friday batch). Platform fees: P2P transfer
+            Commissions accrue daily and pay weekly (Friday batch). Platform fees: P2P transfer
             1.2% · Withdrawal 5% · Withdrawals require a 7-day notice. Gold (XAU/USD) profits accrue
             Monday–Friday only.
           </p>

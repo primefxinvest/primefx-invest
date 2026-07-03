@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { SummaryCard } from '@/components/portfolio/SummaryCard'
 import { StatusCardGrid } from '@/components/shared/status-cards'
+import { ScrollTable } from '@/components/shared/ScrollTable'
 import { ErrorState } from '@/components/shared/data-state'
 import { MetricCardsSkeleton, TableSkeleton } from '@/components/shared/skeletons'
 import PerformanceChart from '@/components/portfolio/PerformanceChart'
@@ -32,6 +33,7 @@ import {
   fetchPortfolioInvestments,
   fetchPortfolioMetrics,
   fetchPortfolioOverview,
+  fetchPortfolioPerformanceStats,
 } from '@/lib/data/queries'
 const planIcons: Record<string, typeof Sprout> = {
   'Starter Plan': Sprout,
@@ -44,6 +46,7 @@ export default function PortfolioPage() {
   const { data: overview, loading: overviewLoading, error: overviewError, reload: reloadOverview } =
     useAsyncData(() => fetchPortfolioOverview(), [])
   const { data: metrics } = useAsyncData(() => fetchPortfolioMetrics(), [])
+  const { data: performanceStats } = useAsyncData(() => fetchPortfolioPerformanceStats(), [])
   const { data: chartData = [] } = useAsyncData(() => fetchPortfolioChart(), [])
   const { data: allocation = [] } = useAsyncData(() => fetchAssetAllocation(), [])
   const { data: monthlyReturns = [] } = useAsyncData(() => fetchMonthlyReturns(), [])
@@ -54,10 +57,10 @@ export default function PortfolioPage() {
   const portfolioCompletedInvestments = investments?.completed ?? []
 
   const portfolioPerformanceStats = {
-    bestMonth: metrics?.trends[0]?.percentage ?? '0%',
-    avgMonthlyReturn: metrics?.roiPercentage ?? '0%',
-    winningMonths: '—',
-    maxDrawdown: '—',
+    bestMonth: performanceStats?.bestMonth ?? metrics?.trends[0]?.percentage ?? '0%',
+    avgMonthlyReturn: performanceStats?.avgMonthlyReturn ?? metrics?.roiPercentage ?? '0%',
+    winningMonths: performanceStats?.winningMonths ?? '0',
+    maxDrawdown: performanceStats?.maxDrawdown ?? '0%',
   }
 
   const portfolioAIAnalysis = {
@@ -112,7 +115,7 @@ export default function PortfolioPage() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -193,8 +196,8 @@ export default function PortfolioPage() {
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-[15px] font-semibold text-slate-900">Active Investments</h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+          <ScrollTable>
+            <table className="w-full min-w-[640px] text-[13px]">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
                   <th className="px-5 py-3">Plan</th>
@@ -272,7 +275,7 @@ export default function PortfolioPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ScrollTable>
           <div className="border-t border-slate-100 px-5 py-3">
             <Link
               href="/invest"
@@ -288,8 +291,8 @@ export default function PortfolioPage() {
           <div className="border-b border-slate-100 px-5 py-4">
             <h2 className="text-[15px] font-semibold text-slate-900">Completed Investments</h2>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+          <ScrollTable>
+            <table className="w-full min-w-[640px] text-[13px]">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
                   <th className="px-5 py-3">Plan</th>
@@ -342,7 +345,7 @@ export default function PortfolioPage() {
                 )}
               </tbody>
             </table>
-          </div>
+          </ScrollTable>
           <div className="border-t border-slate-100 px-5 py-3">
             <Link
               href="/transactions"

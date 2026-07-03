@@ -17,6 +17,7 @@ import {
 import { AsyncState } from '@/components/shared/data-state'
 import { WalletDepositCta, WalletTransferCta } from '@/components/wallet/layout/WalletSidePanels'
 import { TableSkeleton } from '@/components/shared/skeletons'
+import { ScrollTable } from '@/components/shared/ScrollTable'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchWalletTransactions } from '@/lib/data/queries'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
@@ -166,7 +167,7 @@ export default function WalletTransactionTable() {
         skeleton={<TableSkeleton rows={5} cols={6} />}
         compact
       >
-        <div className="mt-4 overflow-x-auto">
+        <ScrollTable className="mt-4">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-left text-xs font-semibold text-gray-500">
@@ -239,7 +240,7 @@ export default function WalletTransactionTable() {
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollTable>
       </AsyncState>
 
       <Link

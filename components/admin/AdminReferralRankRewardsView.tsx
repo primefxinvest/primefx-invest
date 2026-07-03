@@ -4,6 +4,7 @@ import { useTransition } from 'react'
 import { CheckCircle2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { AdminTableCard } from '@/components/admin/AdminTableCard'
 import { adminFulfillRankReward } from '@/lib/admin/actions'
 import type { AdminRankRewardRow } from '@/lib/admin/queries'
 
@@ -22,14 +23,14 @@ export function AdminReferralRankRewardsView({ rows }: { rows: AdminRankRewardRo
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <AdminPageHeader
         title="Referral Rank Rewards"
         description="Cash bonuses pay automatically via cron. Mark non-cash perks (vacation, Ambassador benefits) when fulfilled."
       />
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full text-sm">
+      <AdminTableCard>
+        <table className="w-full min-w-[720px] text-sm">
           <thead className="border-b border-border bg-background">
             <tr>
               <th className="px-4 py-3 text-left font-semibold">User</th>
@@ -83,7 +84,7 @@ export function AdminReferralRankRewardsView({ rows }: { rows: AdminRankRewardRo
             )}
           </tbody>
         </table>
-      </div>
+      </AdminTableCard>
     </div>
   )
 }

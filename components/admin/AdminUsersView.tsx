@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { AdminTableCard } from '@/components/admin/AdminTableCard'
 import {
   addAdminNote,
   addKycReviewNote,
@@ -393,8 +394,8 @@ export function AdminUsersView({
         />
       </div>
 
-      <div className="min-w-0 overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full table-fixed">
+      <AdminTableCard>
+        <table className="w-full min-w-[720px] table-fixed">
           <colgroup>
             <col style={{ width: '36%' }} />
             <col style={{ width: '12%' }} />
@@ -504,7 +505,7 @@ export function AdminUsersView({
             )}
           </tbody>
         </table>
-      </div>
+      </AdminTableCard>
 
       <ActionDialog />
       <KycActionDialog />

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Eye, Search } from 'lucide-react'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
+import { AdminTableCard } from '@/components/admin/AdminTableCard'
 import type { AdminWalletRow } from '@/lib/admin/types'
 import { formatCurrency, formatDateTime } from '@/lib/data/format'
 
@@ -21,7 +22,7 @@ export function AdminWalletsView({ wallets }: { wallets: AdminWalletRow[] }) {
   }, [search, wallets])
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <AdminPageHeader title="Wallet Management" description="Monitor and manage user wallets" />
 
       <div className="flex max-w-md items-center gap-2 rounded-lg border border-border bg-card px-4 py-2">
@@ -35,8 +36,8 @@ export function AdminWalletsView({ wallets }: { wallets: AdminWalletRow[] }) {
         />
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <table className="w-full">
+      <AdminTableCard>
+        <table className="w-full min-w-[720px]">
           <thead className="border-b border-border bg-background">
             <tr>
               <th className="px-6 py-3 text-left text-sm font-semibold">User</th>
@@ -86,7 +87,7 @@ export function AdminWalletsView({ wallets }: { wallets: AdminWalletRow[] }) {
             )}
           </tbody>
         </table>
-      </div>
+      </AdminTableCard>
     </div>
   )
 }

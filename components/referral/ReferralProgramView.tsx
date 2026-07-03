@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useId, useMemo, useState } from 'react'
 import {
   Award,
   BookOpen,
@@ -9,7 +9,6 @@ import {
   Copy,
   Crown,
   Gem,
-  Gift,
   HelpCircle,
   Mail,
   Medal,
@@ -38,6 +37,8 @@ import {
 import { toast } from 'sonner'
 import { Link } from '@/i18n/navigation'
 import { AsyncState, EmptyState, ErrorState } from '@/components/shared/data-state'
+import { ScrollTable } from '@/components/shared/ScrollTable'
+import { ReferralAchievementsBadgesPanel } from '@/components/referral/ReferralAchievementsBadgesPanel'
 import { ReferralQrCode } from '@/components/referral/ReferralQrCode'
 import { MetricCardsSkeleton, PageHeaderSkeleton } from '@/components/shared/skeletons'
 import {
@@ -53,12 +54,11 @@ import {
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { formatCurrency } from '@/lib/data/format'
 import { fetchReferralProgramOverviewAction } from '@/lib/referral/actions'
-import type { ReferralProgramOverview } from '@/lib/referral/analytics'
+import type { ReferralListItem, ReferralProgramOverview } from '@/lib/referral/analytics'
 import type { ReferralProgramPageData } from '@/lib/referral/overview-server'
 import {
   REFERRAL_INVESTMENT_COMMISSION_RATE,
   REFERRAL_RANK_TIERS,
-  REFERRAL_WELCOME_BONUS_USD,
   formatProfitShareLevelsSummary,
   formatReferralRate,
   getMaxProfitShareRate,
@@ -67,14 +67,6 @@ import {
 import { cn } from '@/lib/utils'
 
 const BENEFIT_CARDS = [
-  {
-    title: 'Welcome Bonus',
-    lead: 'You & your friend get ',
-    highlight: `$${REFERRAL_WELCOME_BONUS_USD} Investment Credit`,
-    footer: 'After first deposit & KYC',
-    icon: Gift,
-    accent: 'bg-violet-50 text-violet-600',
-  },
   {
     title: 'Investment Commission',
     lead: '',
@@ -110,10 +102,253 @@ const SHARE_ACTIONS = [
   { key: 'copy', label: 'Copy', icon: Copy, color: 'text-gray-700' },
 ] as const
 
-function funnelBarWidth(value: number, total: number, minPercent = 20) {
-  if (total <= 0) return `${minPercent}%`
-  const percent = (value / total) * 100
-  return `${Math.max(minPercent, Math.min(100, percent))}%`
+function ReferralFunnelPanel({ funnel }: { funnel: ReferralProgramOverview['funnel'] }) {
+  const gradientId = useId().replace(/:/g, '')
+  const clicks = funnel.clicks.toLocaleString()
+  const signups = funnel.signups.toLocaleString()
+  const activeInvestors = funnel.activeInvestors.toLocaleString()
+  const conversionRate = Number(funnel.conversionRate).toFixed(2)
+
+  const statRows = [
+    { key: 'clicks', value: clicks },
+    { key: 'signups', value: signups },
+    {
+      key: 'active',
+      label: 'Active Investors',
+      value: activeInvestors,
+    },
+  ] as const
+
+  return (
+    <div className="h-fit w-full self-start rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <h3 className="font-semibold text-gray-900">Conversion Funnel</h3>
+
+      <div className="mt-3 flex items-start gap-3 sm:gap-4">
+        <div className="relative w-[9.5rem] shrink-0 sm:w-[10.5rem]">
+          <svg
+            viewBox="0 0 200 188"
+            className="h-auto w-full"
+            role="img"
+            aria-label={`Conversion funnel: ${clicks} clicks, ${signups} signups, ${activeInvestors} active investors`}
+          >
+            <defs>
+              <linearGradient id={`${gradientId}-purple`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#a78bfa" />
+                <stop offset="100%" stopColor="#7c3aed" />
+              </linearGradient>
+              <linearGradient id={`${gradientId}-blue`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#60a5fa" />
+                <stop offset="100%" stopColor="#2563eb" />
+              </linearGradient>
+              <linearGradient id={`${gradientId}-green`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#34d399" />
+                <stop offset="100%" stopColor="#059669" />
+              </linearGradient>
+              <linearGradient id={`${gradientId}-orange`} x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#fb923c" />
+                <stop offset="100%" stopColor="#ea580c" />
+              </linearGradient>
+            </defs>
+
+            <path d="M 18 2 L 182 2 L 162 44 L 38 44 Z" fill={`url(#${gradientId}-purple)`} />
+            <rect x="0" y="44" width="200" height="3" fill="#ffffff" />
+            <path d="M 38 47 L 162 47 L 142 89 L 58 89 Z" fill={`url(#${gradientId}-blue)`} />
+            <rect x="0" y="89" width="200" height="3" fill="#ffffff" />
+            <path d="M 58 92 L 142 92 L 122 134 L 78 134 Z" fill={`url(#${gradientId}-green)`} />
+            <rect x="0" y="134" width="200" height="3" fill="#ffffff" />
+            <path d="M 78 137 L 122 137 L 122 177 L 78 177 Z" fill={`url(#${gradientId}-orange)`} />
+
+            <text
+              x="100"
+              y="28"
+              textAnchor="middle"
+              fill="#ffffff"
+              fontSize="13"
+              fontWeight="600"
+              fontFamily="ui-sans-serif, system-ui, sans-serif"
+            >
+              Clicks
+            </text>
+            <text
+              x="100"
+              y="73"
+              textAnchor="middle"
+              fill="#ffffff"
+              fontSize="13"
+              fontWeight="600"
+              fontFamily="ui-sans-serif, system-ui, sans-serif"
+            >
+              Signups
+            </text>
+            <text
+              x="100"
+              y="118"
+              textAnchor="middle"
+              fill="#ffffff"
+              fontSize="14"
+              fontWeight="700"
+              fontFamily="ui-sans-serif, system-ui, sans-serif"
+            >
+              {activeInvestors}
+            </text>
+          </svg>
+
+          <div className="pointer-events-none absolute bottom-[6%] left-1/2 flex h-[21%] w-[22%] -translate-x-1/2 items-center justify-center">
+            <Crown className="h-4 w-4 text-white sm:h-[18px] sm:w-[18px]" strokeWidth={2.25} />
+          </div>
+        </div>
+
+        <div className="flex min-h-[11.75rem] flex-1 flex-col justify-between py-0.5 sm:min-h-[12.5rem]">
+          {statRows.map((row) => (
+            <div
+              key={row.key}
+              className={cn(
+                'flex min-h-[2.65rem] items-center sm:min-h-[2.85rem]',
+                row.key === 'active' && 'flex-col items-start justify-center'
+              )}
+            >
+              {'label' in row ? (
+                <>
+                  <p className="text-[11px] font-medium leading-tight text-gray-500">{row.label}</p>
+                  <p className="text-lg font-bold tabular-nums leading-none text-gray-900 sm:text-xl">
+                    {row.value}
+                  </p>
+                </>
+              ) : (
+                <p className="text-lg font-bold tabular-nums leading-none text-gray-900 sm:text-xl">
+                  {row.value}
+                </p>
+              )}
+            </div>
+          ))}
+          <div className="min-h-[2.4rem]" aria-hidden />
+        </div>
+      </div>
+
+      <p className="mt-2 text-right text-sm font-semibold text-emerald-600">
+        Conversion Rate: {conversionRate}%
+      </p>
+    </div>
+  )
+}
+
+function referralStatusClass(status: string) {
+  if (status === 'Active') return 'bg-emerald-100 text-emerald-700'
+  if (status === 'Pending') return 'bg-amber-100 text-amber-700'
+  return 'bg-gray-100 text-gray-600'
+}
+
+function ReferralAllReferralsSection({
+  referrals,
+  onCopyLink,
+}: {
+  referrals: ReferralListItem[]
+  onCopyLink: () => void
+}) {
+  return (
+    <div
+      id="all-referrals"
+      className="scroll-mt-24 min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm lg:col-span-2"
+    >
+      <div className="flex flex-col gap-3 border-b border-gray-100 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+        <h3 className="font-semibold text-gray-900">All Referrals</h3>
+        <Link href="/transactions" className="text-sm font-semibold text-[#0052ff] hover:underline">
+          View transactions
+        </Link>
+      </div>
+
+      <div className="min-w-0 p-4 sm:p-6">
+        {referrals.length === 0 ? (
+          <EmptyState
+            icon={Users}
+            title="No referrals yet"
+            description="Share your referral link to invite friends and start earning commissions."
+            action={
+              <button
+                type="button"
+                onClick={onCopyLink}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#0052ff] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                <Copy className="h-4 w-4" />
+                Copy referral link
+              </button>
+            }
+            compact
+          />
+        ) : (
+          <>
+            <ul className="divide-y divide-gray-100 md:hidden">
+              {referrals.map((referral) => (
+                <li key={referral.id} className="py-3 first:pt-0 last:pb-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-gray-900">{referral.name}</p>
+                      <p className="truncate text-xs text-gray-500">{referral.email}</p>
+                      <p className="mt-1 text-xs text-gray-400">{referral.joinedDate}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <span
+                        className={cn(
+                          'inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold',
+                          referralStatusClass(referral.status)
+                        )}
+                      >
+                        {referral.status}
+                      </span>
+                      <p className="mt-1 text-sm font-semibold text-emerald-600">
+                        {formatCurrency(referral.commissionEarned)}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <table className="hidden w-full table-fixed md:table">
+              <colgroup>
+                <col style={{ width: '36%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '24%' }} />
+                <col style={{ width: '22%' }} />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-gray-100 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <th className="pb-3 pr-2">Name</th>
+                  <th className="pb-3 pr-2">Status</th>
+                  <th className="pb-3 pr-2">Joined</th>
+                  <th className="pb-3 text-right">Earned</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {referrals.map((referral) => (
+                  <tr key={referral.id}>
+                    <td className="overflow-hidden py-3 pr-2">
+                      <p className="truncate font-medium text-gray-900">{referral.name}</p>
+                      <p className="truncate text-xs text-gray-500">{referral.email}</p>
+                    </td>
+                    <td className="py-3 pr-2">
+                      <span
+                        className={cn(
+                          'inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold sm:px-2.5 sm:py-1 sm:text-xs',
+                          referralStatusClass(referral.status)
+                        )}
+                      >
+                        {referral.status}
+                      </span>
+                    </td>
+                    <td className="truncate py-3 pr-2 text-sm text-gray-500">{referral.joinedDate}</td>
+                    <td className="py-3 text-right font-semibold text-emerald-600">
+                      {formatCurrency(referral.commissionEarned)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function healthScoreStyles(label: string) {
@@ -127,8 +362,8 @@ function healthScoreStyles(label: string) {
 }
 
 function ReferralHealthScoreGauge({ score, label }: { score: number; label: string }) {
-  const size = 96
-  const stroke = 8
+  const size = 72
+  const stroke = 6
   const radius = (size - stroke) / 2
   const circumference = 2 * Math.PI * radius
   const progress = Math.min(100, Math.max(0, score))
@@ -136,9 +371,9 @@ function ReferralHealthScoreGauge({ score, label }: { score: number; label: stri
   const { stroke: strokeColor, text: labelColor } = healthScoreStyles(label)
 
   return (
-    <div className="flex h-full min-h-[148px] flex-col rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm xl:min-w-[180px]">
-      <p className="text-[11px] font-medium text-gray-500">Health Score</p>
-      <div className="mt-3 flex flex-1 items-end justify-between gap-2">
+    <div className="flex flex-col rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm xl:min-w-[150px]">
+      <p className="text-[10px] font-medium text-gray-500 sm:text-[11px]">Health Score</p>
+      <div className="mt-2 flex items-center justify-between gap-2">
         <div className="relative shrink-0">
           <svg width={size} height={size} className="-rotate-90" aria-hidden>
             <circle
@@ -163,13 +398,13 @@ function ReferralHealthScoreGauge({ score, label }: { score: number; label: stri
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-lg font-bold leading-none text-gray-900">
+            <span className="text-sm font-bold leading-none text-gray-900">
               {score}
-              <span className="text-[11px] font-medium text-gray-400"> /100</span>
+              <span className="text-[10px] font-medium text-gray-400"> /100</span>
             </span>
           </div>
         </div>
-        <p className={cn('pb-1 text-right text-sm font-semibold', labelColor)}>{label}</p>
+        <p className={cn('text-right text-xs font-semibold sm:text-sm', labelColor)}>{label}</p>
       </div>
     </div>
   )
@@ -177,6 +412,10 @@ function ReferralHealthScoreGauge({ score, label }: { score: number; label: stri
 
 function shortRankName(fullName: string) {
   return fullName.replace(/^PrimeFx\s+/i, '')
+}
+
+function isMaxRankMetric(rank: ReferralProgramOverview['rank']) {
+  return rank.current === rank.next
 }
 
 function resolveRankKeyFromName(name: string): ReferralRankKey {
@@ -289,8 +528,12 @@ function ReferralRankProgressPanel({ rank }: { rank: ReferralProgramOverview['ra
           </div>
 
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
-            <p className="shrink-0 text-xl font-bold text-slate-900">
-              {rank.nextThreshold.toLocaleString()} Active Investors
+            <p className="shrink-0 text-base font-bold leading-snug text-slate-900 sm:text-lg">
+              {isMaxRank
+                ? 'All rank levels unlocked'
+                : rank.membersRemaining === 0
+                  ? `Ready for ${nextShort}!`
+                  : `${rank.membersRemaining.toLocaleString()} more active member${rank.membersRemaining === 1 ? '' : 's'} required`}
             </p>
             <div className="flex min-w-0 flex-1 items-center gap-3">
               <div className="h-3 min-w-0 flex-1 overflow-hidden rounded-full bg-violet-100">
@@ -306,6 +549,11 @@ function ReferralRankProgressPanel({ rank }: { rank: ReferralProgramOverview['ra
               </span>
             </div>
           </div>
+          {!isMaxRank ? (
+            <p className="mt-2 text-xs text-slate-500">
+              {rank.nextThreshold.toLocaleString()} active members required to reach {nextShort}
+            </p>
+          ) : null}
         </div>
 
         <div className="shrink-0">
@@ -316,6 +564,190 @@ function ReferralRankProgressPanel({ rank }: { rank: ReferralProgramOverview['ra
           />
         </div>
       </div>
+    </div>
+  )
+}
+
+function formatRankReward(tier: (typeof REFERRAL_RANK_TIERS)[number]) {
+  const parts: string[] = []
+  if (tier.cashBonusUsd > 0) {
+    parts.push(`$${tier.cashBonusUsd.toLocaleString()} bonus`)
+  }
+  if (tier.perks.length > 0) {
+    parts.push(...tier.perks)
+  }
+  return parts.length > 0 ? parts.join(' · ') : 'Rank recognition'
+}
+
+function ReferralRankStatusBadge({
+  unlocked,
+  isCurrent,
+  isNext,
+}: {
+  unlocked: boolean
+  isCurrent: boolean
+  isNext: boolean
+}) {
+  if (isCurrent) {
+    return (
+      <span className="rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+        Current
+      </span>
+    )
+  }
+  if (isNext) {
+    return (
+      <span className="rounded-full bg-[#0052ff] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+        Next
+      </span>
+    )
+  }
+  if (unlocked) {
+    return (
+      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+        Achieved
+      </span>
+    )
+  }
+  return (
+    <span className="rounded-full bg-gray-200 px-2 py-0.5 text-[10px] font-bold uppercase text-gray-600">
+      Locked
+    </span>
+  )
+}
+
+function ReferralRankLevelsPanel({
+  activeInvestors,
+  currentRank,
+  nextRank,
+}: {
+  activeInvestors: number
+  currentRank: string
+  nextRank: string
+}) {
+  const rows = REFERRAL_RANK_TIERS.map((tier) => {
+    const unlocked = activeInvestors >= tier.minMembers
+    const isCurrent = tier.name === currentRank
+    const isNext = tier.name === nextRank && currentRank !== nextRank
+    const membersRemaining = Math.max(0, tier.minMembers - activeInvestors)
+
+    return { tier, unlocked, isCurrent, isNext, membersRemaining }
+  })
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 className="font-semibold text-gray-900">Rank Levels & Member Requirements</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            Active members in your network determine your referral rank and rewards.
+          </p>
+        </div>
+        <p className="text-sm font-semibold text-[#0052ff]">
+          You have {activeInvestors.toLocaleString()} active member{activeInvestors === 1 ? '' : 's'}
+        </p>
+      </div>
+
+      {/* Mobile / tablet: stacked cards */}
+      <div className="mt-4 space-y-2 lg:hidden">
+        {rows.map(({ tier, unlocked, isCurrent, isNext, membersRemaining }) => (
+          <div
+            key={tier.key}
+            className={cn(
+              'rounded-xl border px-4 py-3 transition-colors',
+              isCurrent
+                ? 'border-violet-300 bg-violet-50'
+                : isNext
+                  ? 'border-[#0052ff]/30 bg-blue-50/50'
+                  : unlocked
+                    ? 'border-emerald-200 bg-emerald-50/40'
+                    : 'border-gray-100 bg-gray-50'
+            )}
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-semibold text-gray-900">{shortRankName(tier.name)}</p>
+                  <ReferralRankStatusBadge
+                    unlocked={unlocked}
+                    isCurrent={isCurrent}
+                    isNext={isNext}
+                  />
+                </div>
+                <p className="mt-1 text-sm font-medium text-gray-700">
+                  {tier.minMembers.toLocaleString()} active members required
+                </p>
+                <p className="mt-1 text-xs text-gray-500">{formatRankReward(tier)}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                {unlocked ? (
+                  <p className="text-xs font-semibold text-emerald-600">Unlocked</p>
+                ) : (
+                  <p className="text-xs font-semibold text-gray-600">
+                    {membersRemaining.toLocaleString()} more needed
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Laptop / desktop: table */}
+      <ScrollTable className="mt-4 hidden lg:block">
+        <table className="w-full min-w-[720px] text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <th className="px-4 py-3">Rank</th>
+              <th className="px-4 py-3">Members required</th>
+              <th className="px-4 py-3">Rewards</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3 text-right">Progress</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {rows.map(({ tier, unlocked, isCurrent, isNext, membersRemaining }) => (
+              <tr
+                key={tier.key}
+                className={cn(
+                  'transition-colors',
+                  isCurrent
+                    ? 'bg-violet-50/80'
+                    : isNext
+                      ? 'bg-blue-50/40'
+                      : unlocked
+                        ? 'bg-emerald-50/30'
+                        : 'hover:bg-gray-50/80'
+                )}
+              >
+                <td className="px-4 py-3.5">
+                  <p className="font-semibold text-gray-900">{shortRankName(tier.name)}</p>
+                </td>
+                <td className="px-4 py-3.5 font-medium tabular-nums text-gray-700">
+                  {tier.minMembers.toLocaleString()}
+                </td>
+                <td className="px-4 py-3.5 text-gray-600">{formatRankReward(tier)}</td>
+                <td className="px-4 py-3.5">
+                  <ReferralRankStatusBadge
+                    unlocked={unlocked}
+                    isCurrent={isCurrent}
+                    isNext={isNext}
+                  />
+                </td>
+                <td className="px-4 py-3.5 text-right">
+                  {unlocked ? (
+                    <span className="font-semibold text-emerald-600">Unlocked</span>
+                  ) : (
+                    <span className="font-semibold text-gray-600">
+                      {membersRemaining.toLocaleString()} more needed
+                    </span>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </ScrollTable>
     </div>
   )
 }
@@ -410,7 +842,7 @@ function ReferralNetworkPanel({
         </Link>
       </div>
 
-      <div className="relative mt-10 flex flex-1 items-start overflow-x-auto pb-2">
+      <div className="relative mt-10 flex flex-1 items-start overflow-x-auto pb-2 [-webkit-overflow-scrolling:touch]">
         <div
           className="pointer-events-none absolute inset-x-4 top-3 h-px bg-gray-200 sm:inset-x-6"
           aria-hidden
@@ -429,6 +861,92 @@ function ReferralNetworkPanel({
   )
 }
 
+function ReferralEarningsBreakdownCard({
+  breakdown,
+  chartsReady,
+}: {
+  breakdown: ReferralProgramOverview['earningsBreakdown']
+  chartsReady: boolean
+}) {
+  const totalAmount = breakdown.reduce((sum, item) => sum + item.amount, 0)
+  const hasEarnings = totalAmount > 0
+
+  // Clockwise from top: top-right, bottom-right, bottom-left, top-left ↔ L2, L4, L3, L1
+  const pieSliceOrder = [1, 3, 2, 0]
+
+  const pieData = hasEarnings
+    ? breakdown.filter((item) => item.value > 0)
+    : pieSliceOrder.map((index) => ({
+        ...breakdown[index],
+        value: 25,
+      }))
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h3 className="mb-4 font-semibold text-gray-900">Earnings Breakdown</h3>
+      <div className="flex flex-col items-center gap-5">
+        <div className="relative mx-auto h-[180px] w-full max-w-[200px]">
+          {chartsReady ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={52}
+                  outerRadius={78}
+                  paddingAngle={hasEarnings ? 3 : 2}
+                  dataKey="value"
+                  startAngle={90}
+                  endAngle={-270}
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                >
+                  {pieData.map((entry) => (
+                    <Cell key={entry.name} fill={entry.color} />
+                  ))}
+                </Pie>
+                {hasEarnings ? (
+                  <Tooltip
+                    {...chartTooltipWrapperProps}
+                    content={<PieTooltipContent valueSuffix="%" />}
+                  />
+                ) : null}
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-full w-full animate-pulse rounded-full bg-gray-100" />
+          )}
+          <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+            <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400">Total</p>
+            <p className="mt-0.5 text-base font-bold text-gray-900">{formatCurrency(totalAmount)}</p>
+          </div>
+        </div>
+
+        <div className="grid w-full grid-cols-2 gap-x-4 gap-y-3">
+          {breakdown.map((item) => (
+            <div key={item.name} className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full ring-1 ring-white"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="text-sm font-medium leading-tight text-gray-700">{item.name}</span>
+              </div>
+              <div className="mt-1 flex items-baseline justify-between gap-2 pl-[18px]">
+                <span className="text-xs font-bold text-gray-900">{formatCurrency(item.amount)}</span>
+                <span className="text-xs font-semibold text-gray-500">
+                  {hasEarnings ? `${item.value}%` : '0%'}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ReferralChannelsPanel({
   channels,
 }: {
@@ -438,63 +956,27 @@ function ReferralChannelsPanel({
     <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <h3 className="font-semibold text-gray-900">Top Performing Channels</h3>
       <div className="mt-5 flex flex-1 flex-col justify-center space-y-4">
-        {channels.map((channel) => (
-          <div key={channel.name}>
-            <div className="mb-1.5 flex items-center justify-between text-sm">
-              <span className="font-medium text-gray-800">{channel.name}</span>
-              <span className="font-medium text-gray-500">{channel.percent}%</span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-gray-100">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${channel.percent}%`, backgroundColor: channel.color }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function ReferralFunnelPanel({ funnel }: { funnel: ReferralProgramOverview['funnel'] }) {
-  const steps = [
-    { label: 'Clicks', value: funnel.clicks, width: '100%' },
-    {
-      label: 'Signups',
-      value: funnel.signups,
-      width: funnelBarWidth(funnel.signups, funnel.clicks),
-    },
-    {
-      label: 'Active Investors',
-      value: funnel.activeInvestors,
-      width: funnelBarWidth(funnel.activeInvestors, funnel.clicks, funnel.activeInvestors > 0 ? 20 : 28),
-    },
-  ]
-
-  return (
-    <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h3 className="font-semibold text-gray-900">Conversion Funnel</h3>
-      <div className="mt-5 flex flex-1 flex-col justify-center space-y-4">
-        {steps.map((step) => (
-          <div key={step.label}>
-            <div className="mb-1 flex justify-end">
-              <span className="text-sm font-bold text-gray-900">{step.value.toLocaleString()}</span>
-            </div>
-            <div className="h-9 overflow-hidden rounded-lg bg-gray-100">
-              <div
-                className="flex h-full min-w-[7rem] items-center rounded-lg bg-gradient-to-r from-[#0052ff] to-violet-500 px-3"
-                style={{ width: step.width }}
-              >
-                <span className="truncate text-[11px] font-semibold text-white">{step.label}</span>
+        {channels.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            Channel tracking is not available yet. Share your referral link to grow signups.
+          </p>
+        ) : (
+          channels.map((channel) => (
+            <div key={channel.name}>
+              <div className="mb-1.5 flex items-center justify-between text-sm">
+                <span className="font-medium text-gray-800">{channel.name}</span>
+                <span className="font-medium text-gray-500">{channel.percent}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{ width: `${channel.percent}%`, backgroundColor: channel.color }}
+                />
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
-      <p className="mt-5 text-center text-sm font-semibold text-emerald-600">
-        Conversion Rate: {funnel.conversionRate}%
-      </p>
     </div>
   )
 }
@@ -593,18 +1075,20 @@ export function ReferralProgramView({
     { label: 'Total Referrals', value: String(overview.totalReferrals) },
     {
       label: 'Current Rank',
-      value: overview.rank.current,
-      sub: `${overview.rank.nextThreshold}+ active for ${overview.rank.next}`,
+      value: shortRankName(overview.rank.current),
+      sub: isMaxRankMetric(overview.rank)
+        ? 'Maximum rank'
+        : `${overview.rank.membersRemaining} more for ${shortRankName(overview.rank.next)}`,
       icon: Crown,
     },
   ]
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <div className="flex flex-wrap items-center gap-3">
-            <h1 className="text-3xl font-bold text-gray-900">Referral Program</h1>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Referral Program</h1>
             <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
               Active
             </span>
@@ -655,21 +1139,30 @@ export function ReferralProgramView({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
+        <div className="grid grid-cols-2 items-start gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
           {metricCards.map((stat) => {
             const Icon = stat.icon
             return (
-              <div key={stat.label} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-                <p className="text-[11px] font-medium text-gray-500">{stat.label}</p>
-                <div className="mt-2 flex items-center gap-2">
-                  {Icon ? <Icon className="h-5 w-5 shrink-0 text-violet-600" /> : null}
-                  <p className="text-lg font-bold text-gray-900">{stat.value}</p>
+              <div
+                key={stat.label}
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm sm:px-3 sm:py-3"
+              >
+                <p className="text-[10px] font-medium leading-tight text-gray-500 sm:text-[11px]">
+                  {stat.label}
+                </p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  {Icon ? <Icon className="h-4 w-4 shrink-0 text-violet-600" /> : null}
+                  <p className="text-base font-bold leading-tight text-gray-900">{stat.value}</p>
                 </div>
                 {stat.trend ? (
-                  <p className="mt-1 text-[11px] font-semibold text-emerald-600">{stat.trend}</p>
+                  <p className="mt-0.5 text-[10px] font-semibold text-emerald-600 sm:text-[11px]">
+                    {stat.trend}
+                  </p>
                 ) : null}
-                {stat.sub ? <p className="mt-1 text-[10px] text-gray-400">{stat.sub}</p> : null}
+                {stat.sub ? (
+                  <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-gray-400">{stat.sub}</p>
+                ) : null}
               </div>
             )
           })}
@@ -681,7 +1174,7 @@ export function ReferralProgramView({
         <div className="space-y-6">
           <ReferralRankProgressPanel rank={overview.rank} />
 
-          <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-2">
               <div className="mb-4 flex items-center justify-between gap-3">
                 <h3 className="font-semibold text-gray-900">Earnings Overview</h3>
@@ -752,210 +1245,82 @@ export function ReferralProgramView({
               )}
             </div>
 
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="mb-4 font-semibold text-gray-900">Earnings Breakdown</h3>
-              <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center">
-                <div className="shrink-0">
-                  {chartsReady ? (
-                    <ResponsiveContainer width={200} height={200}>
-                      <PieChart>
-                        <Pie
-                          data={overview.earningsBreakdown}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={52}
-                          outerRadius={78}
-                          paddingAngle={3}
-                          dataKey="value"
-                          strokeWidth={0}
-                        >
-                          {overview.earningsBreakdown.map((entry) => (
-                            <Cell key={entry.name} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip {...chartTooltipWrapperProps} content={<PieTooltipContent valueSuffix="%" />} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <div className="h-[200px] w-[200px] animate-pulse rounded-full bg-gray-100" />
-                  )}
-                </div>
-                <div className="flex w-full flex-1 flex-col justify-center gap-4 sm:pl-2">
-                  {overview.earningsBreakdown.map((item) => (
-                    <div key={item.name} className="flex items-start justify-between gap-3 text-sm">
-                      <div className="flex min-w-0 items-start gap-2 text-gray-700">
-                        <span
-                          className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full"
-                          style={{ backgroundColor: item.color }}
-                        />
-                        <div className="min-w-0">
-                          <span className="block truncate">{item.name}</span>
-                          <span className="mt-0.5 block text-xs font-bold text-gray-900">
-                            {formatCurrency(item.amount)}
-                          </span>
-                        </div>
-                      </div>
-                      <span className="shrink-0 font-semibold text-gray-900">{item.value}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <ReferralEarningsBreakdownCard
+              breakdown={overview.earningsBreakdown}
+              chartsReady={chartsReady}
+            />
           </div>
 
-          <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <div className="h-full lg:col-span-2">
               <ReferralNetworkPanel levels={overview.networkLevels} />
             </div>
             <ReferralChannelsPanel channels={overview.channels} />
           </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm lg:col-span-1">
-              <h3 className="font-semibold text-gray-900">Recent Activities</h3>
-              <div className="mt-4 space-y-3">
-                {overview.recentActivities.length > 0 ? (
-                  overview.recentActivities.map((activity) => (
-                    <div key={activity.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
-                      <p className="text-sm text-gray-800">{activity.message}</p>
-                      <div className="mt-2 flex items-center justify-between text-xs">
-                        <span className="font-semibold text-emerald-600">{activity.amount}</span>
-                        <span className="text-gray-400">{activity.time}</span>
+          <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 lg:gap-6">
+            <div className="flex flex-col gap-4 lg:col-span-1">
+              <div className="h-fit w-full self-start rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <h3 className="font-semibold text-gray-900">Recent Activities</h3>
+                <div className="mt-3 space-y-2">
+                  {overview.recentActivities.length > 0 ? (
+                    overview.recentActivities.map((activity) => (
+                      <div key={activity.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                        <p className="text-sm text-gray-800">{activity.message}</p>
+                        <div className="mt-2 flex items-center justify-between text-xs">
+                          <span className="font-semibold text-emerald-600">{activity.amount}</span>
+                          <span className="text-gray-400">{activity.time}</span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <EmptyState
+                      title="No activity yet"
+                      description="Share your link to start earning referral commissions."
+                      compact
+                      className="border-0 bg-transparent"
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="h-fit w-full self-start rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <h3 className="font-semibold text-gray-900">Active Challenges</h3>
+                <div className="mt-3 space-y-3">
+                  {overview.challenges.map((challenge) => (
+                    <div key={challenge.id} className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900">{challenge.title}</p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {challenge.progress}/{challenge.target} completed
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                          {challenge.reward}
+                        </span>
+                      </div>
+                      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-200">
+                        <div
+                          className="h-full rounded-full bg-[#0052ff]"
+                          style={{
+                            width: `${Math.min(100, (challenge.progress / challenge.target) * 100)}%`,
+                          }}
+                        />
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <EmptyState
-                    title="No activity yet"
-                    description="Share your link to start earning referral commissions."
-                    compact
-                    className="border-0 bg-transparent"
-                  />
-                )}
+                  ))}
+                </div>
               </div>
             </div>
 
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="font-semibold text-gray-900">Achievements & Badges</h3>
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                {overview.achievements.map((badge) => (
-                  <div
-                    key={badge.id}
-                    className={cn(
-                      'flex flex-col items-center rounded-xl border px-3 py-4 text-center',
-                      badge.unlocked
-                        ? 'border-violet-200 bg-violet-50'
-                        : 'border-gray-100 bg-gray-50 opacity-60'
-                    )}
-                  >
-                    <Award className={cn('h-6 w-6', badge.unlocked ? 'text-violet-600' : 'text-gray-400')} />
-                    <p className="mt-2 text-[11px] font-semibold text-gray-800">{badge.label}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <h3 className="font-semibold text-gray-900">Active Challenges</h3>
-              <div className="mt-4 space-y-4">
-                {overview.challenges.map((challenge) => (
-                  <div key={challenge.id} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{challenge.title}</p>
-                        <p className="mt-1 text-xs text-gray-500">
-                          {challenge.progress}/{challenge.target} completed
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
-                        {challenge.reward}
-                      </span>
-                    </div>
-                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-200">
-                      <div
-                        className="h-full rounded-full bg-[#0052ff]"
-                        style={{
-                          width: `${Math.min(100, (challenge.progress / challenge.target) * 100)}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="lg:col-span-2">
+              <ReferralAchievementsBadgesPanel badges={overview.badges} streak={overview.streak} />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-3">
-            <div
-              id="all-referrals"
-              className="scroll-mt-24 rounded-xl border border-gray-200 bg-white shadow-sm lg:col-span-2"
-            >
-            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
-              <h3 className="font-semibold text-gray-900">All Referrals</h3>
-              <Link href="/transactions" className="text-sm font-semibold text-[#0052ff] hover:underline">
-                View transactions
-              </Link>
-            </div>
-            <div className="overflow-x-auto p-6">
-              {referrals.length === 0 ? (
-                <EmptyState
-                  icon={Users}
-                  title="No referrals yet"
-                  description="Share your referral link to invite friends and start earning commissions."
-                  action={
-                    <button
-                      type="button"
-                      onClick={copyLink}
-                      className="inline-flex items-center gap-2 rounded-lg bg-[#0052ff] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                    >
-                      <Copy className="h-4 w-4" />
-                      Copy referral link
-                    </button>
-                  }
-                  compact
-                />
-              ) : (
-                <table className="w-full min-w-[640px]">
-                  <thead>
-                    <tr className="border-b border-gray-100 text-left text-xs font-semibold uppercase text-gray-500">
-                      <th className="pb-3">Name</th>
-                      <th className="pb-3">Status</th>
-                      <th className="pb-3">Joined</th>
-                      <th className="pb-3 text-right">Earned</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {referrals.map((referral) => (
-                      <tr key={referral.id}>
-                        <td className="py-4">
-                          <p className="font-medium text-gray-900">{referral.name}</p>
-                          <p className="text-xs text-gray-500">{referral.email}</p>
-                        </td>
-                        <td className="py-4">
-                          <span
-                            className={cn(
-                              'rounded-full px-2.5 py-1 text-xs font-semibold',
-                              referral.status === 'Active'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : referral.status === 'Pending'
-                                  ? 'bg-amber-100 text-amber-700'
-                                  : 'bg-gray-100 text-gray-600'
-                            )}
-                          >
-                            {referral.status}
-                          </span>
-                        </td>
-                        <td className="py-4 text-sm text-gray-500">{referral.joinedDate}</td>
-                        <td className="py-4 text-right font-semibold text-emerald-600">
-                          {formatCurrency(referral.commissionEarned)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            </div>
+          <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+            <ReferralAllReferralsSection referrals={referrals} onCopyLink={copyLink} />
             <ReferralFunnelPanel funnel={overview.funnel} />
           </div>
         </div>
@@ -986,7 +1351,7 @@ export function ReferralProgramView({
                 </button>
               </div>
             </AsyncState>
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
               {SHARE_ACTIONS.map((action) => {
                 const Icon = action.icon
                 return (
@@ -1057,13 +1422,19 @@ export function ReferralProgramView({
 
           <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-blue-50 p-5 shadow-sm">
             <div className="flex items-start gap-3">
-              <Shield className="mt-0.5 h-5 w-5 text-violet-600" />
+              <Shield className="mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
               <div>
                 <p className="text-sm font-semibold text-gray-900">Referral rank rewards</p>
-                <p className="mt-1 text-xs leading-relaxed text-gray-600">
-                  Bronze ($150) through Ambassador (company car, AcademyFx office, $1,000/mo salary,
-                  0.5% team profits weekly) based on active members.
-                </p>
+                <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-gray-600">
+                  {REFERRAL_RANK_TIERS.map((tier) => (
+                    <li key={tier.key}>
+                      <span className="font-semibold text-gray-800">{shortRankName(tier.name)}</span>
+                      {' — '}
+                      {tier.minMembers.toLocaleString()} active members
+                      {tier.cashBonusUsd > 0 ? ` · $${tier.cashBonusUsd.toLocaleString()}` : ''}
+                    </li>
+                  ))}
+                </ul>
                 <Link
                   href="/support"
                   className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#0052ff] hover:underline"
@@ -1076,6 +1447,12 @@ export function ReferralProgramView({
           </div>
         </div>
       </div>
+
+      <ReferralRankLevelsPanel
+        activeInvestors={overview.activeInvestors}
+        currentRank={overview.rank.current}
+        nextRank={overview.rank.next}
+      />
     </div>
   )
 }

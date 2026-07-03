@@ -26,6 +26,7 @@ import { StatusCardGrid, statusCardSurfaceClass } from '@/components/shared/stat
 import { WalletDepositCta, WalletTransferCta } from '@/components/wallet/layout/WalletSidePanels'
 import { PageHeaderSkeleton, TableSkeleton } from '@/components/shared/skeletons'
 import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
+import { ScrollTable } from '@/components/shared/ScrollTable'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchWalletTransactions } from '@/lib/data/queries'
 import type { TransactionItem } from '@/lib/data/types'
@@ -191,7 +192,7 @@ export function TransactionHistoryView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <WalletPageHeader
         title={t('title')}
         description={t('description')}
@@ -309,7 +310,7 @@ export function TransactionHistoryView() {
           errorTitle={t('loadError')}
           skeleton={<TableSkeleton rows={6} cols={6} />}
         >
-          <div className="overflow-x-auto">
+          <ScrollTable>
             <table className="w-full min-w-[900px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -379,7 +380,7 @@ export function TransactionHistoryView() {
                 })}
               </tbody>
             </table>
-          </div>
+          </ScrollTable>
         </AsyncState>
 
         <div className="flex flex-col gap-3 border-t border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">

@@ -1,176 +1,199 @@
 'use client'
 
-import { BookOpen, Play, CheckCircle, Lock, BarChart3, TrendingUp, DollarSign, Globe } from 'lucide-react'
+import {
+  BookOpen,
+  Play,
+  CheckCircle,
+  Lock,
+  BarChart3,
+  TrendingUp,
+  Globe,
+} from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { AsyncState } from '@/components/shared/data-state'
+import { TableSkeleton } from '@/components/shared/skeletons'
 import { useInvestorTier } from '@/lib/hooks/useInvestorTier'
 import { canAccessFeature } from '@/lib/investor/tiers'
+import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { fetchAcademyCourses, fetchAcademyStats } from '@/lib/data/queries'
+import type { LucideIcon } from 'lucide-react'
+
+const categoryIcons: Record<string, LucideIcon> = {
+  Fundamentals: BookOpen,
+  Advanced: BarChart3,
+  Markets: Globe,
+  default: TrendingUp,
+}
 
 export default function AcademyPage() {
+  const t = useTranslations('academy')
   const { tierKey } = useInvestorTier()
   const canAccessAdvanced = canAccessFeature(tierKey, 'portfolio_analysis')
 
-  const courses = [
+  const { data: courses = [], loading, error, reload } = useAsyncData(
+    () => fetchAcademyCourses(),
+    []
+  )
+  const { data: stats } = useAsyncData(() => fetchAcademyStats(), [])
+
+  const completedCount = stats?.coursesCompleted ?? 0
+  const totalCourses = stats?.totalCourses ?? courses.length
+
+  const certificates = [
     {
-      id: '1',
-      title: 'Investing Basics',
-      category: 'Fundamentals',
-      lessons: 12,
-      duration: '4 weeks',
-      difficulty: 'Beginner',
-      progress: 75,
-      icon: BookOpen,
+      name: t('beginnerInvestor'),
+      earned: completedCount >= 1,
+      detail: completedCount >= 1
+        ? t('earnedOn', { date: new Date().toLocaleDateString() })
+        : t('completeMore', { count: Math.max(1, 1 - completedCount) }),
     },
     {
-      id: '2',
-      title: 'Risk Management',
-      category: 'Advanced',
-      lessons: 8,
-      duration: '2 weeks',
-      difficulty: 'Intermediate',
-      progress: 50,
-      icon: BarChart3,
-    },
-    {
-      id: '3',
-      title: 'Wealth Building Strategies',
-      category: 'Advanced',
-      lessons: 15,
-      duration: '6 weeks',
-      difficulty: 'Advanced',
-      progress: 0,
-      icon: TrendingUp,
-      locked: !canAccessAdvanced,
-      lockReason: 'Prime Investor',
-    },
-    {
-      id: '4',
-      title: 'Forex Basics',
-      category: 'Markets',
-      lessons: 10,
-      duration: '3 weeks',
-      difficulty: 'Beginner',
-      progress: 100,
-      icon: Globe,
-      completed: true,
-    },
-    {
-      id: '5',
-      title: 'Cryptocurrency Investing',
-      category: 'Markets',
-      lessons: 12,
-      duration: '4 weeks',
-      difficulty: 'Intermediate',
-      progress: 30,
-      icon: DollarSign,
+      name: t('advancedTrader'),
+      earned: completedCount >= 3,
+      detail: t('completeMore', { count: Math.max(0, 3 - completedCount) }),
     },
   ]
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Academy</h1>
-        <p className="mt-1 text-muted-foreground">Learn investing strategies and financial literacy from industry experts.</p>
+        <h1 className="text-3xl font-bold text-foreground">{t('title')}</h1>
+        <p className="mt-1 text-muted-foreground">{t('description')}</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Courses Completed</p>
-          <p className="mt-2 text-3xl font-bold text-foreground">1 of 5</p>
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground">{t('coursesCompleted')}</p>
+            <p className="mt-2 text-3xl font-bold text-foreground">
+              {completedCount} / {totalCourses}
+            </p>
+          </div>
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground">{t('learningStreak')}</p>
+            <p className="mt-2 text-3xl font-bold text-primary">
+              {t('days', { count: stats?.learningStreakDays ?? 0 })}
+            </p>
+          </div>
         </div>
+
         <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">Learning Streak</p>
-          <p className="mt-2 text-3xl font-bold text-primary">7 days</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground">XP Earned</p>
-          <p className="mt-2 text-3xl font-bold text-foreground">1,250</p>
+          <p className="text-sm text-muted-foreground">{t('xpEarned')}</p>
+          <p className="mt-2 text-3xl font-bold text-foreground">
+            {(stats?.xpEarned ?? 0).toLocaleString()}
+          </p>
         </div>
       </div>
 
-      {/* Courses */}
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h2 className="mb-6 text-lg font-semibold text-foreground">Available Courses</h2>
-        <div className="space-y-4">
-          {courses.map((course) => {
-            const Icon = course.icon
-            return (
-              <div
-                key={course.id}
-                className={`rounded-lg border p-6 transition-all hover:shadow-md ${
-                  course.locked ? 'border-border bg-secondary opacity-60' : 'border-border hover:border-primary'
-                }`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-4 flex-1">
-                    <div className="rounded-lg bg-primary/10 p-3">
-                      <Icon className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold text-foreground">{course.title}</h3>
-                          <p className="text-xs text-muted-foreground mt-1">{course.category}</p>
-                        </div>
-                        {course.completed && <CheckCircle className="h-5 w-5 text-emerald-500 flex-shrink-0" />}
-                        {course.locked && <Lock className="h-5 w-5 text-muted-foreground flex-shrink-0" />}
+        <h2 className="mb-6 text-lg font-semibold text-foreground">{t('availableCourses')}</h2>
+        <AsyncState
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          isEmpty={!courses.length}
+          emptyTitle={t('emptyTitle')}
+          emptyDescription={t('emptyDescription')}
+          skeleton={<TableSkeleton rows={4} cols={1} showHeader={false} />}
+        >
+          <div className="space-y-4">
+            {courses.map((course) => {
+              const Icon = categoryIcons[course.category] ?? categoryIcons.default
+              const locked =
+                course.locked && !canAccessAdvanced
+              const lockReason = course.lockReason ?? t('lockedTier')
+
+              return (
+                <div
+                  key={course.id}
+                  className={`rounded-lg border p-6 transition-all hover:shadow-md ${
+                    locked ? 'border-border bg-secondary opacity-60' : 'border-border hover:border-primary'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-1 items-start gap-4">
+                      <div className="rounded-lg bg-primary/10 p-3">
+                        <Icon className="h-6 w-6 text-primary" />
                       </div>
-                      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
-                        <span>{course.lessons} lessons</span>
-                        <span>•</span>
-                        <span>{course.duration}</span>
-                        <span>•</span>
-                        <span>{course.difficulty}</span>
-                      </div>
-                      {course.progress > 0 && !course.completed && (
-                        <div className="mt-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-semibold text-foreground">Progress</span>
-                            <span className="text-xs text-muted-foreground">{course.progress}%</span>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="font-semibold text-foreground">{course.title}</h3>
+                            <p className="mt-1 text-xs text-muted-foreground">{course.category}</p>
                           </div>
-                          <div className="h-2 w-full rounded-full bg-secondary">
-                            <div className="h-2 rounded-full bg-primary" style={{ width: `${course.progress}%` }} />
-                          </div>
+                          {course.completed && (
+                            <CheckCircle className="h-5 w-5 shrink-0 text-emerald-500" />
+                          )}
+                          {locked && <Lock className="h-5 w-5 shrink-0 text-muted-foreground" />}
                         </div>
-                      )}
+                        <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>{t('lessons', { count: course.lessons })}</span>
+                          <span>•</span>
+                          <span>{t('weeks', { count: Number(course.duration) || 1 })}</span>
+                          <span>•</span>
+                          <span>{course.difficulty}</span>
+                        </div>
+                        {course.progress > 0 && !course.completed && (
+                          <div className="mt-3">
+                            <div className="mb-2 flex items-center justify-between">
+                              <span className="text-xs font-semibold text-foreground">{t('progress')}</span>
+                              <span className="text-xs text-muted-foreground">{course.progress}%</span>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-secondary">
+                              <div
+                                className="h-2 rounded-full bg-primary"
+                                style={{ width: `${course.progress}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        {locked && (
+                          <p className="mt-2 text-xs text-muted-foreground">{lockReason}</p>
+                        )}
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2 font-semibold transition-colors ${
+                        locked
+                          ? 'cursor-not-allowed border border-border text-muted-foreground'
+                          : course.completed
+                            ? 'bg-secondary text-foreground'
+                            : 'bg-primary text-white hover:bg-blue-700'
+                      }`}
+                      disabled={locked}
+                    >
+                      {!locked && course.progress === 0 && <Play className="h-4 w-4" />}
+                      {course.completed
+                        ? t('review')
+                        : course.progress > 0
+                          ? t('continue')
+                          : t('start')}
+                    </button>
                   </div>
-                  <button
-                    className={`flex items-center gap-2 rounded-lg px-4 py-2 font-semibold transition-colors flex-shrink-0 ${
-                      course.locked
-                        ? 'border border-border text-muted-foreground cursor-not-allowed'
-                        : course.completed
-                          ? 'bg-secondary text-foreground'
-                          : 'bg-primary text-white hover:bg-blue-700'
-                    }`}
-                    disabled={course.locked}
-                  >
-                    {course.completed ? 'Review' : course.progress > 0 ? 'Continue' : 'Start'}
-                  </button>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        </AsyncState>
       </div>
 
-      {/* Certificates */}
       <div className="rounded-lg border border-border bg-card p-6 shadow-sm">
-        <h2 className="mb-6 text-lg font-semibold text-foreground">Certificates</h2>
+        <h2 className="mb-6 text-lg font-semibold text-foreground">{t('certificates')}</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          {[
-            { name: 'Beginner Investor', earned: true, date: 'Earned on Mar 15, 2024' },
-            { name: 'Advanced Trader', earned: false, progress: 'Complete 3 more courses' },
-          ].map((cert, idx) => (
-            <div key={idx} className={`rounded-lg border p-6 ${cert.earned ? 'bg-blue-50 border-blue-300' : 'border-border'}`}>
+          {certificates.map((cert) => (
+            <div
+              key={cert.name}
+              className={`rounded-lg border p-6 ${cert.earned ? 'border-blue-300 bg-blue-50' : 'border-border'}`}
+            >
               <p className="font-semibold text-foreground">{cert.name}</p>
               {cert.earned ? (
                 <div className="mt-2 flex items-center gap-2 text-sm text-emerald-600">
                   <CheckCircle className="h-4 w-4" />
-                  {cert.date}
+                  {cert.detail}
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-muted-foreground">{cert.progress}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{cert.detail}</p>
               )}
             </div>
           ))}

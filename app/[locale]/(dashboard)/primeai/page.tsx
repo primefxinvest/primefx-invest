@@ -42,9 +42,9 @@ function PrimeAIChat() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-120px)] flex-col gap-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
               <span className="text-lg font-bold text-primary">AI</span>
@@ -52,7 +52,7 @@ function PrimeAIChat() {
             <div>
               <h2 className="font-semibold text-foreground">PrimeAI Assistant</h2>
               <p className="text-xs text-emerald-600">
-                {isLoading ? 'Thinking...' : 'Online - Ready to assist'}
+                {isLoading ? 'Thinking...' : 'Online · Powered by Google Gemini'}
               </p>
             </div>
           </div>
@@ -75,7 +75,7 @@ function PrimeAIChat() {
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto rounded-lg border border-border bg-card p-4">
+      <div className="min-h-[12rem] flex-1 space-y-4 overflow-y-auto rounded-lg border border-border bg-card p-4 sm:min-h-[20rem]">
         {messages.map((message) => (
           <div
             key={message.id}
@@ -103,18 +103,18 @@ function PrimeAIChat() {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="flex gap-2">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-2 sm:flex-row">
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask about investments, market trends, portfolio advice..."
-          className="flex-1 rounded-lg border border-border bg-background px-4 py-3 outline-none transition-colors focus:border-primary"
+          className="min-w-0 flex-1 rounded-lg border border-border bg-background px-4 py-3 outline-none transition-colors focus:border-primary"
           disabled={isLoading}
         />
         <button
           type="submit"
           disabled={isLoading || input.trim().length === 0}
-          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-3 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-white transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 sm:shrink-0"
         >
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </button>
@@ -128,8 +128,8 @@ function PrimeAIChat() {
 
       <div className="text-center text-xs text-muted-foreground">
         <p>
-          PrimeAI uses Google Gemini (or OpenAI if configured) with live investment plan data from
-          your platform. Always verify recommendations independently.
+          PrimeAI is powered by Google Gemini with live investment plan data from your platform.
+          Always verify recommendations independently.
         </p>
       </div>
     </div>
@@ -138,14 +138,16 @@ function PrimeAIChat() {
 
 export default function PrimeAIPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex h-[calc(100vh-120px)] items-center justify-center text-sm text-gray-500">
-          Loading PrimeAI...
-        </div>
-      }
-    >
-      <PrimeAIChat />
-    </Suspense>
+    <div className="flex min-h-[calc(100dvh-10rem-env(safe-area-inset-top))] flex-col">
+      <Suspense
+        fallback={
+          <div className="flex flex-1 items-center justify-center text-sm text-gray-500">
+            Loading PrimeAI...
+          </div>
+        }
+      >
+        <PrimeAIChat />
+      </Suspense>
+    </div>
   )
 }

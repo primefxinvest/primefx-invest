@@ -10,24 +10,42 @@ import {
   getUserTransactions,
   getWallet,
   getMarketAssets,
+  getAcademyCourses,
+  getCommunityPosts,
+  getSupportTickets,
+  getUserPreferences,
+  upsertUserPreferences,
+  getMarketInsights,
+  getRewardsTiers,
+  getRewardCatalog,
 } from '@/lib/db/supabase'
 import { mapDbPlansToInvestmentPlans, PLAN_UI_META } from '@/lib/invest/plan-mapper'
 import { formatCurrency, formatDate, formatDateTime, formatPercent, formatRelativeTime, toNumber } from '@/lib/data/format'
 import type {
+  AcademyCourseItem,
+  AcademyStats,
   AssetAllocationItem,
   ChartPoint,
+  CommunityMemberItem,
+  CommunityPostItem,
   InvestmentPlan,
   LearningProgress,
+  MarketInsightItem,
   MarketItem,
   NotificationItem,
   PaymentMethod,
   PortfolioMetrics,
   ReferralData,
   RewardAchievement,
+  RewardCatalogItem,
+  RewardTierItem,
   RewardsData,
+  SupportTicketItem,
   TransactionItem,
+  UserPreferencesData,
   WalletActivitySummary,
   WalletData,
+  WalletHealthData,
 } from '@/lib/data/types'
 
 
@@ -36,6 +54,37 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 async function requireUserId() {
   const { data: user } = await getCurrentUser()
   return user?.id ?? null
+}
+
+function sumTransactionsInMonth(
+  transactions: Array<{ type?: string | null; amount?: unknown; created_at: string }>,
+  monthOffset: number,
+  matcher: (type: string) => boolean
+) {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1)
+  const end = new Date(now.getFullYear(), now.getMonth() + monthOffset + 1, 0, 23, 59, 59, 999)
+
+  return transactions.reduce((sum, tx) => {
+    const created = new Date(tx.created_at)
+    if (created < start || created > end) return sum
+    const type = (tx.type ?? '').toLowerCase()
+    if (!matcher(type)) return sum
+    return sum + Math.abs(toNumber(tx.amount as string | number | null | undefined))
+  }, 0)
+}
+
+function formatMonthOverMonthChange(current: number, previous: number) {
+  if (previous === 0) {
+    return current > 0 ? '+100%' : '0%'
+  }
+  const pct = ((current - previous) / previous) * 100
+  return formatPercent(pct, { signed: true })
+}
+
+function formatCourseDurationWeeks(minutes?: number | null) {
+  const weeks = Math.max(1, Math.round((minutes ?? 60) / (60 * 7)))
+  return weeks
 }
 
 export async function fetchInvestmentPlans(): Promise<InvestmentPlan[]> {
@@ -55,10 +104,29 @@ export async function fetchPortfolioMetrics(): Promise<PortfolioMetrics> {
   }
 
   const { data: portfolio } = await getUserPortfolio(userId)
+  const { data: transactions } = await getUserTransactions(userId)
+  const txs = transactions ?? []
   const totalInvested = toNumber(portfolio?.total_invested)
   const currentValue = toNumber(portfolio?.current_value)
   const profit = toNumber(portfolio?.profit_loss)
   const roi = toNumber(portfolio?.roi_percentage)
+
+  const investedThis = sumTransactionsInMonth(txs, 0, (type) => type.includes('investment'))
+  const investedLast = sumTransactionsInMonth(txs, -1, (type) => type.includes('investment'))
+  const profitThis = sumTransactionsInMonth(
+    txs,
+    0,
+    (type) => type.includes('profit') || type.includes('bonus') || type.includes('referral')
+  )
+  const profitLast = sumTransactionsInMonth(
+    txs,
+    -1,
+    (type) => type.includes('profit') || type.includes('bonus') || type.includes('referral')
+  )
+  const depositThis = sumTransactionsInMonth(txs, 0, (type) => type.includes('deposit'))
+  const depositLast = sumTransactionsInMonth(txs, -1, (type) => type.includes('deposit'))
+  const roiThis = investedThis > 0 ? (profitThis / investedThis) * 100 : 0
+  const roiLast = investedLast > 0 ? (profitLast / investedLast) * 100 : 0
 
   return {
     totalInvested: formatCurrency(totalInvested),
@@ -66,10 +134,10 @@ export async function fetchPortfolioMetrics(): Promise<PortfolioMetrics> {
     totalProfit: formatCurrency(profit, { signed: true }),
     roiPercentage: formatPercent(roi, { signed: true }),
     trends: [
-      { percentage: formatPercent(roi * 0.24, { signed: true }), label: 'from last month' },
-      { percentage: formatPercent(roi * 0.34, { signed: true }), label: 'from last month' },
-      { percentage: formatPercent(roi * 0.4, { signed: true }), label: 'from last month' },
-      { percentage: formatPercent(roi * 0.07, { signed: true }), label: 'from last month' },
+      { percentage: formatMonthOverMonthChange(investedThis, investedLast), label: 'from last month' },
+      { percentage: formatMonthOverMonthChange(depositThis + investedThis, depositLast + investedLast), label: 'from last month' },
+      { percentage: formatMonthOverMonthChange(profitThis, profitLast), label: 'from last month' },
+      { percentage: formatMonthOverMonthChange(roiThis, roiLast), label: 'from last month' },
     ],
   }
 }
@@ -265,33 +333,48 @@ export async function fetchWalletActivitySummary(): Promise<WalletActivitySummar
 
   const { data } = await getUserTransactions(userId)
   const now = new Date()
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
   const sums = { deposit: 0, withdrawal: 0, transfer: 0, bonus: 0 }
+  const prevSums = { deposit: 0, withdrawal: 0, transfer: 0, bonus: 0 }
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+  const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999)
 
   data?.forEach((tx) => {
     const created = new Date(tx.created_at)
-    if (created < monthStart) return
     const type = (tx.type ?? '').toLowerCase()
     const amount = Math.abs(toNumber(tx.amount))
-    if (type.includes('deposit')) sums.deposit += amount
-    else if (type.includes('withdraw')) sums.withdrawal += amount
-    else if (type.includes('transfer')) sums.transfer += amount
-    else if (type.includes('bonus') || type.includes('profit') || type.includes('referral')) sums.bonus += amount
+    const bucket =
+      type.includes('deposit')
+        ? 'deposit'
+        : type.includes('withdraw')
+          ? 'withdrawal'
+          : type.includes('transfer')
+            ? 'transfer'
+            : type.includes('bonus') || type.includes('profit') || type.includes('referral')
+              ? 'bonus'
+              : null
+    if (!bucket) return
+
+    if (created >= monthStart) {
+      sums[bucket] += amount
+    } else if (created >= prevMonthStart && created <= prevMonthEnd) {
+      prevSums[bucket] += amount
+    }
   })
 
-  const formatTrend = (value: number) => ({
+  const formatTrend = (value: number, previous: number) => ({
     value: formatCurrency(value),
-    change: value > 0 ? '+100%' : '0%',
-    trend: 'up' as const,
+    change: formatMonthOverMonthChange(value, previous),
+    trend: value >= previous ? ('up' as const) : ('down' as const),
   })
 
   return {
     period: 'This Month',
-    deposits: formatTrend(sums.deposit),
-    withdrawals: formatTrend(sums.withdrawal),
-    transfers: formatTrend(sums.transfer),
-    bonuses: formatTrend(sums.bonus),
+    deposits: formatTrend(sums.deposit, prevSums.deposit),
+    withdrawals: formatTrend(sums.withdrawal, prevSums.withdrawal),
+    transfers: formatTrend(sums.transfer, prevSums.transfer),
+    bonuses: formatTrend(sums.bonus, prevSums.bonus),
   }
 }
 
@@ -373,12 +456,20 @@ export async function fetchRewardsData(): Promise<RewardsData> {
   ])
 
   const points = (referrals?.length ?? 0) * 50 + (investments?.length ?? 0) * 100
-  const tiers = [
-    { name: 'Bronze Level', min: 0, max: 500 },
-    { name: 'Silver Level', min: 501, max: 1500 },
-    { name: 'Gold Level', min: 1501, max: 3000 },
-    { name: 'Platinum Level', min: 3001, max: 5000 },
-  ]
+  const { data: tierRows } = await getRewardsTiers()
+
+  const tiers =
+    tierRows?.map((row, index, arr) => {
+      const min = Number(row.minimum_points ?? 0)
+      const next = arr[index + 1]
+      const max = next ? Number(next.minimum_points) - 1 : min + 5000
+      return { name: row.tier_name as string, min, max }
+    }) ?? [
+      { name: 'Bronze Level', min: 0, max: 500 },
+      { name: 'Silver Level', min: 501, max: 1500 },
+      { name: 'Gold Level', min: 1501, max: 3000 },
+      { name: 'Platinum Level', min: 3001, max: 5000 },
+    ]
 
   const current = tiers.find((tier) => points >= tier.min && points <= tier.max) ?? tiers[0]
   const currentIndex = tiers.indexOf(current)
@@ -741,4 +832,327 @@ export async function fetchMonthlyReturns(): Promise<ChartPoint[]> {
     const change = prev > 0 ? ((point.value - prev) / prev) * 100 : 0
     return { month: point.month, value: Math.round(change * 10) / 10 }
   })
+}
+
+export async function fetchAcademyCourses(): Promise<AcademyCourseItem[]> {
+  const userId = await requireUserId()
+  const [{ data: courses }, { data: progressRows }] = await Promise.all([
+    getAcademyCourses(),
+    userId ? getUserCourses(userId) : Promise.resolve({ data: [] }),
+  ])
+
+  if (!courses?.length) return []
+
+  const progressMap = new Map(
+    (progressRows ?? []).map((row) => [row.course_id as string, row])
+  )
+
+  return courses.map((course) => {
+    const progressRow = progressMap.get(course.id as string)
+    const progress = toNumber(progressRow?.progress_percentage)
+    const completed =
+      progress >= 100 || Boolean(progressRow?.completed_at)
+    const difficulty = (course.difficulty as string) ?? 'Beginner'
+
+    return {
+      id: course.id as string,
+      title: course.title as string,
+      category: (course.category as string) ?? 'General',
+      lessons: Number(course.lessons_count ?? 0),
+      duration: String(formatCourseDurationWeeks(course.duration_minutes as number)),
+      difficulty,
+      progress,
+      completed,
+      locked: difficulty.toLowerCase() === 'advanced',
+      lockReason: difficulty.toLowerCase() === 'advanced' ? 'Prime Investor' : undefined,
+    }
+  })
+}
+
+export async function fetchAcademyStats(): Promise<AcademyStats> {
+  const userId = await requireUserId()
+  const [{ data: courses }, { data: progressRows }] = await Promise.all([
+    getAcademyCourses(),
+    userId ? getUserCourses(userId) : Promise.resolve({ data: [] }),
+  ])
+
+  const totalCourses = courses?.length ?? 0
+  const completed =
+    progressRows?.filter(
+      (row) =>
+        toNumber(row.progress_percentage) >= 100 || Boolean(row.completed_at)
+    ).length ?? 0
+
+  const xpEarned =
+    progressRows?.reduce((sum, row) => {
+      const pct = toNumber(row.progress_percentage)
+      return sum + Math.round((pct / 100) * 250)
+    }, 0) ?? 0
+
+  return {
+    coursesCompleted: completed,
+    totalCourses,
+    xpEarned,
+    learningStreakDays: completed > 0 ? Math.min(completed * 7, 30) : 0,
+  }
+}
+
+export async function fetchCommunityPosts(): Promise<CommunityPostItem[]> {
+  const { data } = await getCommunityPosts()
+  if (!data?.length) return []
+
+  return data.map((post) => {
+    const user = post.users as { full_name?: string; email?: string } | null
+    const authorId = post.user_id as string
+    const author =
+      user?.full_name?.trim() ||
+      user?.email?.split('@')[0] ||
+      `Member ${authorId.slice(0, 6)}`
+
+    return {
+      id: post.id as string,
+      author,
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(authorId)}`,
+      title: post.title as string,
+      content: post.content as string,
+      category: (post.category as string) ?? 'general',
+      likes: Number(post.likes_count ?? 0),
+      comments: Number(post.comments_count ?? 0),
+      timestamp: formatRelativeTime(post.created_at as string),
+    }
+  })
+}
+
+export async function fetchCommunityTopMembers(): Promise<CommunityMemberItem[]> {
+  const { data } = await getCommunityPosts(200)
+  if (!data?.length) return []
+
+  const counts = new Map<string, { name: string; posts: number }>()
+  for (const post of data) {
+    const userId = post.user_id as string
+    const user = post.users as { full_name?: string; email?: string } | null
+    const name =
+      user?.full_name?.trim() ||
+      user?.email?.split('@')[0] ||
+      `Member ${userId.slice(0, 6)}`
+    const existing = counts.get(userId) ?? { name, posts: 0 }
+    counts.set(userId, { name, posts: existing.posts + 1 })
+  }
+
+  const maxPosts = Math.max(1, ...Array.from(counts.values()).map((row) => row.posts))
+
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1].posts - a[1].posts)
+    .slice(0, 4)
+    .map(([id, row]) => ({
+      id,
+      name: row.name,
+      posts: row.posts,
+      engagement: Math.round((row.posts / maxPosts) * 100),
+      avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(id)}`,
+    }))
+}
+
+export async function fetchSupportTickets(): Promise<SupportTicketItem[]> {
+  const userId = await requireUserId()
+  if (!userId) return []
+
+  const { data } = await getSupportTickets(userId)
+  if (!data?.length) return []
+
+  return data.map((ticket) => ({
+    id: (ticket.id as string).slice(0, 8).toUpperCase(),
+    subject: ticket.subject as string,
+    description: ticket.description as string,
+    status: (ticket.status as string) ?? 'open',
+    priority: (ticket.priority as string) ?? 'medium',
+    created: formatDate(ticket.created_at as string),
+    updated: formatDate(ticket.updated_at as string),
+  }))
+}
+
+export async function fetchSupportTicketStats() {
+  const tickets = await fetchSupportTickets()
+  return {
+    open: tickets.filter((t) => t.status === 'open').length,
+    inProgress: tickets.filter((t) => t.status === 'in-progress' || t.status === 'in_progress').length,
+    resolved: tickets.filter((t) => t.status === 'resolved' || t.status === 'closed').length,
+  }
+}
+
+export async function fetchMarketInsightArticles(locale: string): Promise<MarketInsightItem[]> {
+  const { data } = await getMarketInsights()
+  if (!data?.length) return []
+
+  const localeKey = ['de', 'es', 'fr'].includes(locale) ? locale : 'en'
+
+  return data.map((row) => {
+    const title =
+      (row[`title_${localeKey}` as keyof typeof row] as string | undefined) ||
+      (row.title_en as string)
+    const summary =
+      (row[`summary_${localeKey}` as keyof typeof row] as string | undefined) ||
+      (row.summary_en as string)
+    const sentiment = String(row.sentiment ?? 'neutral').toLowerCase()
+
+    return {
+      id: row.id as string,
+      title,
+      summary,
+      tag: (row.tag as string) ?? 'Markets',
+      sentiment:
+        sentiment === 'bullish' || sentiment === 'bearish'
+          ? sentiment
+          : 'neutral',
+    }
+  })
+}
+
+export async function fetchUserPreferences(): Promise<UserPreferencesData> {
+  const userId = await requireUserId()
+  if (!userId) {
+    return {
+      theme: 'auto',
+      currency: 'usd',
+      profileVisibility: 'public',
+      emailNotifications: true,
+      investmentAlerts: true,
+      securityAlerts: true,
+    }
+  }
+
+  const { data } = await getUserPreferences(userId)
+  if (!data) {
+    return {
+      theme: 'auto',
+      currency: 'usd',
+      profileVisibility: 'public',
+      emailNotifications: true,
+      investmentAlerts: true,
+      securityAlerts: true,
+    }
+  }
+
+  return {
+    theme: (data.theme as string) ?? 'auto',
+    currency: (data.currency as string) ?? 'usd',
+    profileVisibility: (data.profile_visibility as string) ?? 'public',
+    emailNotifications: Boolean(data.email_notifications ?? true),
+    investmentAlerts: Boolean(data.investment_alerts ?? true),
+    securityAlerts: Boolean(data.security_alerts ?? true),
+  }
+}
+
+export async function saveUserPreferences(
+  preferences: Partial<UserPreferencesData>
+): Promise<{ ok: boolean; error?: string }> {
+  const userId = await requireUserId()
+  if (!userId) return { ok: false, error: 'Not authenticated' }
+
+  const payload: Record<string, unknown> = {}
+  if (preferences.theme !== undefined) payload.theme = preferences.theme
+  if (preferences.currency !== undefined) payload.currency = preferences.currency
+  if (preferences.profileVisibility !== undefined) {
+    payload.profile_visibility = preferences.profileVisibility
+  }
+  if (preferences.emailNotifications !== undefined) {
+    payload.email_notifications = preferences.emailNotifications
+  }
+  if (preferences.investmentAlerts !== undefined) {
+    payload.investment_alerts = preferences.investmentAlerts
+  }
+  if (preferences.securityAlerts !== undefined) {
+    payload.security_alerts = preferences.securityAlerts
+  }
+
+  const { error } = await upsertUserPreferences(userId, payload)
+  if (error) {
+    const message = (error as { message?: string }).message
+    return { ok: false, error: String(message ?? error) }
+  }
+  return { ok: true }
+}
+
+export async function fetchWalletHealth(): Promise<WalletHealthData> {
+  const userId = await requireUserId()
+  if (!userId) return { score: 0, statusKey: 'actionRequired' }
+
+  const [{ data: user }, { data: wallet }] = await Promise.all([
+    getUser(userId),
+    getWallet(userId),
+  ])
+
+  const kycVerified =
+    Boolean(user?.is_verified) ||
+    String(user?.kyc_status ?? '').toLowerCase() === 'verified' ||
+    String(user?.verification_status ?? '').toLowerCase() === 'approved'
+  const hasBalance = toNumber(wallet?.total_balance) > 0
+
+  let score = 35
+  if (kycVerified) score += 45
+  if (hasBalance) score += 15
+  score = Math.min(100, score)
+
+  const statusKey: WalletHealthData['statusKey'] =
+    score >= 85 ? 'excellent' : score >= 70 ? 'good' : score >= 50 ? 'fair' : 'actionRequired'
+
+  return { score, statusKey }
+}
+
+export async function fetchRewardTiers(): Promise<RewardTierItem[]> {
+  const { data } = await getRewardsTiers()
+  if (!data?.length) return []
+
+  return data.map((row, index, arr) => {
+    const min = Number(row.minimum_points ?? 0)
+    const next = arr[index + 1]
+    const maxLabel = next ? String(Number(next.minimum_points) - 1) : `${min}+`
+    const benefits = String(row.benefits ?? '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+
+    return {
+      tier: String(row.tier_name).replace(' Level', ''),
+      points: `${min}-${maxLabel}`,
+      benefits,
+    }
+  })
+}
+
+export async function fetchRewardCatalogItems(): Promise<RewardCatalogItem[]> {
+  const { data } = await getRewardCatalog()
+  if (!data?.length) return []
+
+  return data.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    description: (row.description as string) ?? '',
+    pointsCost: Number(row.points_cost ?? 0),
+  }))
+}
+
+export async function fetchPortfolioPerformanceStats() {
+  const monthlyReturns = await fetchMonthlyReturns()
+  if (!monthlyReturns.length) {
+    return {
+      bestMonth: '0%',
+      avgMonthlyReturn: '0%',
+      winningMonths: '0',
+      maxDrawdown: '0%',
+    }
+  }
+
+  const positive = monthlyReturns.filter((row) => row.value > 0)
+  const best = monthlyReturns.reduce((max, row) => (row.value > max.value ? row : max), monthlyReturns[0])
+  const worst = monthlyReturns.reduce((min, row) => (row.value < min.value ? row : min), monthlyReturns[0])
+  const avg =
+    monthlyReturns.reduce((sum, row) => sum + row.value, 0) / monthlyReturns.length
+
+  return {
+    bestMonth: formatPercent(best.value, { signed: true }),
+    avgMonthlyReturn: formatPercent(avg, { signed: true }),
+    winningMonths: String(positive.length),
+    maxDrawdown: formatPercent(worst.value, { signed: true }),
+  }
 }

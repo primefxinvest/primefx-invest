@@ -1,47 +1,63 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
+import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 import { Link } from '@/i18n/navigation'
-import { acknowledgeTermsAction, checkTermsAcknowledgementAction } from '@/lib/terms/actions'
+import { acknowledgeTermsAction } from '@/lib/terms/actions'
 
-export function TermsAcknowledgementBanner() {
-  const [required, setRequired] = useState(false)
-  const [version, setVersion] = useState('')
+type TermsAcknowledgementBannerProps = {
+  required: boolean
+  version: string
+}
+
+export function TermsAcknowledgementBanner({
+  required: initialRequired,
+  version,
+}: TermsAcknowledgementBannerProps) {
+  const t = useTranslations('compliance')
+  const [visible, setVisible] = useState(initialRequired)
   const [pending, startTransition] = useTransition()
 
   useEffect(() => {
-    checkTermsAcknowledgementAction().then((result) => {
-      setRequired(result.required)
-      setVersion(result.version)
-    })
-  }, [])
+    setVisible(initialRequired)
+  }, [initialRequired])
 
-  if (!required) return null
+  if (!visible || !version) return null
 
   const handleAck = () => {
     startTransition(async () => {
-      await acknowledgeTermsAction(version)
-      setRequired(false)
+      const result = await acknowledgeTermsAction(version)
+      if (!result.success) {
+        toast.error(result.error ?? t('termsAcknowledgeError'))
+        return
+      }
+      toast.success(t('termsAcknowledgeSuccess'))
+      setVisible(false)
     })
   }
 
   return (
-    <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-      <p className="font-semibold">Updated investment terms</p>
+    <div
+      role="region"
+      aria-live="polite"
+      className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+    >
+      <p className="font-semibold">{t('termsUpdatedTitle')}</p>
       <p className="mt-1">
-        Our referral program and investment terms have been updated. Please review the{' '}
-        <Link href="/legal" className="font-semibold underline">
-          Legal Center
+        {t('termsUpdatedDescriptionBefore')}{' '}
+        <Link href="/legal" className="font-semibold underline hover:text-amber-900">
+          {t('termsLegalCenter')}
         </Link>{' '}
-        and acknowledge to continue.
+        {t('termsUpdatedDescriptionAfter')}
       </p>
       <button
         type="button"
         disabled={pending}
         onClick={handleAck}
-        className="mt-3 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-60"
+        className="mt-3 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        I acknowledge the updated terms
+        {t('termsAcknowledge')}
       </button>
     </div>
   )
