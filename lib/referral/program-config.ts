@@ -68,6 +68,19 @@ export const REFERRAL_RANK_TIERS = [
 
 export type ReferralRankKey = (typeof REFERRAL_RANK_TIERS)[number]['key']
 
+/** Shown in UI when active member count is below the first rank threshold. */
+export const REFERRAL_UNRANKED = {
+  key: 'none' as const,
+  name: 'No rank yet',
+  minMembers: 0,
+  cashBonusUsd: 0,
+  perks: [] as string[],
+}
+
+export function getReferralRankTier(key: string) {
+  return REFERRAL_RANK_TIERS.find((tier) => tier.key === key)
+}
+
 export const PLATFORM_FEE_RATES = {
   p2pTransfer: 0.012,
   withdrawal: 0.05,
@@ -97,26 +110,36 @@ export function formatProfitShareLevelsSummary(): string {
   ).join(' · ')
 }
 
-export function resolveReferralRank(memberCount: number) {
-  let current: (typeof REFERRAL_RANK_TIERS)[number] = REFERRAL_RANK_TIERS[0]
+export function resolveReferralRank(activeMemberCount: number) {
+  let achieved: (typeof REFERRAL_RANK_TIERS)[number] | null = null
   for (const tier of REFERRAL_RANK_TIERS) {
-    if (memberCount >= tier.minMembers) {
-      current = tier
+    if (activeMemberCount >= tier.minMembers) {
+      achieved = tier
     }
   }
 
-  const currentIndex = REFERRAL_RANK_TIERS.findIndex((tier) => tier.key === current.key)
-  const next = REFERRAL_RANK_TIERS[Math.min(currentIndex + 1, REFERRAL_RANK_TIERS.length - 1)]
-  const span = Math.max(1, next.minMembers - current.minMembers)
+  const achievedIndex = achieved
+    ? REFERRAL_RANK_TIERS.findIndex((tier) => tier.key === achieved!.key)
+    : -1
+  const next =
+    achievedIndex < 0
+      ? REFERRAL_RANK_TIERS[0]
+      : REFERRAL_RANK_TIERS[Math.min(achievedIndex + 1, REFERRAL_RANK_TIERS.length - 1)]
+
+  const progressFrom = achieved?.minMembers ?? 0
+  const span = Math.max(1, next.minMembers - progressFrom)
   const progressPercent =
-    current.key === next.key
+    achieved && achieved.key === next.key
       ? 100
-      : Math.min(100, Math.round(((memberCount - current.minMembers) / span) * 100))
+      : Math.min(100, Math.round(((activeMemberCount - progressFrom) / span) * 100))
 
   return {
-    current,
+    achieved,
+    achievedKey: achieved?.key ?? null,
+    current: achieved ?? REFERRAL_UNRANKED,
     next,
     progressPercent,
-    activeMembers: memberCount,
+    activeMembers: activeMemberCount,
+    hasRank: achieved !== null,
   }
 }

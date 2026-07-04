@@ -14,6 +14,7 @@ import {
   listDueWithdrawalRequests,
   markWithdrawalRequestStatus,
 } from '@/lib/wallet/withdrawals'
+import { syncAllOpenDeposits } from '@/lib/payments/deposit-sync'
 
 export async function processDueWalletWithdrawals() {
   const due = await listDueWithdrawalRequests()
@@ -45,13 +46,27 @@ export async function processDueCapitalWithdrawals() {
   return { processed, totalDue: dueCapital.length }
 }
 
+/** Run automated jobs for due withdrawals, capital returns, and stale crypto deposits. */
+export async function processDueFinancialJobs() {
+  const withdrawals = await processDueWalletWithdrawals()
+  const capitalWithdrawals = await processDueCapitalWithdrawals()
+  const depositSync = await syncAllOpenDeposits()
+
+  return {
+    withdrawals,
+    capitalWithdrawals,
+    depositSync,
+  }
+}
+
 export type DailyCronResult = {
   ranAt: string
   utcDay: number
   withdrawals: Awaited<ReturnType<typeof processDueWalletWithdrawals>>
+  depositSync: Awaited<ReturnType<typeof syncAllOpenDeposits>>
   profits: Awaited<ReturnType<typeof runDailyInvestmentProfits>> | { skipped: true; reason: string }
   weekly: Awaited<ReturnType<typeof runWeeklyReferralDistribution>> | null
-  capitalWithdrawals: Awaited<ReturnType<typeof processDueCapitalWithdrawals>> | null
+  capitalWithdrawals: Awaited<ReturnType<typeof processDueCapitalWithdrawals>>
 }
 
 /** Single daily cron for Vercel Hobby (one job / 24h). */
@@ -60,6 +75,7 @@ export async function runDailyCron(): Promise<DailyCronResult> {
   const utcDay = now.getUTCDay()
 
   const withdrawals = await processDueWalletWithdrawals()
+  const depositSync = await syncAllOpenDeposits()
 
   let profits: DailyCronResult['profits']
   if (utcDay >= 1 && utcDay <= 5) {
@@ -69,17 +85,19 @@ export async function runDailyCron(): Promise<DailyCronResult> {
   }
 
   let weekly: DailyCronResult['weekly'] = null
-  let capitalWithdrawals: DailyCronResult['capitalWithdrawals'] = null
 
   if (utcDay === 5) {
     weekly = await runWeeklyReferralDistribution()
-    capitalWithdrawals = await processDueCapitalWithdrawals()
   }
+
+  // Process due capital returns every day once the notice period ends (not only Fridays).
+  const capitalWithdrawals = await processDueCapitalWithdrawals()
 
   return {
     ranAt: now.toISOString(),
     utcDay,
     withdrawals,
+    depositSync,
     profits,
     weekly,
     capitalWithdrawals,

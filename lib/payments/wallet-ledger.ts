@@ -295,6 +295,18 @@ export async function completeTransaction(referenceId: string, status: 'Complete
   if (error) throw new Error(error.message)
 }
 
+/** Update pending transaction copy while polling payment providers. */
+export async function updateTransactionSyncNote(referenceId: string, description: string) {
+  const db = getDb()
+  const { error } = await db
+    .from('transactions')
+    .update({ description })
+    .eq('reference_id', referenceId)
+    .eq('status', 'Pending')
+
+  if (error) throw new Error(error.message)
+}
+
 export async function updatePaymentStatus(
   orderId: string,
   status: PaymentStatus,

@@ -104,6 +104,8 @@ export async function syncPendingDeposits() {
     revalidatePath('/wallet/deposit')
     revalidatePath('/dashboard')
     revalidatePath('/transactions')
+  } else if (result.stillPending > 0) {
+    revalidatePath('/transactions')
   }
 
   return result

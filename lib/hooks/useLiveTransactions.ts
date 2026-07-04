@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { mapDbTransactionToItem, type TransactionMapVariant } from '@/lib/data/transaction-map'
 import type { TransactionItem } from '@/lib/data/types'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
@@ -52,6 +52,14 @@ export function useLiveTransactions(
     onInsert: (row) => applyRow(row, 'INSERT'),
     onUpdate: (row) => applyRow(row, 'UPDATE'),
   })
+
+  useEffect(() => {
+    const onExternalSync = () => {
+      void reload({ silent: true })
+    }
+    window.addEventListener('primefx:transactions-updated', onExternalSync)
+    return () => window.removeEventListener('primefx:transactions-updated', onExternalSync)
+  }, [reload])
 
   return { data, loading, error, reload }
 }

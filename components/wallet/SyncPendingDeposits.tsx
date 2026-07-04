@@ -1,10 +1,14 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { toast } from 'sonner'
 import { syncPendingDeposits } from '@/lib/payments/actions'
+
+const POLL_INTERVAL_MS = 12_000
+const POLL_INTERVAL_AFTER_RETURN_MS = 8_000
+const MAX_POLL_ATTEMPTS = 40
 
 type SyncPendingDepositsProps = {
   onSynced?: () => void
@@ -13,41 +17,72 @@ type SyncPendingDepositsProps = {
 export function SyncPendingDeposits({ onSynced }: SyncPendingDepositsProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const ranRef = useRef(false)
   const onSyncedRef = useRef(onSynced)
+  const attemptsRef = useRef(0)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     onSyncedRef.current = onSynced
   }, [onSynced])
 
+  const fromDepositReturn = searchParams.get('deposit') === 'success'
+  const pollInterval = fromDepositReturn ? POLL_INTERVAL_AFTER_RETURN_MS : POLL_INTERVAL_MS
+
+  const runSync = useCallback(async (): Promise<boolean> => {
+    try {
+      const result = await syncPendingDeposits()
+
+      if (result.completed > 0) {
+        toast.success('Deposit confirmed', {
+          description: `${result.completed} deposit${result.completed === 1 ? '' : 's'} added to your balance.`,
+        })
+        router.refresh()
+        onSyncedRef.current?.()
+        window.dispatchEvent(new Event('primefx:transactions-updated'))
+        return false
+      }
+
+      if (result.checked > 0) {
+        window.dispatchEvent(new Event('primefx:transactions-updated'))
+      }
+
+      if (fromDepositReturn && result.checked > 0 && attemptsRef.current === 0) {
+        const statusHint =
+          result.results.find((item) => item.providerStatus)?.message ??
+          'Your payment is being confirmed with NOWPayments.'
+        toast.info('Payment received — confirming deposit', {
+          description: `${statusHint} We check status automatically every few seconds.`,
+        })
+      }
+
+      return result.stillPending > 0 && result.checked > 0
+    } catch {
+      return false
+    }
+  }, [fromDepositReturn, router])
+
   useEffect(() => {
-    if (ranRef.current) return
-    ranRef.current = true
+    attemptsRef.current = 0
 
-    const fromDepositReturn = searchParams.get('deposit') === 'success'
+    const scheduleNext = (shouldContinue: boolean) => {
+      if (!shouldContinue || attemptsRef.current >= MAX_POLL_ATTEMPTS) {
+        return
+      }
 
-    void syncPendingDeposits()
-      .then((result) => {
-        if (result.completed > 0) {
-          toast.success('Deposit confirmed', {
-            description: `${result.completed} deposit${result.completed === 1 ? '' : 's'} added to your balance.`,
-          })
-          router.refresh()
-          onSyncedRef.current?.()
-          return
-        }
+      timerRef.current = setTimeout(() => {
+        attemptsRef.current += 1
+        void runSync().then(scheduleNext)
+      }, pollInterval)
+    }
 
-        if (fromDepositReturn && result.checked > 0) {
-          toast.info('Payment received — confirming deposit', {
-            description:
-              'Your payment is still being confirmed. Balance will update automatically in a moment.',
-          })
-        }
-      })
-      .catch(() => {
-        // Non-blocking: webhooks may still complete the deposit later.
-      })
-  }, [router, searchParams])
+    void runSync().then(scheduleNext)
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current)
+      }
+    }
+  }, [pollInterval, runSync])
 
   return null
 }

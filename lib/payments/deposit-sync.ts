@@ -1,11 +1,7 @@
 import 'server-only'
 
 import { queryBinanceOrder } from './binance-pay'
-import {
-  isPaymentComplete,
-  isPaymentFailed,
-  listNowPaymentsPaymentsByOrderId,
-} from './nowpayments'
+import { syncNowPaymentsDepositStatus } from './nowpayments-sync'
 import {
   completeDepositFromWebhook,
   failDepositFromWebhook,
@@ -27,46 +23,17 @@ export type DepositSyncResult = {
   orderId: string
   status: 'completed' | 'failed' | 'pending' | 'skipped'
   message?: string
+  providerStatus?: string | null
 }
 
 async function syncNowPaymentsDeposit(orderId: string): Promise<DepositSyncResult> {
-  const payments = await listNowPaymentsPaymentsByOrderId(orderId)
-  if (payments.length === 0) {
-    return { orderId, status: 'pending', message: 'No NOWPayments payment found yet.' }
+  const result = await syncNowPaymentsDepositStatus(orderId)
+  return {
+    orderId: result.orderId,
+    status: result.status,
+    message: result.message,
+    providerStatus: result.providerStatus,
   }
-
-  const latest = payments[0]
-  const paymentStatus = String(latest.payment_status ?? '').toLowerCase()
-
-  if (isPaymentComplete(paymentStatus)) {
-    await completeDepositFromWebhook(orderId)
-    return { orderId, status: 'completed' }
-  }
-
-  if (isPaymentFailed(paymentStatus)) {
-    await failDepositFromWebhook(
-      orderId,
-      paymentStatus === 'expired' ? 'expired' : paymentStatus === 'refunded' ? 'refunded' : 'failed'
-    )
-    return { orderId, status: 'failed' }
-  }
-
-  if (['waiting', 'confirming', 'confirmed', 'sending', 'partially_paid'].includes(paymentStatus)) {
-    const mappedStatus =
-      paymentStatus === 'waiting'
-        ? 'pending'
-        : paymentStatus === 'confirming' || paymentStatus === 'confirmed'
-          ? 'confirming'
-          : 'processing'
-
-    await updatePaymentStatus(orderId, mappedStatus, {
-      provider_payment_id: latest.payment_id != null ? String(latest.payment_id) : undefined,
-      pay_amount: latest.pay_amount != null ? Number(latest.pay_amount) : undefined,
-      metadata: latest,
-    })
-  }
-
-  return { orderId, status: 'pending', message: `Payment status: ${paymentStatus || 'unknown'}` }
 }
 
 async function syncBinancePayDeposit(
@@ -163,10 +130,50 @@ export async function syncUserPendingDeposits(userId: string) {
   }
 
   const completed = results.filter((item) => item.status === 'completed').length
+  const stillPending = results.filter((item) => item.status === 'pending').length
 
   return {
     checked: results.length,
     completed,
+    stillPending,
+    results,
+  }
+}
+
+/** Reconcile open crypto deposits when webhooks were missed (cron / admin). */
+export async function syncAllOpenDeposits(limit = 50) {
+  const db = getDb()
+  const { data: pending, error } = await db
+    .from('payments')
+    .select('order_id, investor_id')
+    .eq('type', 'deposit')
+    .in('status', [...OPEN_DEPOSIT_STATUSES])
+    .order('created_at', { ascending: true })
+    .limit(limit)
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  const results: DepositSyncResult[] = []
+  for (const row of pending ?? []) {
+    const orderId = String(row.order_id)
+    const userId = String(row.investor_id)
+    try {
+      results.push(await syncDepositByOrderId(orderId, userId))
+    } catch (err) {
+      results.push({
+        orderId,
+        status: 'pending',
+        message: err instanceof Error ? err.message : 'Sync failed',
+      })
+    }
+  }
+
+  return {
+    checked: results.length,
+    completed: results.filter((item) => item.status === 'completed').length,
+    failed: results.filter((item) => item.status === 'failed').length,
     results,
   }
 }

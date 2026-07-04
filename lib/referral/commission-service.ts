@@ -4,6 +4,7 @@ import {
   AMBASSADOR_TEAM_PROFIT_RATE,
   formatReferralRate,
   getProfitShareRate,
+  getReferralRankTier,
 } from '@/lib/referral/program-config'
 import { getReferralAncestors } from '@/lib/referral/network'
 import { getReferralProgramEnabled } from '@/lib/referral/settings'
@@ -249,6 +250,37 @@ export async function payPendingRankCashBonuses(limit = 100) {
   for (const reward of rewards) {
     const bonus = Number(reward.cash_bonus_usd)
     const userId = reward.user_id as string
+    const tier = getReferralRankTier(reward.rank_key as string)
+
+    if (!tier) {
+      await db
+        .from('referral_rank_rewards')
+        .update({
+          status: 'cancelled',
+          admin_notes: 'Auto-cancelled: unknown rank tier',
+        })
+        .eq('id', reward.id)
+      continue
+    }
+
+    const { data: stats } = await db
+      .from('user_referral_stats')
+      .select('active_member_count')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    const activeMembers = Number(stats?.active_member_count ?? 0)
+    if (activeMembers < tier.minMembers) {
+      await db
+        .from('referral_rank_rewards')
+        .update({
+          status: 'cancelled',
+          admin_notes: `Auto-cancelled: ${activeMembers} active members, requires ${tier.minMembers}`,
+        })
+        .eq('id', reward.id)
+      continue
+    }
+
     const referenceId = generatePaymentReference('bonus')
 
     await creditInvestorWallet(userId, bonus)

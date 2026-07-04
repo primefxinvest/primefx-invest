@@ -64,6 +64,7 @@ import type { ReferralProgramPageData } from '@/lib/referral/overview-server'
 import {
   REFERRAL_INVESTMENT_COMMISSION_RATE,
   REFERRAL_RANK_TIERS,
+  REFERRAL_UNRANKED,
   formatProfitShareLevelsSummary,
   formatReferralRate,
   getMaxProfitShareRate,
@@ -423,15 +424,22 @@ function isMaxRankMetric(rank: ReferralProgramOverview['rank']) {
   return rank.current === rank.next
 }
 
-function resolveRankKeyFromName(name: string): ReferralRankKey {
+function resolveRankKeyFromName(name: string): ReferralRankKey | 'none' {
+  if (name === REFERRAL_UNRANKED.name) return 'none'
   const tier = REFERRAL_RANK_TIERS.find((row) => row.name === name)
-  return tier?.key ?? 'bronze'
+  return tier?.key ?? 'none'
 }
 
 const RANK_BADGE_STYLES: Record<
-  ReferralRankKey,
+  ReferralRankKey | 'none',
   { shell: string; icon: typeof Gem; iconClass: string; nameClass: string }
 > = {
+  none: {
+    shell: 'bg-gradient-to-br from-slate-50 to-slate-100 ring-slate-200/80',
+    icon: Users,
+    iconClass: 'text-slate-500',
+    nameClass: 'text-slate-600',
+  },
   bronze: {
     shell: 'bg-gradient-to-br from-amber-100 to-orange-100 ring-amber-200/80',
     icon: Medal,
@@ -632,7 +640,7 @@ function ReferralRankLevelsPanel({
 }) {
   const rows = REFERRAL_RANK_TIERS.map((tier) => {
     const unlocked = activeInvestors >= tier.minMembers
-    const isCurrent = tier.name === currentRank
+    const isCurrent = unlocked && tier.name === currentRank
     const isNext = tier.name === nextRank && currentRank !== nextRank
     const membersRemaining = Math.max(0, tier.minMembers - activeInvestors)
 

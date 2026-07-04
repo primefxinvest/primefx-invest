@@ -684,3 +684,26 @@ export async function adminUpdateSupportTicketStatus(
   revalidatePath(`/admin/support/${ticketId}`)
   return { success: true }
 }
+
+export async function processDueFinancialJobsAction() {
+  const context = await getContext()
+  assertModuleAccess(context, 'financial_management')
+
+  const { processDueFinancialJobs } = await import('@/lib/cron/daily-jobs')
+  const result = await processDueFinancialJobs()
+
+  await logAdminAction({
+    context,
+    module: 'financial_management',
+    action: 'process_due_financial_jobs',
+    afterState: result as unknown as Record<string, unknown>,
+  })
+
+  revalidatePath('/admin/transactions')
+  revalidatePath('/admin/wallets')
+  revalidatePath('/wallet')
+  revalidatePath('/transactions')
+  revalidatePath('/portfolio')
+
+  return { success: true as const, ...result }
+}

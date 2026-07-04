@@ -112,7 +112,7 @@ export function buildReferralBadgeState(input: {
   const hasReferralThisMonth = input.referralDates.some((date) => monthKey(date) === monthKey(now))
 
   const unlockedById: Record<ReferralBadgeVariant, boolean> = {
-    'diamond-rank': rank.current.key === 'diamond' || rank.current.key === 'ambassador',
+    'diamond-rank': rank.achievedKey === 'diamond' || rank.achievedKey === 'ambassador',
     'top-referrer': hasReferralThisMonth || input.thisMonthEarnings > 0,
     'consistent-builder': streakMonths >= 3,
     'growth-expert': input.activeInvestors >= 100,

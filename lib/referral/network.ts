@@ -80,23 +80,43 @@ export async function refreshUserReferralStats(userId: string) {
     activeCount = count ?? 0
   }
 
-  const { resolveReferralRank } = await import('@/lib/referral/program-config')
+  const { REFERRAL_RANK_TIERS, resolveReferralRank } = await import('@/lib/referral/program-config')
   const memberCount = totalCount ?? 0
-  const rank = resolveReferralRank(memberCount)
+  const rank = resolveReferralRank(activeCount)
+
+  const { data: previous } = await admin
+    .from('user_referral_stats')
+    .select('rank_key')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  const previousIndex = previous?.rank_key
+    ? REFERRAL_RANK_TIERS.findIndex((tier) => tier.key === previous.rank_key)
+    : -1
+  const newIndex = rank.achieved
+    ? REFERRAL_RANK_TIERS.findIndex((tier) => tier.key === rank.achieved!.key)
+    : -1
+  const rankUpgraded = newIndex > previousIndex
 
   await admin.from('user_referral_stats').upsert(
     {
       user_id: userId,
-      rank_key: rank.current.key,
+      rank_key: rank.achievedKey,
       active_member_count: activeCount,
       total_member_count: memberCount,
       updated_at: new Date().toISOString(),
-      rank_achieved_at: new Date().toISOString(),
+      ...(rankUpgraded && rank.achievedKey
+        ? { rank_achieved_at: new Date().toISOString() }
+        : {}),
     },
     { onConflict: 'user_id' }
   )
 
-  await ensureRankRewardRecord(userId, rank.current.key, rank.current.cashBonusUsd, rank.current.perks)
+  for (const tier of REFERRAL_RANK_TIERS) {
+    if (activeCount >= tier.minMembers) {
+      await ensureRankRewardRecord(userId, tier.key, tier.cashBonusUsd, tier.perks)
+    }
+  }
 }
 
 async function ensureRankRewardRecord(

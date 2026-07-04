@@ -12,6 +12,7 @@ import {
   Copy,
   Gift,
   Loader2,
+  RefreshCw,
   Search,
   Share2,
   TrendingUp,
@@ -22,7 +23,7 @@ import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { StatusCardGrid, statusCardAdminSurfaceClass } from '@/components/shared/status-cards'
 import { Button } from '@/components/ui/button'
-import { updateTransactionStatus } from '@/lib/admin/actions'
+import { updateTransactionStatus, processDueFinancialJobsAction } from '@/lib/admin/actions'
 import type { AdminTransactionRow } from '@/lib/admin/types'
 import { patchAdminTransactionRow } from '@/lib/data/transaction-map'
 import { formatCurrency } from '@/lib/data/format'
@@ -352,6 +353,7 @@ export function AdminTransactionsView({
   const [typeFilter, setTypeFilter] = useState('all')
   const [processingId, setProcessingId] = useState<string | null>(null)
   const [processingAction, setProcessingAction] = useState<'approve' | 'reject' | null>(null)
+  const [processingDueJobs, setProcessingDueJobs] = useState(false)
   const [, startTransition] = useTransition()
   const { confirm, ActionDialog } = useActionDialog()
 
@@ -528,6 +530,26 @@ export function AdminTransactionsView({
     runStatusUpdate(tx, 'Rejected')
   }
 
+  const handleProcessDueJobs = () => {
+    setProcessingDueJobs(true)
+    startTransition(async () => {
+      try {
+        const result = await processDueFinancialJobsAction()
+        const walletDone = result.withdrawals.processed
+        const capitalDone = result.capitalWithdrawals.processed
+        const depositsDone = result.depositSync.completed
+
+        toast.success('Due financial jobs processed', {
+          description: `${walletDone} wallet withdrawal(s), ${capitalDone} capital return(s), ${depositsDone} deposit(s) confirmed.`,
+        })
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to process due jobs')
+      } finally {
+        setProcessingDueJobs(false)
+      }
+    })
+  }
+
   const statusFilters: { key: StatusFilter; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: stats.total },
     { key: 'pending', label: 'Pending', count: stats.pending },
@@ -641,21 +663,44 @@ export function AdminTransactionsView({
         ))}
       </div>
 
-      {stats.pending > 0 && statusFilter !== 'pending' ? (
-        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900">
-          <Clock className="h-4 w-4 shrink-0" />
-          <span>
-            <span className="font-semibold">{stats.pending} pending</span>
-            {' — '}
-            switch to the Pending tab to review and approve or reject.
-          </span>
-          <button
-            type="button"
-            onClick={() => setStatusFilter('pending')}
-            className="ml-auto shrink-0 rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-amber-700"
-          >
-            Review pending
-          </button>
+      {stats.pending > 0 ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-3 text-sm text-amber-900 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 items-start gap-2">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p>
+                <span className="font-semibold">{stats.pending} pending</span>
+                {' — '}
+                {statusFilter !== 'pending'
+                  ? 'Review manual deposits in the Pending tab, or run due jobs for withdrawals past the 7-day notice.'
+                  : 'Approve bank deposits manually. Withdrawals and capital returns auto-complete after the notice period when cron runs.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2 sm:ml-auto">
+            <button
+              type="button"
+              disabled={processingDueJobs}
+              onClick={handleProcessDueJobs}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-60"
+            >
+              {processingDueJobs ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              Process due jobs
+            </button>
+            {statusFilter !== 'pending' ? (
+              <button
+                type="button"
+                onClick={() => setStatusFilter('pending')}
+                className="rounded-lg bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-amber-700"
+              >
+                Review pending
+              </button>
+            ) : null}
+          </div>
         </div>
       ) : null}
 

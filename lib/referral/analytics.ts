@@ -104,17 +104,16 @@ function getInitials(name: string) {
 
 function computeRank(activeInvestors: number): ReferralRank {
   const resolved = resolveReferralRank(activeInvestors)
+  const atMaxRank = resolved.achieved !== null && resolved.achieved.key === resolved.next.key
+
   return {
     current: resolved.current.name,
     next: resolved.next.name,
-    currentThreshold: resolved.current.minMembers,
+    currentThreshold: resolved.achieved?.minMembers ?? 0,
     nextThreshold: resolved.next.minMembers,
     progressPercent: resolved.progressPercent,
     activeInvestors,
-    membersRemaining:
-      resolved.current.key === resolved.next.key
-        ? 0
-        : Math.max(0, resolved.next.minMembers - activeInvestors),
+    membersRemaining: atMaxRank ? 0 : Math.max(0, resolved.next.minMembers - activeInvestors),
   }
 }
 
