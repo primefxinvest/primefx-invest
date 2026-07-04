@@ -242,7 +242,7 @@ export async function updateUserKycStatus(
     reasonCode: reasonCode ?? undefined,
   })
 
-  if (status === 'Verified' || status === 'Rejected') {
+  if ((status === 'Verified' || status === 'Rejected') && before?.kyc_status !== status) {
     await notifyKycStatusChange(userId, status)
   }
 
@@ -561,5 +561,126 @@ export async function adminPublishTermsUpdate(message: string): Promise<AdminMut
     afterState: { notified: result.notified },
   })
 
+  return { success: true }
+}
+
+const SUPPORT_STATUSES = new Set(['open', 'in_progress', 'in-progress', 'resolved', 'closed'])
+
+function normalizeSupportStatus(status: string) {
+  const value = status.trim().toLowerCase().replace(/-/g, '_')
+  if (value === 'inprogress') return 'in_progress'
+  return value
+}
+
+export async function adminReplySupportTicket(
+  ticketId: string,
+  message: string,
+  status?: string
+): Promise<AdminMutationResult> {
+  const context = await getContext()
+  assertModuleAccess(context, 'support_tickets')
+
+  const body = message.trim()
+  if (!body) {
+    return { success: false, error: 'Reply message is required.' }
+  }
+
+  const db = getDb()
+  const { data: ticket, error: ticketError } = await db
+    .from('support_tickets')
+    .select('*')
+    .eq('id', ticketId)
+    .maybeSingle()
+
+  if (ticketError) return { success: false, error: ticketError.message }
+  if (!ticket) return { success: false, error: 'Ticket not found.' }
+
+  const nextStatus = status ? normalizeSupportStatus(status) : undefined
+  if (nextStatus && !SUPPORT_STATUSES.has(nextStatus)) {
+    return { success: false, error: 'Invalid ticket status.' }
+  }
+
+  const { error: messageError } = await db.from('support_ticket_messages').insert({
+    ticket_id: ticketId,
+    sender_type: 'admin',
+    sender_id: context.userId,
+    message: body,
+  })
+
+  if (messageError) return { success: false, error: messageError.message }
+
+  const currentStatus = String(ticket.status ?? 'open').toLowerCase().replace(/-/g, '_')
+  const resolvedStatus =
+    nextStatus ?? (currentStatus === 'open' ? 'in_progress' : String(ticket.status))
+
+  await db
+    .from('support_tickets')
+    .update({
+      status: resolvedStatus,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', ticketId)
+
+  const { notifySupportTicketReply } = await import('@/lib/notifications/service')
+  await notifySupportTicketReply(
+    String(ticket.user_id),
+    ticketId,
+    String(ticket.subject)
+  )
+
+  await logAdminAction({
+    context,
+    module: 'support_tickets',
+    action: 'support_ticket_reply',
+    targetResource: ticketId,
+    targetUserId: String(ticket.user_id),
+    afterState: { status: resolvedStatus },
+  })
+
+  revalidatePath('/admin/support')
+  revalidatePath(`/admin/support/${ticketId}`)
+  return { success: true }
+}
+
+export async function adminUpdateSupportTicketStatus(
+  ticketId: string,
+  status: string,
+  priority?: string
+): Promise<AdminMutationResult> {
+  const context = await getContext()
+  assertModuleAccess(context, 'support_tickets')
+
+  const nextStatus = normalizeSupportStatus(status)
+  if (!SUPPORT_STATUSES.has(nextStatus)) {
+    return { success: false, error: 'Invalid ticket status.' }
+  }
+
+  const db = getDb()
+  const { data: before } = await db.from('support_tickets').select('*').eq('id', ticketId).maybeSingle()
+  if (!before) return { success: false, error: 'Ticket not found.' }
+
+  const update: Record<string, string> = {
+    status: nextStatus,
+    updated_at: new Date().toISOString(),
+  }
+  if (priority?.trim()) {
+    update.priority = priority.trim().toLowerCase()
+  }
+
+  const { error } = await db.from('support_tickets').update(update).eq('id', ticketId)
+  if (error) return { success: false, error: error.message }
+
+  await logAdminAction({
+    context,
+    module: 'support_tickets',
+    action: 'support_ticket_status_updated',
+    targetResource: ticketId,
+    targetUserId: String(before.user_id),
+    beforeState: before as Record<string, unknown>,
+    afterState: update,
+  })
+
+  revalidatePath('/admin/support')
+  revalidatePath(`/admin/support/${ticketId}`)
   return { success: true }
 }

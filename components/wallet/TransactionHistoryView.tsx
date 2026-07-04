@@ -27,7 +27,8 @@ import { WalletDepositCta, WalletTransferCta } from '@/components/wallet/layout/
 import { PageHeaderSkeleton, TableSkeleton } from '@/components/shared/skeletons'
 import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
 import { ScrollTable } from '@/components/shared/ScrollTable'
-import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { useSessionUser } from '@/lib/hooks/useSessionUser'
+import { useLiveTransactions } from '@/lib/hooks/useLiveTransactions'
 import { fetchWalletTransactions } from '@/lib/data/queries'
 import type { TransactionItem } from '@/lib/data/types'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
@@ -95,14 +96,15 @@ function exportTransactionsCsv(
 export function TransactionHistoryView() {
   const t = useTranslations('wallet.transactions')
   const tWallet = useTranslations('wallet')
+  const user = useSessionUser()
   const [search, setSearch] = useState('')
   const [activeTab, setActiveTab] = useState<FilterTabId>('all')
   const [page, setPage] = useState(1)
   const perPage = 10
 
-  const { data: transactions = [], loading, error, reload } = useAsyncData(
+  const { data: transactions = [], loading, error, reload } = useLiveTransactions(
     () => fetchWalletTransactions(),
-    []
+    { userId: user.id, variant: 'wallet' }
   )
 
   const filtered = useMemo(() => {
@@ -286,7 +288,7 @@ export function TransactionHistoryView() {
         </div>
 
         <AsyncState
-          loading={loading}
+          loading={loading && !transactions.length}
           error={error}
           onRetry={reload}
           isEmpty={paged.length === 0}

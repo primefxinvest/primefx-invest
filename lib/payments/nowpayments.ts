@@ -4,7 +4,7 @@ import {
   getNowPaymentsBaseUrl,
   getNowPaymentsEnv,
   getSuccessRedirectUrl,
-  getWebhookBaseUrl,
+  buildPaymentWebhookUrl,
   isNowPaymentsSandboxEnv,
   normalizeNowPaymentsCredential,
 } from './env'
@@ -115,12 +115,15 @@ export async function createNowPaymentsInvoice(params: NowPaymentsInvoiceParams)
   const apiKey = getNowPaymentsApiKey()
   const baseUrl = getNowPaymentsBaseUrl()
 
+  const ipnCallbackUrl =
+    params.callbackUrl ?? buildPaymentWebhookUrl('/api/webhooks/nowpayments')
+
   const body = {
     price_amount: params.amount,
     price_currency: params.currency.toLowerCase(),
     order_id: params.orderId,
     order_description: params.description,
-    ipn_callback_url: params.callbackUrl ?? `${getWebhookBaseUrl()}/api/webhooks/nowpayments`,
+    ipn_callback_url: ipnCallbackUrl,
     success_url: params.successUrl ?? getSuccessRedirectUrl(),
     cancel_url: params.cancelUrl ?? getCancelRedirectUrl(),
     is_fixed_rate: false,
@@ -176,17 +179,18 @@ export async function createNowPaymentsPayout(input: {
   extraId: string
 }) {
   const jwt = await getNowPaymentsJwt()
+  const payoutCallbackUrl = buildPaymentWebhookUrl('/api/webhooks/nowpayments-payout')
 
   return nowPaymentsRequest<{ id: string | number }>('/payout', {
     jwt,
     body: {
-      ipn_callback_url: `${getWebhookBaseUrl()}/api/webhooks/nowpayments-payout`,
+      ipn_callback_url: payoutCallbackUrl,
       withdrawals: [
         {
           address: input.address,
           currency: toNowPaymentsPayCurrency(input.currency),
           amount: input.amount,
-          ipn_callback_url: `${getWebhookBaseUrl()}/api/webhooks/nowpayments-payout`,
+          ipn_callback_url: payoutCallbackUrl,
           extra_id: input.extraId,
         },
       ],
@@ -226,4 +230,58 @@ export function isPaymentComplete(status: string): boolean {
 
 export function isPaymentFailed(status: string): boolean {
   return ['failed', 'refunded', 'expired'].includes(status)
+}
+
+export type NowPaymentsPaymentRecord = {
+  payment_id?: number | string
+  payment_status?: string
+  pay_amount?: number | string
+  order_id?: string
+  [key: string]: unknown
+}
+
+export async function getNowPaymentsPaymentStatus(paymentId: string | number) {
+  const apiKey = getNowPaymentsApiKey()
+  const baseUrl = getNowPaymentsBaseUrl()
+
+  const response = await fetch(`${baseUrl}/payment/${paymentId}`, {
+    headers: { 'x-api-key': apiKey },
+    signal: AbortSignal.timeout(NOWPAYMENTS_FETCH_TIMEOUT_MS),
+  })
+
+  const data = (await response.json()) as NowPaymentsPaymentRecord & { message?: string }
+
+  if (!response.ok) {
+    throw new Error(data.message ?? `NOWPayments payment status failed (${response.status})`)
+  }
+
+  return data
+}
+
+export async function listNowPaymentsPaymentsByOrderId(orderId: string) {
+  const apiKey = getNowPaymentsApiKey()
+  const baseUrl = getNowPaymentsBaseUrl()
+  const url = `${baseUrl}/payment?order_id=${encodeURIComponent(orderId)}&limit=10&sortBy=created_at&orderBy=desc`
+
+  const response = await fetch(url, {
+    headers: { 'x-api-key': apiKey },
+    signal: AbortSignal.timeout(NOWPAYMENTS_FETCH_TIMEOUT_MS),
+  })
+
+  const json = (await response.json()) as
+    | NowPaymentsPaymentRecord[]
+    | { data?: NowPaymentsPaymentRecord[]; payments?: NowPaymentsPaymentRecord[]; message?: string }
+
+  if (!response.ok) {
+    const message =
+      !Array.isArray(json) && typeof json.message === 'string'
+        ? json.message
+        : `NOWPayments payment list failed (${response.status})`
+    throw new Error(message)
+  }
+
+  if (Array.isArray(json)) return json
+  if (Array.isArray(json.data)) return json.data
+  if (Array.isArray(json.payments)) return json.payments
+  return []
 }

@@ -1,8 +1,9 @@
 import 'server-only'
 
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
-import { createUserNotification } from '@/lib/notifications/service'
+import { createUserNotification, createUserNotificationOnce } from '@/lib/notifications/service'
 import { syncUserVerificationFromDidit } from '@/lib/didit/verification-sync'
+import { upsertVerificationSession } from '@/lib/didit/verification-sessions'
 import type { DiditWebhookEnvelope } from '@/lib/didit/webhook-types'
 import { markDiditWebhookProcessed } from '@/lib/didit/webhook-log'
 
@@ -67,24 +68,27 @@ async function handleSessionEvent(event: DiditWebhookEnvelope) {
     })
 
     if (event.status === 'Abandoned') {
-      await createUserNotification({
+      await createUserNotificationOnce({
         userId,
+        dedupeKey: `kyc_abandoned:${sessionId ?? event.event_id}`,
         title: 'Complete your verification',
         message: 'Your identity verification session was abandoned. Resume from your profile when ready.',
         type: 'security',
         metadata: { event: 'kyc_abandoned', sessionId },
       })
     } else if (event.status === 'Expired' || event.status === 'KYC Expired') {
-      await createUserNotification({
+      await createUserNotificationOnce({
         userId,
+        dedupeKey: `kyc_expired:${sessionId ?? event.event_id}`,
         title: 'Verification session expired',
         message: 'Your identity verification session expired. Start a new session from your profile.',
         type: 'security',
         metadata: { event: 'kyc_expired', sessionId },
       })
     } else if (event.status === 'Resubmitted') {
-      await createUserNotification({
+      await createUserNotificationOnce({
         userId,
+        dedupeKey: `kyc_resubmitted:${sessionId ?? event.event_id}`,
         title: 'Additional verification required',
         message: 'Please resubmit the requested verification steps from your profile.',
         type: 'security',
@@ -100,6 +104,17 @@ async function handleSessionEvent(event: DiditWebhookEnvelope) {
 
   if (event.webhook_type === 'data.updated') {
     const db = getDb()
+
+    if (sessionId && (event.status || event.decision)) {
+      await upsertVerificationSession({
+        sessionId,
+        vendorData: userId,
+        status: event.status ?? undefined,
+        decision: event.decision ?? null,
+        userId,
+      })
+    }
+
     await db
       .from('kyc_submissions')
       .update({

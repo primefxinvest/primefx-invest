@@ -95,11 +95,11 @@ export function buildDepositCurrencyOptions(input?: {
 }): CurrencyOption[] {
   const nowEnabled = input?.nowPayments !== false
   const binanceEnabled = input?.binancePay !== false
-  const items = new Map<string, CurrencyOption>()
+  const items: CurrencyOption[] = []
 
   if (binanceEnabled) {
     for (const currency of BINANCE_PAY_CURRENCIES) {
-      items.set(currency, {
+      items.push({
         value: currency,
         label: currency,
         provider: 'binance_pay',
@@ -114,17 +114,30 @@ export function buildDepositCurrencyOptions(input?: {
     )
 
     for (const currency of allowed) {
-      if (!items.has(currency)) {
-        items.set(currency, {
-          value: currency,
-          label: formatCurrencyLabel(currency),
-          provider: 'now_payments',
-        })
-      }
+      items.push({
+        value: currency,
+        label: formatCurrencyLabel(currency),
+        provider: 'now_payments',
+      })
     }
   }
 
-  return Array.from(items.values())
+  return items
+}
+
+export function isCurrencySupportedByProvider(
+  currency: string,
+  provider: PaymentProviderId
+): boolean {
+  const normalized = currency.toUpperCase()
+
+  if (provider === 'binance_pay') {
+    return BINANCE_PAY_CURRENCIES.some((item) => item === normalized)
+  }
+
+  return NOW_PAYMENTS_CURRENCIES.some(
+    (item) => item === normalized || item.replace(/_/g, '') === normalized.replace(/_/g, '')
+  )
 }
 
 export function buildWithdrawalCurrencyOptions(whitelist?: string[]) {

@@ -398,7 +398,7 @@ export function DashboardPageSkeleton() {
   return (
     <div className="space-y-6">
       <PageHeaderSkeleton showDatePill />
-      <MetricCardsSkeleton />
+      <MetricCardsSkeleton count={5} />
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <div className="xl:col-span-2">
           <PerformanceChartSkeleton />

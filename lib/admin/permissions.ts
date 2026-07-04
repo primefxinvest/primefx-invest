@@ -143,6 +143,7 @@ export const ADMIN_NAV_ITEMS: Array<{
   { href: '/admin/wallets', label: 'Wallet Management', module: 'financial_management', icon: 'Wallet' },
   { href: '/admin/transactions', label: 'Transactions', module: 'financial_management', icon: 'TrendingUp' },
   { href: '/admin/rewards', label: 'Rewards', module: 'rewards_referral', icon: 'Award' },
+  { href: '/admin/support', label: 'Support Tickets', module: 'support_tickets', icon: 'MessageCircle' },
   { href: '/admin/analytics', label: 'Analytics', module: 'analytics_reporting', icon: 'BarChart3' },
   { href: '/admin/compliance', label: 'Compliance', module: 'audit_logs', icon: 'Lock' },
   { href: '/admin/settings', label: 'Settings', module: 'platform_configuration', icon: 'Settings' },

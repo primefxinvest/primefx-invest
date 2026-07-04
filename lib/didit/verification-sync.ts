@@ -3,37 +3,18 @@ import 'server-only'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { notifyKycStatusChange } from '@/lib/notifications/service'
 import { upsertVerificationSession } from '@/lib/didit/verification-sessions'
+import { applyDiditProfileFieldsFromDecision } from '@/lib/didit/apply-profile-from-decision'
+import {
+  extractProfileFieldsFromDiditDecision,
+} from '@/lib/didit/profile-from-decision'
+import {
+  mapDiditStatusToKycStatus,
+  mapDiditStatusToVerificationStatus,
+  type UserVerificationStatus,
+} from '@/lib/didit/status-maps'
 
-export type UserVerificationStatus = 'pending' | 'approved' | 'declined' | 'expired'
-
-export function mapDiditStatusToVerificationStatus(
-  diditStatus: string | null | undefined
-): UserVerificationStatus {
-  switch (diditStatus) {
-    case 'Approved':
-      return 'approved'
-    case 'Declined':
-      return 'declined'
-    case 'Expired':
-    case 'KYC Expired':
-      return 'expired'
-    default:
-      return 'pending'
-  }
-}
-
-export function mapDiditStatusToKycStatus(
-  diditStatus: string | null | undefined
-): 'Verified' | 'Pending' | 'Rejected' {
-  switch (diditStatus) {
-    case 'Approved':
-      return 'Verified'
-    case 'Declined':
-      return 'Rejected'
-    default:
-      return 'Pending'
-  }
-}
+export type { UserVerificationStatus } from '@/lib/didit/status-maps'
+export { mapDiditStatusToKycStatus, mapDiditStatusToVerificationStatus } from '@/lib/didit/status-maps'
 
 export async function syncUserVerificationFromDidit(input: {
   userId: string
@@ -48,8 +29,20 @@ export async function syncUserVerificationFromDidit(input: {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY is required to sync Didit verification.')
   }
 
+  const { data: currentUser } = await db
+    .from('users')
+    .select('kyc_status, verification_status, is_verified')
+    .eq('id', input.userId)
+    .maybeSingle()
+
+  const previousKycStatus = (currentUser?.kyc_status as string | undefined) ?? 'Pending'
+  const previousVerificationStatus =
+    (currentUser?.verification_status as UserVerificationStatus | undefined) ?? 'pending'
+
   const verificationStatus = mapDiditStatusToVerificationStatus(input.diditStatus)
   const kycStatus = mapDiditStatusToKycStatus(input.diditStatus)
+  const kycStatusChanged = previousKycStatus !== kycStatus
+  const verificationStatusChanged = previousVerificationStatus !== verificationStatus
   const now = new Date().toISOString()
   const isVerified = verificationStatus === 'approved'
 
@@ -84,6 +77,14 @@ export async function syncUserVerificationFromDidit(input: {
 
   await db.from('users').update(userPatch).eq('id', input.userId)
 
+  if (isVerified && input.decision) {
+    try {
+      await applyDiditProfileFieldsFromDecision(input.userId, input.decision)
+    } catch (err) {
+      console.error('[didit] failed to apply profile fields from decision:', err)
+    }
+  }
+
   const { data: existingSubmission } = await db
     .from('kyc_submissions')
     .select('id')
@@ -97,6 +98,11 @@ export async function syncUserVerificationFromDidit(input: {
         ? 'rejected'
         : 'submitted'
 
+  const profileFields =
+    isVerified && input.decision
+      ? extractProfileFieldsFromDiditDecision(input.decision)
+      : null
+
   const submissionPatch = {
     didit_session_id: input.sessionId ?? null,
     didit_decision: input.decision ?? null,
@@ -104,6 +110,7 @@ export async function syncUserVerificationFromDidit(input: {
     review_status: reviewStatus,
     reviewed_at: verificationStatus === 'approved' || verificationStatus === 'declined' ? now : null,
     updated_at: now,
+    ...(profileFields?.country ? { country: profileFields.country } : {}),
   }
 
   if (existingSubmission?.id) {
@@ -113,7 +120,7 @@ export async function syncUserVerificationFromDidit(input: {
       user_id: input.userId,
       id_type: 'national_id',
       id_number: 'didit-external',
-      country: 'Unknown',
+      country: profileFields?.country ?? 'Unknown',
       document_front_path: 'didit/external',
       selfie_path: 'didit/external',
       submitted_at: now,
@@ -121,7 +128,11 @@ export async function syncUserVerificationFromDidit(input: {
     })
   }
 
-  if (input.notify !== false && (kycStatus === 'Verified' || kycStatus === 'Rejected')) {
+  if (
+    input.notify !== false &&
+    kycStatusChanged &&
+    (kycStatus === 'Verified' || kycStatus === 'Rejected')
+  ) {
     await notifyKycStatusChange(input.userId, kycStatus)
   }
 
@@ -130,6 +141,7 @@ export async function syncUserVerificationFromDidit(input: {
     verificationStatus,
     kycStatus,
     isVerified,
+    statusChanged: kycStatusChanged || verificationStatusChanged,
   }
 }
 

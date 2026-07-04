@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
-import { Calendar, DollarSign, TrendingUp, Award, Percent } from 'lucide-react'
+import { Calendar, DollarSign, TrendingUp, Award, Percent, Wallet } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import { StatusCardGrid } from '@/components/shared/status-cards'
 import { PortfolioChart, AssetAllocationChart } from '@/components/shared/Charts'
@@ -18,6 +18,7 @@ import { ChartCardSkeleton, MetricCardsSkeleton } from '@/components/shared/skel
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { useUserWalletRealtime } from '@/lib/hooks/useTransactionsRealtime'
 import {
   fetchAssetAllocation,
   fetchLearningProgress,
@@ -26,8 +27,10 @@ import {
   fetchPortfolioMetrics,
   fetchReferralData,
   fetchRewardsData,
+  fetchWalletData,
 } from '@/lib/data/queries'
 import { formatDate } from '@/lib/data/format'
+import { SyncPendingDeposits } from '@/components/wallet/SyncPendingDeposits'
 
 const PERIOD_KEYS = {
   'This Year': 'periodThisYear',
@@ -52,11 +55,17 @@ export default function DashboardPage() {
     reload: reloadMetrics,
   } = useAsyncData(() => fetchPortfolioMetrics(), [])
   const {
+    data: wallet,
+    loading: walletLoading,
+    error: walletError,
+    reload: reloadWallet,
+  } = useAsyncData(() => fetchWalletData(), [])
+  const {
     data: chartData,
     loading: chartLoading,
     error: chartError,
     reload: reloadChart,
-  } = useAsyncData(() => fetchPortfolioChart(), [])
+  } = useAsyncData(() => fetchPortfolioChart(selectedPeriod), [selectedPeriod])
   const {
     data: allocation,
     loading: allocationLoading,
@@ -73,8 +82,20 @@ export default function DashboardPage() {
   const { data: referral } = useAsyncData(() => fetchReferralData(), [])
   const { data: learning } = useAsyncData(() => fetchLearningProgress(), [])
 
+  useUserWalletRealtime({
+    userId: user.id,
+    enabled: Boolean(user.id),
+    onUpdate: () => {
+      void reloadWallet({ silent: true })
+      void reloadMetrics({ silent: true })
+    },
+  })
+
   return (
     <div className="space-y-6">
+      <Suspense fallback={null}>
+        <SyncPendingDeposits onSynced={reloadWallet} />
+      </Suspense>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
@@ -89,12 +110,23 @@ export default function DashboardPage() {
       </div>
 
       <AsyncState
-        loading={metricsLoading}
-        error={metricsError}
-        onRetry={reloadMetrics}
-        skeleton={<MetricCardsSkeleton />}
+        loading={metricsLoading || walletLoading}
+        error={metricsError ?? walletError}
+        onRetry={() => {
+          void reloadMetrics()
+          void reloadWallet()
+        }}
+        skeleton={<MetricCardsSkeleton count={5} />}
       >
-        <StatusCardGrid columns={4}>
+        <StatusCardGrid columns={5}>
+          <Link href="/wallet" className="block transition-opacity hover:opacity-95">
+            <MetricCard
+              icon={<Wallet className="h-5 w-5" />}
+              label={t('currentBalance')}
+              value={wallet?.availableBalance ?? '$0.00'}
+              iconBg="bg-emerald-50 text-emerald-600"
+            />
+          </Link>
           <MetricCard
             icon={<DollarSign className="h-5 w-5" />}
             label={t('totalInvested')}

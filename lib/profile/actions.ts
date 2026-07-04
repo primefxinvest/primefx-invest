@@ -3,6 +3,7 @@ import { getUser, createUserActivityLog, getUserActivityLogs } from '@/lib/db/su
 import { normalizePlanTier, planTierOrder } from '@/lib/invest/upgrade'
 import { getMfaStatus } from '@/lib/auth/mfa'
 import { getDefaultAvatarUrl, isDataUrl } from './avatar'
+import { formatDiditDateForProfile } from '@/lib/didit/profile-from-decision'
 import { resolveUserDisplayName, formatPersonName } from './display-name'
 import type { ProfileActivity, UpdateProfileInput, UserProfile } from './types'
 
@@ -190,11 +191,17 @@ export async function getUserProfile(): Promise<UserProfile> {
       (metadata.phone as string | undefined) ??
       '',
     dateOfBirth:
+      (dbUser?.date_of_birth
+        ? formatDiditDateForProfile(String(dbUser.date_of_birth).slice(0, 10))
+        : null) ??
       local?.dateOfBirth ??
       (metadata.date_of_birth as string | undefined) ??
       '',
     address:
-      local?.address ?? (metadata.address as string | undefined) ?? '',
+      (dbUser?.address as string | undefined) ??
+      local?.address ??
+      (metadata.address as string | undefined) ??
+      '',
     avatarUrl:
       local?.avatarUrl ??
       (dbUser?.avatar_url as string | undefined) ??

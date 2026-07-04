@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { mapDbTransactionToAdminRow } from '@/lib/data/transaction-map'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import type {
   AdminAuditLogRow,
@@ -12,6 +13,8 @@ import type {
   AdminVerificationSessionRow,
   AdminVerificationSessionsResult,
   AdminWalletRow,
+  AdminSupportTicketRow,
+  AdminSupportTicketDetail,
 } from './types'
 import { getAdminUserMfaSummary } from '@/lib/auth/mfa-admin'
 import { signKycDocumentPaths } from '@/lib/kyc/storage'
@@ -362,21 +365,23 @@ export async function getAdminTransactions(): Promise<AdminTransactionRow[]> {
 
   if (error) throw new Error(error.message)
 
-  return (data ?? []).map((row: Record<string, unknown>) => {
-    const user = row.users as Record<string, unknown>
-    return {
-      id: String(row.id),
-      user_id: String(row.user_id),
-      user_email: String(user?.email ?? ''),
-      user_name: (user?.full_name as string) ?? null,
-      type: String(row.type ?? ''),
-      amount: Number(row.amount ?? 0),
-      status: String(row.status ?? 'Pending'),
-      description: (row.description as string) ?? null,
-      reference_id: (row.reference_id as string) ?? null,
-      created_at: String(row.created_at ?? ''),
-    }
-  })
+  return (data ?? []).map((row: Record<string, unknown>) => mapDbTransactionToAdminRow(row))
+}
+
+export async function getAdminTransactionById(
+  transactionId: string
+): Promise<AdminTransactionRow | null> {
+  const db = getDb()
+  const { data, error } = await db
+    .from('transactions')
+    .select('*, users!inner(id, email, full_name)')
+    .eq('id', transactionId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!data) return null
+
+  return mapDbTransactionToAdminRow(data as Record<string, unknown>)
 }
 
 export async function getAdminPlans(): Promise<AdminPlanRow[]> {
@@ -907,4 +912,149 @@ export async function getAdminReferralRankRewards(): Promise<AdminRankRewardRow[
     fulfilled_at: (row.fulfilled_at as string) ?? null,
     admin_notes: (row.admin_notes as string) ?? null,
   }))
+}
+
+function shortTicketId(id: string) {
+  return id.slice(0, 8).toUpperCase()
+}
+
+function displayUserName(email: string, fullName: string | null | undefined) {
+  return fullName?.trim() || email.split('@')[0] || 'User'
+}
+
+export async function getAdminSupportTickets(): Promise<AdminSupportTicketRow[]> {
+  const db = getDb()
+  const { data: tickets, error } = await db
+    .from('support_tickets')
+    .select('*, users(email, full_name)')
+    .order('updated_at', { ascending: false })
+    .limit(200)
+
+  if (error) throw new Error(error.message)
+  if (!tickets?.length) return []
+
+  const ticketIds = tickets.map((row) => String(row.id))
+  const { data: messages } = await db
+    .from('support_ticket_messages')
+    .select('ticket_id, sender_type, created_at')
+    .in('ticket_id', ticketIds)
+    .order('created_at', { ascending: false })
+
+  const statsByTicket = new Map<
+    string,
+    { count: number; lastReplyAt: string | null; lastReplyBy: 'user' | 'admin' | null }
+  >()
+
+  for (const ticketId of ticketIds) {
+    statsByTicket.set(ticketId, { count: 0, lastReplyAt: null, lastReplyBy: null })
+  }
+
+  for (const row of messages ?? []) {
+    const ticketId = String(row.ticket_id)
+    const current = statsByTicket.get(ticketId)
+    if (!current) continue
+    current.count += 1
+    if (!current.lastReplyAt) {
+      current.lastReplyAt = String(row.created_at)
+      current.lastReplyBy = row.sender_type as 'user' | 'admin'
+    }
+  }
+
+  return tickets.map((row) => {
+    const user = row.users as { email?: string; full_name?: string | null } | null
+    const id = String(row.id)
+    const stats = statsByTicket.get(id) ?? { count: 0, lastReplyAt: null, lastReplyBy: null }
+
+    return {
+      id,
+      shortId: shortTicketId(id),
+      userId: String(row.user_id),
+      userEmail: String(user?.email ?? '—'),
+      userName: user?.full_name ?? null,
+      subject: String(row.subject),
+      status: String(row.status ?? 'open'),
+      priority: String(row.priority ?? 'medium'),
+      createdAt: String(row.created_at),
+      updatedAt: String(row.updated_at),
+      replyCount: stats.count,
+      lastReplyAt: stats.lastReplyAt,
+      lastReplyBy: stats.lastReplyBy,
+    }
+  })
+}
+
+export async function getAdminSupportTicketDetail(
+  ticketId: string
+): Promise<AdminSupportTicketDetail | null> {
+  const db = getDb()
+  const { data: ticket, error } = await db
+    .from('support_tickets')
+    .select('*, users(email, full_name)')
+    .eq('id', ticketId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!ticket) return null
+
+  const { data: messageRows } = await db
+    .from('support_ticket_messages')
+    .select('*')
+    .eq('ticket_id', ticketId)
+    .order('created_at', { ascending: true })
+
+  const senderIds = [
+    ...new Set([
+      String(ticket.user_id),
+      ...(messageRows ?? []).map((row) => String(row.sender_id)),
+    ]),
+  ]
+
+  const { data: senders } = await db
+    .from('users')
+    .select('id, email, full_name')
+    .in('id', senderIds)
+
+  const senderById = new Map(
+    (senders ?? []).map((row) => [
+      String(row.id),
+      {
+        email: String(row.email ?? ''),
+        fullName: (row.full_name as string | null) ?? null,
+      },
+    ])
+  )
+
+  const user = ticket.users as { email?: string; full_name?: string | null } | null
+  const id = String(ticket.id)
+
+  const messages = (messageRows ?? []).map((row) => {
+    const sender = senderById.get(String(row.sender_id))
+    const senderType = row.sender_type as 'user' | 'admin'
+    return {
+      id: String(row.id),
+      senderType,
+      senderId: String(row.sender_id),
+      senderName:
+        senderType === 'admin'
+          ? 'Support Team'
+          : displayUserName(sender?.email ?? '', sender?.fullName),
+      message: String(row.message),
+      createdAt: String(row.created_at),
+    }
+  })
+
+  return {
+    id,
+    shortId: shortTicketId(id),
+    userId: String(ticket.user_id),
+    userEmail: String(user?.email ?? '—'),
+    userName: user?.full_name ?? null,
+    subject: String(ticket.subject),
+    description: String(ticket.description),
+    status: String(ticket.status ?? 'open'),
+    priority: String(ticket.priority ?? 'medium'),
+    createdAt: String(ticket.created_at),
+    updatedAt: String(ticket.updated_at),
+    messages,
+  }
 }

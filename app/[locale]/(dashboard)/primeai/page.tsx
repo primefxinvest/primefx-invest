@@ -1,14 +1,17 @@
 'use client'
 
-import { Suspense, useEffect, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
 import { Send, Loader2, Settings, Volume2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getMessageText, PRIMEAI_WELCOME_MESSAGE } from '@/lib/ai/message-utils'
+import { toPrimeAiClientError, PRIMEAI_UNAVAILABLE_USER_MESSAGE } from '@/lib/ai/user-errors'
 
 function PrimeAIChat() {
+  const t = useTranslations('primeaiChat')
   const searchParams = useSearchParams()
   const [input, setInput] = useState('')
   const initialQuerySent = useRef(false)
@@ -20,6 +23,13 @@ function PrimeAIChat() {
 
   const isLoading = status === 'submitted' || status === 'streaming'
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const clientError = useMemo(() => {
+    if (!error) return null
+    const sanitized = toPrimeAiClientError(error.message)
+    return sanitized === PRIMEAI_UNAVAILABLE_USER_MESSAGE
+      ? t('unavailableMessage')
+      : t('requestFailed')
+  }, [error, t])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -120,11 +130,12 @@ function PrimeAIChat() {
         </button>
       </form>
 
-      {error && (
-        <div className="rounded-lg border border-red-300 bg-red-50 p-4">
-          <p className="text-sm text-red-700">Error: {error.message}</p>
+      {clientError ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-900">{t('unavailableTitle')}</p>
+          <p className="mt-1 text-sm text-amber-800">{clientError}</p>
         </div>
-      )}
+      ) : null}
 
       <div className="text-center text-xs text-muted-foreground">
         <p>

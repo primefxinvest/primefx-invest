@@ -6,6 +6,14 @@ import {
   type DiditSessionDecision,
 } from '@/lib/didit/client'
 import {
+  resolveDiditDecisionPayload,
+  resolveDiditSessionStatus,
+  resolveDiditVendorData,
+  resolveDiditWorkflowId,
+} from '@/lib/didit/decision-normalize'
+import { isDiditSessionNotFoundError } from '@/lib/didit/errors'
+import { markDiditSessionNotFound } from '@/lib/didit/session-not-found'
+import {
   getVerificationSessionBySessionId,
   upsertVerificationSession,
   type VerificationSessionRecord,
@@ -41,23 +49,22 @@ async function resolveUserIdForSession(
 
 async function persistDecision(
   sessionId: string,
-  decision: DiditSessionDecision
+  response: DiditSessionDecision
 ): Promise<VerificationSessionRecord | null> {
-  const userId = await resolveUserIdForSession(sessionId, decision.vendor_data ?? null)
+  const vendorData = resolveDiditVendorData(response)
+  const userId = await resolveUserIdForSession(sessionId, vendorData)
+  const decisionPayload = resolveDiditDecisionPayload(response)
+  const diditStatus = resolveDiditSessionStatus(response)
 
   const record = await upsertVerificationSession({
     sessionId,
-    vendorData: decision.vendor_data ?? userId,
-    status: decision.status ?? 'In Progress',
-    decision: decision.decision ?? null,
-    workflowId:
-      typeof decision.metadata?.workflow_id === 'string'
-        ? decision.metadata.workflow_id
-        : null,
+    vendorData: vendorData ?? userId,
+    status: diditStatus,
+    decision: decisionPayload,
+    workflowId: resolveDiditWorkflowId(response),
     userId,
   })
 
-  const diditStatus = decision.status ?? 'In Progress'
   const terminalStatuses = ['Approved', 'Declined', 'Expired', 'KYC Expired']
 
   if (userId && terminalStatuses.includes(diditStatus)) {
@@ -65,14 +72,14 @@ async function persistDecision(
       userId,
       sessionId,
       diditStatus,
-      decision: decision.decision ?? null,
+      decision: decisionPayload,
     })
   } else if (userId) {
     await syncUserVerificationFromDidit({
       userId,
       sessionId,
       diditStatus,
-      decision: decision.decision ?? null,
+      decision: decisionPayload,
       notify: false,
     })
   }
@@ -83,12 +90,30 @@ async function persistDecision(
 export async function refreshDiditSessionFromApi(
   sessionId: string
 ): Promise<VerificationSessionRecord> {
-  const decision = await fetchDiditSessionDecision(sessionId)
-  const record = await persistDecision(sessionId, decision)
-  if (!record) {
-    throw new Error('Failed to persist verification session.')
+  try {
+    const decision = await fetchDiditSessionDecision(sessionId)
+    const record = await persistDecision(sessionId, decision)
+    if (!record) {
+      throw new Error('Failed to persist verification session.')
+    }
+    return record
+  } catch (err) {
+    if (!isDiditSessionNotFoundError(err)) {
+      throw err
+    }
+
+    const userId = await resolveUserIdForSession(sessionId, null)
+    const record = await markDiditSessionNotFound({
+      sessionId,
+      userId,
+    })
+
+    if (!record) {
+      throw new Error('Failed to mark missing Didit session as expired.')
+    }
+
+    return record
   }
-  return record
 }
 
 export async function applyDiditSessionStatusOverride(input: {

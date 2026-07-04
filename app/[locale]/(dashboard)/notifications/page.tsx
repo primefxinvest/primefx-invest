@@ -24,14 +24,16 @@ const typeIcons: Record<string, typeof Bell> = {
 }
 
 export default function NotificationsPage() {
-  const { data: fetched = [], loading, error, reload } = useAsyncData(
+  const { data: fetched, loading, error, reload } = useAsyncData(
     () => fetchNotifications(),
     []
   )
   const [items, setItems] = useState<NotificationItem[]>([])
 
   useEffect(() => {
-    setItems(fetched)
+    if (fetched) {
+      setItems(fetched)
+    }
   }, [fetched])
 
   const unreadCount = items.filter((n) => !n.read).length
@@ -53,7 +55,7 @@ export default function NotificationsPage() {
     }
   }
 
-  if (loading && items.length === 0) {
+  if (loading && !fetched) {
     return (
       <div className="space-y-6">
         <PageHeaderSkeleton />

@@ -196,6 +196,63 @@ export async function getReferrals(userId: string) {
   }
 }
 
+export async function getAcademyCourseById(courseId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('academy_courses')
+      .select('*')
+      .eq('id', courseId)
+      .maybeSingle()
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getUserCourseEnrollment(userId: string, courseId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('user_courses')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('course_id', courseId)
+      .maybeSingle()
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getAcademyLessonsByCourseId(courseId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('academy_lessons')
+      .select('*')
+      .eq('course_id', courseId)
+      .order('sort_order', { ascending: true })
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getUserLessonProgress(userId: string, lessonIds: string[]) {
+  if (!lessonIds.length) {
+    return { data: [], error: null }
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('user_lesson_progress')
+      .select('*')
+      .eq('user_id', userId)
+      .in('lesson_id', lessonIds)
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
 export async function getUserCourses(userId: string) {
   try {
     const { data, error } = await supabase
@@ -266,6 +323,50 @@ export async function createSupportTicket(ticket: {
           priority: ticket.priority ?? 'medium',
         },
       ])
+      .select()
+      .single()
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getSupportTicketById(ticketId: string, userId?: string) {
+  try {
+    let query = supabase.from('support_tickets').select('*').eq('id', ticketId)
+    if (userId) {
+      query = query.eq('user_id', userId)
+    }
+    const { data, error } = await query.maybeSingle()
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getSupportTicketMessages(ticketId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('support_ticket_messages')
+      .select('*')
+      .eq('ticket_id', ticketId)
+      .order('created_at', { ascending: true })
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function createSupportTicketMessage(message: {
+  ticket_id: string
+  sender_type: 'user' | 'admin'
+  sender_id: string
+  message: string
+}) {
+  try {
+    const { data, error } = await supabase
+      .from('support_ticket_messages')
+      .insert([message])
       .select()
       .single()
     return { data, error }

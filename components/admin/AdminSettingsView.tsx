@@ -87,6 +87,13 @@ export function AdminSettingsView({ settings }: { settings: PlatformSettingsSnap
             <StatusBadge ok={settings.binancePay.configured} label={settings.binancePay.configured ? 'Configured' : 'Not configured'} />
           </div>
           <ConfigRow label="Webhook URL" value={settings.binancePay.webhookUrl} />
+          {settings.binancePay.configured ? (
+            <p className="mt-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900">
+              If deposits fail with error 400004, whitelist your server&apos;s outbound IP in Binance Pay
+              merchant admin → Developer → API restrictions. Binance includes the blocked IP in the error
+              message (e.g. &quot;request ip: …&quot;).
+            </p>
+          ) : null}
           {settings.binancePay.missing.length > 0 ? (
             <p className="mt-2 text-xs text-amber-700">
               Missing: {settings.binancePay.missing.join(', ')}

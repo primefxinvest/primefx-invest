@@ -5,6 +5,7 @@ import { getKycBlockReason } from '@/lib/investor/kyc'
 import { generatePaymentReference } from '@/lib/payments/reference'
 import { notifyInvestmentCreated } from '@/lib/notifications/service'
 import { markReferralActiveOnFirstActivity } from '@/lib/referral/commission-service'
+import { syncInvestorTierFromActivePlans } from '@/lib/invest/tier-sync'
 import {
   assertSufficientBalance,
   creditInvestorWallet,
@@ -23,6 +24,7 @@ export interface ExecuteInvestmentResult {
   error?: string
   investmentId?: string
   referenceId?: string
+  investorTierUpgraded?: string
 }
 
 function getDb() {
@@ -209,10 +211,21 @@ export async function executeInvestment(
 
     await markReferralActiveOnFirstActivity(input.userId)
 
+    let investorTierUpgraded: string | undefined
+    try {
+      const tierSync = await syncInvestorTierFromActivePlans(input.userId, db)
+      if (tierSync.upgraded && tierSync.investorTier) {
+        investorTierUpgraded = tierSync.investorTier
+      }
+    } catch {
+      // Tier sync is best-effort; investment already succeeded.
+    }
+
     return {
       success: true,
       investmentId: investment.id as string,
       referenceId,
+      investorTierUpgraded,
     }
   } catch (err) {
     if (walletDebited) {

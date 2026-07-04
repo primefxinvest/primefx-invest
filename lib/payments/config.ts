@@ -3,6 +3,7 @@ import {
   BINANCE_PAY_CURRENCIES,
   buildDepositCurrencyOptions,
   buildWithdrawalCurrencyOptions,
+  isCurrencySupportedByProvider,
   NOW_PAYMENTS_CURRENCIES,
 } from './currency-options'
 
@@ -10,7 +11,7 @@ export const PAYMENT_PROVIDERS = {
   binance_pay: {
     id: 'binance_pay' as const,
     name: 'Binance Pay',
-    logo: 'https://public.bnbstatic.com/image/cms/blog/20210715/binance-pay.png',
+    logo: '/payments/binance-pay.svg',
     depositMinUsd: 10,
     depositMaxUsd: 500_000,
     depositFeePercent: 0,
@@ -21,7 +22,7 @@ export const PAYMENT_PROVIDERS = {
   now_payments: {
     id: 'now_payments' as const,
     name: 'NOWPayments',
-    logo: 'https://nowpayments.io/images/logo.svg',
+    logo: '/payments/nowpayments.svg',
     depositMinUsd: 10,
     depositMaxUsd: 500_000,
     withdrawalMinUsd: 20,
@@ -33,21 +34,23 @@ export const PAYMENT_PROVIDERS = {
   },
 } as const
 
-/** Deposit routing from unified payment config */
+/** Legacy currency routing when the client does not send an explicit provider. */
 const DEPOSIT_ROUTING: Record<string, PaymentProviderId> = {
   BNB: 'binance_pay',
   BUSD: 'binance_pay',
-  BTC: 'now_payments',
-  ETH: 'now_payments',
-  USDT_TRC20: 'now_payments',
-  USDT_ERC20: 'now_payments',
-  USDT: 'now_payments',
-  USDC: 'now_payments',
-  XRP: 'now_payments',
-  SOL: 'now_payments',
 }
 
-export function resolveDepositProvider(currency: string): PaymentProviderId {
+export function resolveDepositProvider(
+  currency: string,
+  preferredProvider?: PaymentProviderId
+): PaymentProviderId {
+  if (
+    preferredProvider &&
+    isCurrencySupportedByProvider(currency, preferredProvider)
+  ) {
+    return preferredProvider
+  }
+
   const normalized = currency.toUpperCase()
   return DEPOSIT_ROUTING[normalized] ?? 'now_payments'
 }

@@ -4,6 +4,7 @@ import {
   BarChart3,
   FileText,
   Lock,
+  MessageCircle,
   Settings,
   ShieldCheck,
   TrendingUp,
@@ -27,6 +28,7 @@ const ICONS = {
   Lock,
   Settings,
   ShieldCheck,
+  MessageCircle,
 } as const
 
 interface AdminNavProps {

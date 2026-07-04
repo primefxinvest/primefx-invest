@@ -2,17 +2,25 @@
 
 import Link from 'next/link'
 import {
+  Activity,
   ArrowLeft,
+  Bitcoin,
+  Building2,
+  CreditCard,
+  LogIn,
   Mail,
   MapPin,
+  Monitor,
   Phone,
   Shield,
   User,
+  Users,
   Wallet,
 } from 'lucide-react'
 import { AdminKycDocumentsSection } from '@/components/admin/AdminKycDocumentsSection'
 import { AdminKycReviewControls } from '@/components/admin/AdminKycReviewControls'
 import { AdminReferralAccessToggle } from '@/components/admin/AdminReferralAccessToggle'
+import { EmptyState } from '@/components/shared/data-state'
 import { ScrollTable } from '@/components/shared/ScrollTable'
 import type { AdminUserDetail } from '@/lib/admin/types'
 import { formatCurrency, formatDate, formatDateTime, formatPercent } from '@/lib/data/format'
@@ -59,14 +67,33 @@ function SectionCard({
   children: React.ReactNode
 }) {
   return (
-    <section className="min-w-0 rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-4 py-3 sm:px-6 sm:py-4">
-        <h3 className="text-base font-semibold text-foreground">{title}</h3>
-        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+    <section className="min-w-0 rounded-xl border border-gray-200 bg-white shadow-sm">
+      <div className="border-b border-gray-100 px-4 py-3 sm:px-6 sm:py-4">
+        <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+        {description ? <p className="mt-1 text-sm text-gray-500">{description}</p> : null}
       </div>
       <div className="p-4 sm:p-6">{children}</div>
     </section>
   )
+}
+
+function paymentMethodIcon(type: string) {
+  const normalized = type.toLowerCase()
+  if (normalized.includes('crypto') || normalized.includes('bitcoin')) return Bitcoin
+  if (normalized.includes('card')) return CreditCard
+  if (normalized.includes('bank')) return Building2
+  return Wallet
+}
+
+function activityIcon(action: string) {
+  const normalized = action.toLowerCase()
+  if (normalized.includes('login')) return LogIn
+  if (normalized.includes('profile') || normalized.includes('update')) return User
+  return Monitor
+}
+
+function formatPaymentMethodLabel(type: string) {
+  return type.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase())
 }
 
 export function AdminUserDetailView({
@@ -367,72 +394,165 @@ export function AdminUserDetailView({
           title="Referrals"
           description={`${referrals.total} referral${referrals.total === 1 ? '' : 's'} · ${formatCurrency(referrals.total_bonus)} earned`}
         >
+          <div className="mb-4 grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-gray-100 bg-gray-50/80 px-4 py-3">
+              <p className="text-xs font-medium text-gray-500">Total referrals</p>
+              <p className="mt-1 text-xl font-bold text-gray-900">{referrals.total}</p>
+            </div>
+            <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3">
+              <p className="text-xs font-medium text-emerald-700">Bonus earned</p>
+              <p className="mt-1 text-xl font-bold text-emerald-700">
+                {formatCurrency(referrals.total_bonus)}
+              </p>
+            </div>
+          </div>
+
           {referrals.items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No referrals recorded.</p>
+            <EmptyState
+              icon={Users}
+              title="No referrals recorded"
+              description="This investor has not referred anyone yet. Referred users and commission earnings will appear here."
+              compact
+              className="border-gray-200 bg-gray-50/50"
+            />
           ) : (
             <div className="space-y-3">
-              {referrals.items.map((referral) => (
-                <div
-                  key={referral.id}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-4 py-3"
-                >
-                  <div>
-                    <p className="font-medium">{referral.referred_name || referral.referred_email}</p>
-                    <p className="text-sm text-muted-foreground">{referral.referred_email}</p>
+              {referrals.items.map((referral) => {
+                const label = referral.referred_name || referral.referred_email
+                const initial = label.trim().charAt(0).toUpperCase() || '?'
+                return (
+                  <div
+                    key={referral.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/50 px-4 py-3 transition-colors hover:border-[#0052ff]/20 hover:bg-white"
+                  >
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0052ff]/10 text-sm font-bold text-[#0052ff]">
+                        {initial}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-gray-900">{label}</p>
+                        <p className="truncate text-sm text-gray-500">{referral.referred_email}</p>
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-semibold text-emerald-600">
+                        {formatCurrency(referral.bonus_earned)}
+                      </p>
+                      <p className="text-xs text-gray-400">{formatDate(referral.created_at)}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-emerald-600">
-                      {formatCurrency(referral.bonus_earned)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{formatDate(referral.created_at)}</p>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </SectionCard>
 
         <SectionCard title="Payment methods & activity">
-          <div className="space-y-6">
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">Payment methods</h4>
+          <div className="space-y-5">
+            <div className="rounded-xl border border-gray-100 bg-gray-50/40 p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#0052ff] shadow-sm">
+                  <CreditCard className="h-4 w-4" />
+                </div>
+                <h4 className="text-sm font-semibold text-gray-900">Payment methods</h4>
+              </div>
+
               {payment_methods.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">No saved payment methods.</p>
+                <EmptyState
+                  icon={Wallet}
+                  title="No saved payment methods"
+                  description="Bank, card, and crypto methods linked to this account will show here."
+                  compact
+                  className="border-gray-200 bg-white/80 py-8"
+                />
               ) : (
-                <ul className="mt-2 space-y-2">
-                  {payment_methods.map((method) => (
-                    <li
-                      key={method.id}
-                      className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm"
-                    >
-                      <span className="capitalize">{method.method_type}</span>
-                      <span className="text-muted-foreground">
-                        {method.last_four ? `•••• ${method.last_four}` : '—'}
-                        {method.is_primary ? ' · Primary' : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="space-y-2">
+                  {payment_methods.map((method) => {
+                    const Icon = paymentMethodIcon(method.method_type)
+                    return (
+                      <div
+                        key={method.id}
+                        className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-50 text-gray-600">
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900">
+                              {formatPaymentMethodLabel(method.method_type)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {method.last_four ? `•••• ${method.last_four}` : 'No details on file'}
+                            </p>
+                          </div>
+                        </div>
+                        {method.is_primary ? (
+                          <span className="shrink-0 rounded-full bg-[#0052ff] px-2.5 py-0.5 text-[10px] font-bold text-white">
+                            Primary
+                          </span>
+                        ) : (
+                          <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+                            Active
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               )}
             </div>
 
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">Recent activity</h4>
+            <div className="rounded-xl border border-gray-100 bg-gray-50/40 p-4">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#0052ff] shadow-sm">
+                    <Activity className="h-4 w-4" />
+                  </div>
+                  <h4 className="text-sm font-semibold text-gray-900">Recent activity</h4>
+                </div>
+                {activity.length > 0 ? (
+                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600">
+                    {activity.length} events
+                  </span>
+                ) : null}
+              </div>
+
               {activity.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">No activity logs yet.</p>
+                <EmptyState
+                  icon={Activity}
+                  title="No activity logs yet"
+                  description="Sign-ins, profile updates, and security events will be listed here."
+                  compact
+                  className="border-gray-200 bg-white/80 py-8"
+                />
               ) : (
-                <ul className="mt-2 space-y-2">
-                  {activity.map((entry) => (
-                    <li
-                      key={entry.id}
-                      className="rounded-lg border border-border px-3 py-2 text-sm"
-                    >
-                      <p className="font-medium">{entry.action}</p>
-                      <p className="text-muted-foreground">
-                        {entry.device || 'Unknown device'} · {formatDateTime(entry.created_at)}
-                      </p>
-                    </li>
-                  ))}
+                <ul className="max-h-80 space-y-0 overflow-y-auto pr-1">
+                  {activity.map((entry, index) => {
+                    const Icon = activityIcon(entry.action)
+                    return (
+                      <li
+                        key={entry.id}
+                        className={cn(
+                          'flex gap-3 py-3',
+                          index < activity.length - 1 ? 'border-b border-gray-100' : ''
+                        )}
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-gray-500 shadow-sm ring-1 ring-gray-100">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900">{entry.action}</p>
+                          <p className="mt-0.5 text-xs text-gray-500">
+                            {entry.device || 'Unknown device'}
+                          </p>
+                          <p className="mt-0.5 text-xs text-gray-400">
+                            {formatDateTime(entry.created_at)}
+                          </p>
+                        </div>
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
             </div>

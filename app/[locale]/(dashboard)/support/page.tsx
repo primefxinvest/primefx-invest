@@ -17,11 +17,13 @@ import { CustomSelect } from '@/components/ui/custom-select'
 import { Button } from '@/components/ui/button'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import {
+  fetchSupportTicketDetail,
   fetchSupportTickets,
   fetchSupportTicketStats,
 } from '@/lib/data/queries'
-import { submitSupportTicket } from '@/lib/support/actions'
+import { replyToSupportTicket, submitSupportTicket } from '@/lib/support/actions'
 import type { SupportTicketItem } from '@/lib/data/types'
+import { cn } from '@/lib/utils'
 
 const FAQ_KEYS = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'] as const
 
@@ -36,12 +38,14 @@ function TicketCard({
   ticket,
   getPriorityColor,
   getStatusColor,
+  onOpen,
   t,
 }: {
   ticket: SupportTicketItem
   getPriorityColor: (value: string) => string
   getStatusColor: (status: string) => string
-  t: (key: 'created' | 'updated' | 'reply', values?: { date: string }) => string
+  onOpen: (ticketId: string) => void
+  t: ReturnType<typeof useTranslations<'support'>>
 }) {
   return (
     <div
@@ -57,7 +61,7 @@ function TicketCard({
             <span
               className={`inline-block shrink-0 whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold ${getStatusColor(ticket.status)}`}
             >
-              {ticket.status}
+              {ticket.status.replace(/_/g, ' ')}
             </span>
           </div>
           <p className="line-clamp-2 text-sm text-muted-foreground">{ticket.description}</p>
@@ -68,12 +72,149 @@ function TicketCard({
             </div>
             <span className="hidden sm:inline">•</span>
             <div>{t('updated', { date: ticket.updated })}</div>
+            {(ticket.replyCount ?? 0) > 0 ? (
+              <>
+                <span className="hidden sm:inline">•</span>
+                <div>{t('repliesCount', { count: ticket.replyCount ?? 0 })}</div>
+              </>
+            ) : null}
           </div>
         </div>
-        <Button type="button" variant="outline" size="sm" className="shrink-0">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          onClick={() => onOpen(ticket.ticketId)}
+        >
           <MessageCircle />
-          {t('reply')}
+          {t('viewConversation')}
         </Button>
+      </div>
+    </div>
+  )
+}
+
+function TicketThreadModal({
+  ticketId,
+  onClose,
+  onSent,
+}: {
+  ticketId: string
+  onClose: () => void
+  onSent: () => void
+}) {
+  const t = useTranslations('support')
+  const [reply, setReply] = useState('')
+  const [sending, setSending] = useState(false)
+  const { data: ticket, loading, error, reload } = useAsyncData(
+    () => fetchSupportTicketDetail(ticketId),
+    [ticketId]
+  )
+
+  const closed = ticket ? CLOSED_STATUSES.has(ticket.status.toLowerCase()) : false
+
+  const handleSendReply = async () => {
+    if (!reply.trim() || closed) return
+    setSending(true)
+    const result = await replyToSupportTicket(ticketId, reply)
+    setSending(false)
+
+    if (!result.ok) {
+      toast.error(t('replyFailed'), { description: result.error })
+      return
+    }
+
+    toast.success(t('replySent'))
+    setReply('')
+    reload()
+    onSent()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border border-border bg-card shadow-xl">
+        <div className="flex items-center justify-between border-b border-border px-5 py-4">
+          <div className="min-w-0">
+            <h3 className="text-lg font-semibold text-foreground">{t('ticketThreadTitle')}</h3>
+            {ticket ? (
+              <p className="truncate text-sm text-muted-foreground">{ticket.subject}</p>
+            ) : null}
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close">
+            <X className="h-5 w-5 text-muted-foreground" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          <AsyncState
+            loading={loading}
+            error={error}
+            onRetry={reload}
+            skeleton={
+              <div className="space-y-3">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="h-20 animate-pulse rounded-lg bg-muted" />
+                ))}
+              </div>
+            }
+          >
+            {ticket ? (
+              <div className="space-y-3">
+                {ticket.messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={cn(
+                      'rounded-lg border p-4',
+                      message.senderType === 'admin'
+                        ? 'border-primary/20 bg-primary/5'
+                        : 'border-border bg-muted/30'
+                    )}
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">
+                        {message.senderType === 'admin' ? t('supportTeam') : message.senderName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{message.createdAt}</p>
+                    </div>
+                    <p className="whitespace-pre-wrap text-sm text-foreground">{message.message}</p>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </AsyncState>
+        </div>
+
+        <div className="border-t border-border px-5 py-4">
+          {closed ? (
+            <p className="text-sm text-muted-foreground">{t('ticketClosed')}</p>
+          ) : (
+            <>
+              <textarea
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                rows={3}
+                placeholder={t('replyPlaceholder')}
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+              />
+              <button
+                type="button"
+                disabled={sending || !reply.trim()}
+                onClick={handleSendReply}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              >
+                {sending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    {t('sendingReply')}
+                  </>
+                ) : (
+                  t('sendReply')
+                )}
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -83,6 +224,7 @@ export default function SupportPage() {
   const t = useTranslations('support')
   const [tab, setTab] = useState<'tickets' | 'faq'>('tickets')
   const [modalOpen, setModalOpen] = useState(false)
+  const [activeTicketId, setActiveTicketId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
@@ -104,11 +246,10 @@ export default function SupportPage() {
   ]
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status.toLowerCase().replace(/_/g, '-')) {
       case 'open':
         return 'bg-red-100 text-red-700'
       case 'in-progress':
-      case 'in_progress':
         return 'bg-blue-100 text-blue-700'
       case 'resolved':
       case 'closed':
@@ -151,6 +292,10 @@ export default function SupportPage() {
     setPriority('medium')
     reload()
     reloadStats()
+  }
+
+  const openTicketThread = (ticketId: string) => {
+    setActiveTicketId(ticketId)
   }
 
   return (
@@ -229,10 +374,11 @@ export default function SupportPage() {
               ) : (
                 openTicketItems.map((ticket) => (
                   <TicketCard
-                    key={ticket.id}
+                    key={ticket.ticketId}
                     ticket={ticket}
                     getPriorityColor={getPriorityColor}
                     getStatusColor={getStatusColor}
+                    onOpen={openTicketThread}
                     t={t}
                   />
                 ))
@@ -247,10 +393,11 @@ export default function SupportPage() {
               ) : (
                 closedTicketItems.map((ticket) => (
                   <TicketCard
-                    key={ticket.id}
+                    key={ticket.ticketId}
                     ticket={ticket}
                     getPriorityColor={getPriorityColor}
                     getStatusColor={getStatusColor}
+                    onOpen={openTicketThread}
                     t={t}
                   />
                 ))
@@ -313,7 +460,7 @@ export default function SupportPage() {
         </div>
       </div>
 
-      {modalOpen && (
+      {modalOpen ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
@@ -369,7 +516,18 @@ export default function SupportPage() {
             </div>
           </div>
         </div>
-      )}
+      ) : null}
+
+      {activeTicketId ? (
+        <TicketThreadModal
+          ticketId={activeTicketId}
+          onClose={() => setActiveTicketId(null)}
+          onSent={() => {
+            reload()
+            reloadStats()
+          }}
+        />
+      ) : null}
     </div>
   )
 }

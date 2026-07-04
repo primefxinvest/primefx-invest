@@ -1,6 +1,7 @@
 'use client'
 
 import { Link } from '@/i18n/navigation'
+import { useCallback, useMemo, useState } from 'react'
 import {
   Calendar,
   Download,
@@ -26,15 +27,18 @@ import MonthlyReturnsChart from '@/components/portfolio/MonthlyReturnsChart'
 import DistributionMap from '@/components/portfolio/DistributionMap'
 import { CapitalWithdrawButton } from '@/components/portfolio/CapitalWithdrawButton'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { useSessionUser } from '@/lib/hooks/useSessionUser'
+import { useCapitalWithdrawalRequestsRealtime } from '@/lib/hooks/useCapitalWithdrawalRealtime'
 import {
   fetchAssetAllocation,
+  fetchCapitalWithdrawalRequests,
   fetchMonthlyReturns,
   fetchPortfolioChart,
   fetchPortfolioInvestments,
-  fetchPortfolioMetrics,
   fetchPortfolioOverview,
   fetchPortfolioPerformanceStats,
 } from '@/lib/data/queries'
+import type { PortfolioChartPeriod } from '@/lib/data/portfolio-performance'
 const planIcons: Record<string, typeof Sprout> = {
   'Starter Plan': Sprout,
   'Growth Plan': Layers,
@@ -43,22 +47,54 @@ const planIcons: Record<string, typeof Sprout> = {
 }
 
 export default function PortfolioPage() {
+  const user = useSessionUser()
+  const [chartPeriod, setChartPeriod] = useState<PortfolioChartPeriod>('1Y')
   const { data: overview, loading: overviewLoading, error: overviewError, reload: reloadOverview } =
     useAsyncData(() => fetchPortfolioOverview(), [])
-  const { data: metrics } = useAsyncData(() => fetchPortfolioMetrics(), [])
-  const { data: performanceStats } = useAsyncData(() => fetchPortfolioPerformanceStats(), [])
-  const { data: chartData = [] } = useAsyncData(() => fetchPortfolioChart(), [])
+  const { data: performanceStats } = useAsyncData(
+    () => fetchPortfolioPerformanceStats(chartPeriod),
+    [chartPeriod]
+  )
+  const { data: chartData = [] } = useAsyncData(() => fetchPortfolioChart(chartPeriod), [chartPeriod])
   const { data: allocation = [] } = useAsyncData(() => fetchAssetAllocation(), [])
-  const { data: monthlyReturns = [] } = useAsyncData(() => fetchMonthlyReturns(), [])
+  const { data: monthlyReturns = [] } = useAsyncData(
+    () => fetchMonthlyReturns(chartPeriod),
+    [chartPeriod]
+  )
   const { data: investments, loading: investmentsLoading, error: investmentsError, reload: reloadInvestments } =
     useAsyncData(() => fetchPortfolioInvestments(), [])
+  const {
+    data: capitalWithdrawals = [],
+    reload: reloadCapitalWithdrawals,
+  } = useAsyncData(() => fetchCapitalWithdrawalRequests(), [])
+
+  const reloadCapitalWithdrawalState = useCallback(() => {
+    void reloadCapitalWithdrawals()
+    void reloadInvestments()
+  }, [reloadCapitalWithdrawals, reloadInvestments])
+
+  useCapitalWithdrawalRequestsRealtime({
+    userId: user.id,
+    enabled: Boolean(user.id),
+    onChange: () => {
+      reloadCapitalWithdrawalState()
+    },
+  })
+
+  const capitalWithdrawalByInvestment = useMemo(() => {
+    const map = new Map<string, (typeof capitalWithdrawals)[number]>()
+    capitalWithdrawals.forEach((request) => {
+      map.set(request.investmentId, request)
+    })
+    return map
+  }, [capitalWithdrawals])
 
   const portfolioActiveInvestments = investments?.active ?? []
   const portfolioCompletedInvestments = investments?.completed ?? []
 
   const portfolioPerformanceStats = {
-    bestMonth: performanceStats?.bestMonth ?? metrics?.trends[0]?.percentage ?? '0%',
-    avgMonthlyReturn: performanceStats?.avgMonthlyReturn ?? metrics?.roiPercentage ?? '0%',
+    bestMonth: performanceStats?.bestMonth ?? '0%',
+    avgMonthlyReturn: performanceStats?.avgMonthlyReturn ?? '0%',
     winningMonths: performanceStats?.winningMonths ?? '0',
     maxDrawdown: performanceStats?.maxDrawdown ?? '0%',
   }
@@ -179,7 +215,12 @@ export default function PortfolioPage() {
       {/* Charts row */}
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-5">
-          <PerformanceChart data={chartData} stats={portfolioPerformanceStats} />
+          <PerformanceChart
+            data={chartData}
+            stats={portfolioPerformanceStats}
+            period={chartPeriod}
+            onPeriodChange={setChartPeriod}
+          />
         </div>
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3">
           <AllocationDonut data={allocation} totalValue={portfolioOverview.currentValue} />
@@ -267,7 +308,12 @@ export default function PortfolioPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5">
-                        <CapitalWithdrawButton investmentId={inv.id} planName={inv.plan} />
+                        <CapitalWithdrawButton
+                          investmentId={inv.id}
+                          planName={inv.plan}
+                          pendingRequest={capitalWithdrawalByInvestment.get(inv.id)}
+                          onRequested={reloadCapitalWithdrawalState}
+                        />
                       </td>
                     </tr>
                   )

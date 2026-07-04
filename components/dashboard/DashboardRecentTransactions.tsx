@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl'
 import { ArrowDownLeft, ArrowUpRight, ChevronRight, Gift } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
 import { ListSkeleton } from '@/components/shared/skeletons'
-import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { useSessionUser } from '@/lib/hooks/useSessionUser'
+import { useLiveTransactions } from '@/lib/hooks/useLiveTransactions'
 import { fetchRecentTransactions } from '@/lib/data/queries'
 import { cn } from '@/lib/utils'
 
@@ -50,9 +51,10 @@ const typeStyles: Record<
 
 export default function DashboardRecentTransactions() {
   const t = useTranslations('dashboard')
-  const { data: transactions, loading, error, reload } = useAsyncData(
+  const user = useSessionUser()
+  const { data: transactions, loading, error, reload } = useLiveTransactions(
     () => fetchRecentTransactions(4),
-    []
+    { userId: user.id, variant: 'recent', limit: 4 }
   )
 
   return (
@@ -68,11 +70,11 @@ export default function DashboardRecentTransactions() {
         </Link>
       </div>
 
-      <AsyncState
-        loading={loading}
-        error={error}
-        onRetry={reload}
-        isEmpty={!transactions?.length}
+          <AsyncState
+            loading={loading && !transactions?.length}
+            error={error}
+            onRetry={reload}
+            isEmpty={!transactions?.length}
         emptyTitle={t('noTransactionsTitle')}
         emptyDescription={t('noTransactionsDesc')}
         emptyAction={

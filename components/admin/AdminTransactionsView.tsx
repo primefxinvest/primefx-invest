@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react'
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  Briefcase,
   Check,
   CheckCircle2,
   Clock,
@@ -20,9 +21,13 @@ import {
 import { toast } from 'sonner'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { StatusCardGrid, statusCardAdminSurfaceClass } from '@/components/shared/status-cards'
+import { Button } from '@/components/ui/button'
 import { updateTransactionStatus } from '@/lib/admin/actions'
 import type { AdminTransactionRow } from '@/lib/admin/types'
+import { patchAdminTransactionRow } from '@/lib/data/transaction-map'
 import { formatCurrency } from '@/lib/data/format'
+import { useActionDialog } from '@/lib/hooks/useActionDialog'
+import { useAdminTransactionsRealtime } from '@/lib/hooks/useTransactionsRealtime'
 import { getDefaultAvatarUrl } from '@/lib/profile/avatar'
 import { cn } from '@/lib/utils'
 
@@ -79,6 +84,13 @@ function getTypeMeta(type: string) {
         icon: Share2,
         badgeClass: 'bg-amber-50 text-amber-700 ring-amber-100',
         amountClass: 'text-amber-700',
+      }
+    case 'investment':
+      return {
+        label: 'Capital',
+        icon: Briefcase,
+        badgeClass: 'bg-sky-50 text-sky-700 ring-sky-100',
+        amountClass: 'text-sky-700',
       }
     default:
       return {
@@ -193,52 +205,219 @@ function ReferenceCell({ reference }: { reference: string }) {
   )
 }
 
-function TransactionActions({
-  tx,
-  pending,
-  onApprove,
-  onReject,
-}: {
-  tx: AdminTransactionRow
-  pending: boolean
-  onApprove: () => void
-  onReject: () => void
-}) {
-  if (tx.status.toLowerCase() !== 'pending') {
-    return <span className="text-xs text-muted-foreground">—</span>
+function getTransactionActionMeta(tx: AdminTransactionRow) {
+  const type = tx.type.toLowerCase()
+  const amount = formatCurrency(tx.amount)
+
+  switch (type) {
+    case 'deposit':
+      return {
+        approveTitle: 'Approve deposit',
+        approveDescription: `Credit ${amount} to the user's available wallet balance once you confirm this deposit.`,
+        rejectTitle: 'Reject deposit',
+        rejectDescription: `Reject this deposit request. No funds will be added to the user's wallet.`,
+        rejectNote: 'The user will not receive any balance from this deposit.',
+        reviewHint: 'Confirm the incoming transfer before crediting the wallet.',
+      }
+    case 'withdrawal':
+      return {
+        approveTitle: 'Approve withdrawal',
+        approveDescription: `Confirm this withdrawal of ${amount}. Use this only when the payout has been verified or scheduled.`,
+        rejectTitle: 'Reject withdrawal',
+        rejectDescription: `Reject this withdrawal. The held amount (${amount}) will be returned to the user's available balance immediately.`,
+        rejectNote: 'Funds held for this withdrawal will be released back to the wallet.',
+        reviewHint: 'Rejecting returns held funds to the user\'s available balance.',
+      }
+    case 'investment':
+      return {
+        approveTitle: 'Approve capital return',
+        approveDescription: `Release ${amount} from the investment back to the user's wallet and close the related position.`,
+        rejectTitle: 'Cancel capital withdrawal',
+        rejectDescription: `Cancel this capital withdrawal request. The ${amount} will remain invested — nothing is moved to the wallet.`,
+        rejectNote: 'Capital stays in the investment; the withdrawal request will be cancelled.',
+        reviewHint: 'Rejecting keeps capital invested and cancels the withdrawal request.',
+      }
+    default:
+      return {
+        approveTitle: 'Approve transaction',
+        approveDescription: `Approve this ${type} transaction of ${amount}.`,
+        rejectTitle: 'Reject transaction',
+        rejectDescription: `Reject this ${type} transaction of ${amount}.`,
+        rejectNote: null,
+        reviewHint: 'Review this transaction before approving or rejecting.',
+      }
+  }
+}
+
+function TransactionActionPlaceholder({ status }: { status: string }) {
+  const normalized = status.toLowerCase()
+
+  if (normalized === 'completed') {
+    return (
+      <span className="inline-flex items-center justify-end gap-1.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+        <span className="hidden xl:inline">Processed</span>
+      </span>
+    )
   }
 
+  if (['failed', 'rejected', 'cancelled'].includes(normalized)) {
+    return (
+      <span className="inline-flex items-center justify-end gap-1.5 text-xs font-medium text-red-600">
+        <XCircle className="h-3.5 w-3.5 shrink-0" />
+        <span className="hidden xl:inline capitalize">{normalized}</span>
+      </span>
+    )
+  }
+
+  return <span className="text-xs text-muted-foreground">—</span>
+}
+
+function TransactionActionButtons({
+  tx,
+  isProcessing,
+  processingAction,
+  onApprove,
+  onReject,
+  layout = 'inline',
+}: {
+  tx: AdminTransactionRow
+  isProcessing: boolean
+  processingAction: 'approve' | 'reject' | null
+  onApprove: () => void
+  onReject: () => void
+  layout?: 'inline' | 'stacked'
+}) {
+  if (tx.status.toLowerCase() !== 'pending') {
+    return <TransactionActionPlaceholder status={tx.status} />
+  }
+
+  const isStacked = layout === 'stacked'
+
   return (
-    <div className="flex items-center justify-end gap-1">
-      <button
+    <div
+      className={cn(
+        'flex gap-1.5',
+        isStacked
+          ? 'w-full flex-col sm:flex-row'
+          : 'min-[1100px]:flex-row min-[1100px]:items-center min-[1100px]:justify-end flex-col items-stretch'
+      )}
+      role="group"
+      aria-label="Transaction review actions"
+    >
+      <Button
         type="button"
-        disabled={pending}
+        size="sm"
+        disabled={isProcessing}
         onClick={onApprove}
-        title="Approve"
-        aria-label="Approve transaction"
-        className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white transition-colors hover:bg-emerald-700 disabled:opacity-50"
+        className={cn(
+          'bg-emerald-600 text-white hover:bg-emerald-700',
+          isStacked ? 'flex-1' : 'w-full min-[1100px]:w-auto'
+        )}
       >
-        {pending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
-      </button>
-      <button
+        {isProcessing && processingAction === 'approve' ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Check className="h-3.5 w-3.5" />
+        )}
+        Approve
+      </Button>
+      <Button
         type="button"
-        disabled={pending}
+        size="sm"
+        variant="destructive"
+        disabled={isProcessing}
         onClick={onReject}
-        title="Reject"
-        aria-label="Reject transaction"
-        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 disabled:opacity-50"
+        className={isStacked ? 'flex-1' : 'w-full min-[1100px]:w-auto'}
       >
-        <X className="h-3.5 w-3.5" />
-      </button>
+        {isProcessing && processingAction === 'reject' ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <X className="h-3.5 w-3.5" />
+        )}
+        Reject
+      </Button>
     </div>
   )
 }
 
-export function AdminTransactionsView({ transactions }: { transactions: AdminTransactionRow[] }) {
+export function AdminTransactionsView({
+  transactions: initialTransactions,
+}: {
+  transactions: AdminTransactionRow[]
+}) {
+  const [rows, setRows] = useState(initialTransactions)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [typeFilter, setTypeFilter] = useState('all')
-  const [pending, startTransition] = useTransition()
+  const [processingId, setProcessingId] = useState<string | null>(null)
+  const [processingAction, setProcessingAction] = useState<'approve' | 'reject' | null>(null)
+  const [, startTransition] = useTransition()
+  const { confirm, ActionDialog } = useActionDialog()
+
+  useEffect(() => {
+    setRows(initialTransactions)
+  }, [initialTransactions])
+
+  const upsertAdminTransaction = useCallback(async (
+    row: {
+      id: string
+      user_id?: string | null
+      type?: string | null
+      amount?: unknown
+      status?: string | null
+      description?: string | null
+      reference_id?: string | null
+      created_at: string
+    },
+    eventType: 'INSERT' | 'UPDATE'
+  ) => {
+    if (eventType === 'UPDATE') {
+      setRows((current) =>
+        current.map((tx) =>
+          tx.id === row.id
+            ? patchAdminTransactionRow(tx, {
+                id: row.id,
+                type: row.type,
+                amount: row.amount,
+                status: row.status,
+                description: row.description,
+                reference_id: row.reference_id,
+                created_at: row.created_at,
+              })
+            : tx
+        )
+      )
+      return
+    }
+
+    try {
+      const response = await fetch(`/api/admin/transactions/${encodeURIComponent(row.id)}`)
+      const payload = (await response.json()) as {
+        transaction?: AdminTransactionRow
+        error?: string
+      }
+      if (!response.ok || !payload.transaction) return
+
+      setRows((current) => [
+        payload.transaction!,
+        ...current.filter((tx) => tx.id !== payload.transaction!.id),
+      ])
+    } catch {
+      // Ignore enrichment failures; admin can refresh manually
+    }
+  }, [])
+
+  useAdminTransactionsRealtime({
+    onInsert: (row) => {
+      void upsertAdminTransaction(row, 'INSERT')
+    },
+    onUpdate: (row) => {
+      void upsertAdminTransaction(row, 'UPDATE')
+    },
+  })
+
+  const transactions = rows
 
   const types = useMemo(
     () => [...new Set(transactions.map((tx) => tx.type.toLowerCase()))].sort(),
@@ -291,7 +470,8 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
     })
   }, [search, statusFilter, typeFilter, transactions])
 
-  const handleStatus = (tx: AdminTransactionRow, status: 'Completed' | 'Rejected') => {
+  const runStatusUpdate = (tx: AdminTransactionRow, status: 'Completed' | 'Rejected') => {
+    setProcessingId(tx.id)
     startTransition(async () => {
       try {
         await updateTransactionStatus(tx.id, status)
@@ -303,14 +483,49 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
             toast.success('Transaction approved')
           }
         } else if (type === 'withdrawal') {
-          toast.success('Transaction rejected — funds returned to wallet')
+          toast.success('Withdrawal rejected — funds returned to wallet')
+        } else if (type === 'investment') {
+          toast.success('Capital withdrawal cancelled — funds remain invested')
         } else {
           toast.success('Transaction rejected')
         }
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Failed to update transaction')
+      } finally {
+        setProcessingId(null)
+        setProcessingAction(null)
       }
     })
+  }
+
+  const handleApprove = async (tx: AdminTransactionRow) => {
+    const meta = getTransactionActionMeta(tx)
+    const confirmed = await confirm({
+      title: meta.approveTitle,
+      description: meta.approveDescription,
+      confirmLabel: 'Approve',
+    })
+    if (!confirmed) return
+    setProcessingAction('approve')
+    runStatusUpdate(tx, 'Completed')
+  }
+
+  const handleReject = async (tx: AdminTransactionRow) => {
+    const meta = getTransactionActionMeta(tx)
+    const description = meta.rejectNote
+      ? `${meta.rejectDescription} ${meta.rejectNote}`
+      : meta.rejectDescription
+
+    const confirmed = await confirm({
+      title: meta.rejectTitle,
+      description,
+      confirmLabel: 'Reject',
+      cancelLabel: 'Keep pending',
+      destructive: true,
+    })
+    if (!confirmed) return
+    setProcessingAction('reject')
+    runStatusUpdate(tx, 'Rejected')
   }
 
   const statusFilters: { key: StatusFilter; label: string; count: number }[] = [
@@ -322,6 +537,7 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
 
   return (
     <div className="min-w-0 space-y-6">
+      <ActionDialog />
       <AdminPageHeader
         title="Transaction Management"
         description="Review, approve, and monitor platform transactions"
@@ -425,6 +641,24 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
         ))}
       </div>
 
+      {stats.pending > 0 && statusFilter !== 'pending' ? (
+        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2.5 text-sm text-amber-900">
+          <Clock className="h-4 w-4 shrink-0" />
+          <span>
+            <span className="font-semibold">{stats.pending} pending</span>
+            {' — '}
+            switch to the Pending tab to review and approve or reject.
+          </span>
+          <button
+            type="button"
+            onClick={() => setStatusFilter('pending')}
+            className="ml-auto shrink-0 rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-amber-700"
+          >
+            Review pending
+          </button>
+        </div>
+      ) : null}
+
       {/* Mobile cards */}
       <div className="space-y-3 md:hidden">
         {filtered.length === 0 ? (
@@ -470,25 +704,18 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
                 </div>
 
                 {isPending ? (
-                  <div className="mt-3 flex gap-2 border-t border-border pt-3">
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => handleStatus(tx, 'Completed')}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-emerald-600 py-2 text-xs font-semibold text-white disabled:opacity-50"
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                      Approve
-                    </button>
-                    <button
-                      type="button"
-                      disabled={pending}
-                      onClick={() => handleStatus(tx, 'Rejected')}
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-200 bg-red-50 py-2 text-xs font-semibold text-red-700 disabled:opacity-50"
-                    >
-                      <X className="h-3.5 w-3.5" />
-                      Reject
-                    </button>
+                  <div className="mt-3 space-y-2 border-t border-border pt-3">
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      {getTransactionActionMeta(tx).reviewHint}
+                    </p>
+                    <TransactionActionButtons
+                      tx={tx}
+                      isProcessing={processingId === tx.id}
+                      processingAction={processingId === tx.id ? processingAction : null}
+                      onApprove={() => void handleApprove(tx)}
+                      onReject={() => void handleReject(tx)}
+                      layout="stacked"
+                    />
                   </div>
                 ) : null}
               </article>
@@ -501,13 +728,13 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
       <div className="hidden min-w-0 overflow-hidden rounded-lg border border-border bg-card md:block">
         <table className="w-full table-fixed">
           <colgroup>
-            <col style={{ width: '17%' }} />
-            <col style={{ width: '24%' }} />
-            <col style={{ width: '11%' }} />
+            <col style={{ width: '16%' }} />
+            <col style={{ width: '22%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '10%' }} />
             <col style={{ width: '11%' }} />
             <col style={{ width: '12%' }} />
-            <col style={{ width: '13%' }} />
-            <col style={{ width: '72px' }} />
+            <col style={{ width: '19%' }} />
           </colgroup>
           <thead className="border-b border-border bg-background">
             <tr>
@@ -576,11 +803,12 @@ export function AdminTransactionsView({ transactions }: { transactions: AdminTra
                       <p className="whitespace-nowrap text-[11px] text-muted-foreground">{timePart}</p>
                     </td>
                     <td className="px-2 py-3 text-right sm:px-3">
-                      <TransactionActions
+                      <TransactionActionButtons
                         tx={tx}
-                        pending={pending}
-                        onApprove={() => handleStatus(tx, 'Completed')}
-                        onReject={() => handleStatus(tx, 'Rejected')}
+                        isProcessing={processingId === tx.id}
+                        processingAction={processingId === tx.id ? processingAction : null}
+                        onApprove={() => void handleApprove(tx)}
+                        onReject={() => void handleReject(tx)}
                       />
                     </td>
                   </tr>

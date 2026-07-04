@@ -42,10 +42,16 @@ export async function upsertVerificationSession(
   const now = new Date().toISOString()
   const userId = resolveUserId(input.vendorData, input.userId)
 
+  let status = input.status
+  if (status == null || status === '') {
+    const existing = await getVerificationSessionBySessionId(input.sessionId)
+    status = existing?.status ?? 'Not Started'
+  }
+
   const row = {
     session_id: input.sessionId,
     vendor_data: input.vendorData ?? userId,
-    status: input.status ?? 'Not Started',
+    status,
     decision: input.decision ?? null,
     workflow_id: input.workflowId ?? null,
     user_id: userId,

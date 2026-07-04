@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useId } from 'react'
 import {
   Area,
   AreaChart,
@@ -19,8 +19,9 @@ import {
   chartTooltipWrapperProps,
   formatCurrency,
 } from '@/components/charts/ChartTooltip'
+import type { PortfolioChartPeriod } from '@/lib/data/portfolio-performance'
 
-const periods = ['1M', '6M', '1Y', '3Y', 'All'] as const
+const periods = ['1M', '6M', '1Y', '3Y', 'All'] as const satisfies readonly PortfolioChartPeriod[]
 
 interface PerformanceChartProps {
   data: Array<{ month: string; value: number }>
@@ -30,10 +31,16 @@ interface PerformanceChartProps {
     winningMonths: string
     maxDrawdown: string
   }
+  period: PortfolioChartPeriod
+  onPeriodChange: (period: PortfolioChartPeriod) => void
 }
 
-export default function PerformanceChart({ data, stats }: PerformanceChartProps) {
-  const [period, setPeriod] = useState<(typeof periods)[number]>('1Y')
+export default function PerformanceChart({
+  data,
+  stats,
+  period,
+  onPeriodChange,
+}: PerformanceChartProps) {
   const gradientId = useId().replace(/:/g, '')
 
   return (
@@ -45,7 +52,7 @@ export default function PerformanceChart({ data, stats }: PerformanceChartProps)
             <button
               key={p}
               type="button"
-              onClick={() => setPeriod(p)}
+              onClick={() => onPeriodChange(p)}
               className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
                 period === p
                   ? 'bg-white text-[#0052ff] shadow-sm'
@@ -58,7 +65,12 @@ export default function PerformanceChart({ data, stats }: PerformanceChartProps)
         </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={260}>
+      {data.length === 0 ? (
+        <div className="flex h-[260px] items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500">
+          No performance history yet. Invest to start tracking portfolio value over time.
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={260}>
         <AreaChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -96,6 +108,7 @@ export default function PerformanceChart({ data, stats }: PerformanceChartProps)
           />
         </AreaChart>
       </ResponsiveContainer>
+      )}
 
       <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-4">
         {[

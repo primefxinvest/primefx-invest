@@ -38,6 +38,16 @@ function isNowPaymentsAvailabilityError(message: string) {
 function mapNowPaymentsDepositError(message: string) {
   const lower = normalizeMessage(message)
 
+  if (
+    lower.includes('ipn_callback_url') &&
+    (lower.includes('valid uri') || lower.includes('invalid_request_params'))
+  ) {
+    return 'Payment webhooks are misconfigured. Set PAYMENT_WEBHOOK_BASE_URL in .env to your public app URL (e.g. https://yourdomain.com) with no trailing comma, then restart the server.'
+  }
+  if (lower.includes('invalid payment webhook url') || lower.includes('payment webhook url')) {
+    return 'Payment webhooks are misconfigured. Set PAYMENT_WEBHOOK_BASE_URL in .env to a valid URL, then restart the server.'
+  }
+
   if (isNowPaymentsAuthError(message) || message.includes('INVALID_API_KEY')) {
     return 'This payment method is temporarily unavailable. Please try again later or contact support.'
   }
@@ -122,10 +132,19 @@ export function toUserDepositError(
   return toUserDepositErrorMessage(message, provider)
 }
 
+function extractBinanceRequestIp(message: string): string | null {
+  const match = message.match(/request ip:\s*([0-9a-f.:]+)/i)
+  return match?.[1] ?? null
+}
+
 function toUserDepositErrorMessage(message: string, provider: PaymentProviderId) {
   if (provider === 'binance_pay') {
     if (matchesCode(message, '400004') || message.includes('Invalid API-key, IP, or permissions')) {
-      return 'Binance Pay is temporarily unavailable. Please try another currency such as USDT, or try again later.'
+      const requestIp = extractBinanceRequestIp(message)
+      if (requestIp) {
+        return `Binance Pay blocked this server (IP ${requestIp}). In the Binance Pay merchant dashboard, open API settings and whitelist that IP address, then try again. You can use NOWPayments with USDT in the meantime.`
+      }
+      return 'Binance Pay could not authenticate this request. Check your API key and whitelist your server IP in the Binance Pay merchant dashboard, or use NOWPayments with USDT.'
     }
     if (matchesCode(message, '400606') || message.includes('no accessibility')) {
       return 'Binance Pay is not available for deposits at the moment. Please choose another currency.'

@@ -1,5 +1,6 @@
 import { generateObject } from 'ai'
 import { getAiConfigError, getVisionModel } from '@/lib/ai/provider'
+import { AI_DOCUMENT_SCAN_UNAVAILABLE_USER_MESSAGE } from '@/lib/ai/user-errors'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import {
   kycExtractedFieldsSchema,
@@ -36,7 +37,11 @@ export async function POST(req: Request) {
   try {
     const model = getVisionModel()
     if (!model) {
-      return Response.json({ error: getAiConfigError() }, { status: 503 })
+      console.warn('[kyc/extract-document]', getAiConfigError())
+      return Response.json(
+        { error: AI_DOCUMENT_SCAN_UNAVAILABLE_USER_MESSAGE, code: 'AI_UNAVAILABLE' },
+        { status: 503 }
+      )
     }
 
     const supabase = await createServerSupabaseClient()

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { verifyNowPaymentsSignature } from '@/lib/payments/nowpayments'
-import { completeWithdrawalFromWebhook, failDepositFromWebhook } from '@/lib/payments/service'
+import { completeWithdrawalFromWebhook, failWithdrawalFromWebhook } from '@/lib/payments/service'
 import { logPaymentWebhook } from '@/lib/payments/wallet-ledger'
 
 export const runtime = 'nodejs'
@@ -37,7 +37,10 @@ export async function POST(request: Request) {
     if (['finished', 'completed', 'sent'].includes(status)) {
       await completeWithdrawalFromWebhook(orderId)
     } else if (['failed', 'rejected', 'cancelled'].includes(status)) {
-      await failDepositFromWebhook(orderId, status === 'cancelled' ? 'cancelled' : 'failed')
+      await failWithdrawalFromWebhook(
+        orderId,
+        status === 'cancelled' ? 'cancelled' : status === 'rejected' ? 'rejected' : 'failed'
+      )
     }
 
     await logPaymentWebhook({

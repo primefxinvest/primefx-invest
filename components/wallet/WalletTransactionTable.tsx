@@ -18,7 +18,8 @@ import { AsyncState } from '@/components/shared/data-state'
 import { WalletDepositCta, WalletTransferCta } from '@/components/wallet/layout/WalletSidePanels'
 import { TableSkeleton } from '@/components/shared/skeletons'
 import { ScrollTable } from '@/components/shared/ScrollTable'
-import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { useSessionUser } from '@/lib/hooks/useSessionUser'
+import { useLiveTransactions } from '@/lib/hooks/useLiveTransactions'
 import { fetchWalletTransactions } from '@/lib/data/queries'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { cn } from '@/lib/utils'
@@ -54,10 +55,11 @@ function getTransactionColor(type: string) {
 export default function WalletTransactionTable() {
   const t = useTranslations('wallet.transactions')
   const tWallet = useTranslations('wallet')
+  const user = useSessionUser()
   const [activeTab, setActiveTab] = useState<TxType>('All')
-  const { data: walletTransactions = [], loading, error, reload } = useAsyncData(
+  const { data: walletTransactions = [], loading, error, reload } = useLiveTransactions(
     () => fetchWalletTransactions(),
-    []
+    { userId: user.id, variant: 'wallet' }
   )
 
   const tabLabels: Record<TxType, string> = {
@@ -143,7 +145,7 @@ export default function WalletTransactionTable() {
       </div>
 
       <AsyncState
-        loading={loading}
+        loading={loading && walletTransactions.length === 0}
         error={error}
         onRetry={reload}
         isEmpty={filtered.length === 0}

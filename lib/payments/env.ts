@@ -44,12 +44,45 @@ export function getNowPaymentsBaseUrl() {
   )
 }
 
-export function getWebhookBaseUrl() {
+/** Trim, strip BOM/quotes, and remove common .env typos (trailing commas). */
+export function normalizeAppUrl(raw: string | undefined): string {
+  if (!raw) return ''
+  let value = normalizeNowPaymentsCredential(raw)
+  value = value.replace(/[,;]+$/g, '').trim()
+  return value.replace(/\/+$/, '')
+}
+
+function resolveWebhookBaseUrlRaw(): string {
   return (
-    process.env.PAYMENT_WEBHOOK_BASE_URL ??
-    process.env.NEXT_PUBLIC_APP_URL ??
+    normalizeAppUrl(process.env.PAYMENT_WEBHOOK_BASE_URL) ||
+    normalizeAppUrl(process.env.NEXT_PUBLIC_APP_URL) ||
     'http://localhost:3000'
-  ).replace(/\/$/, '')
+  )
+}
+
+export function getWebhookBaseUrl() {
+  return resolveWebhookBaseUrlRaw()
+}
+
+/** Validates a URL before sending it to payment providers (NOWPayments, etc.). */
+export function assertValidPaymentUrl(url: string, label: string) {
+  try {
+    const parsed = new URL(url)
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      throw new Error(`unsupported protocol ${parsed.protocol}`)
+    }
+  } catch {
+    throw new Error(
+      `Invalid ${label}: "${url}". Set PAYMENT_WEBHOOK_BASE_URL (recommended) or NEXT_PUBLIC_APP_URL to a full URL without trailing commas, e.g. https://yourdomain.com`
+    )
+  }
+}
+
+export function buildPaymentWebhookUrl(path: string) {
+  const base = getWebhookBaseUrl()
+  const url = `${base}${path.startsWith('/') ? path : `/${path}`}`
+  assertValidPaymentUrl(url, 'payment webhook URL')
+  return url
 }
 
 export function getSuccessRedirectUrl() {

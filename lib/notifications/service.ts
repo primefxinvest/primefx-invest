@@ -42,6 +42,29 @@ export async function createUserNotification(input: CreateNotificationInput) {
   return data.id as string
 }
 
+/** Inserts a notification only when no row exists for the same user + dedupeKey. */
+export async function createUserNotificationOnce(
+  input: CreateNotificationInput & { dedupeKey: string }
+) {
+  const db = getDb()
+  if (!db) return null
+
+  const { data: existing } = await db
+    .from('user_notifications')
+    .select('id')
+    .eq('user_id', input.userId)
+    .filter('metadata->>dedupeKey', 'eq', input.dedupeKey)
+    .limit(1)
+    .maybeSingle()
+
+  if (existing?.id) return existing.id as string
+
+  return createUserNotification({
+    ...input,
+    metadata: { ...(input.metadata ?? {}), dedupeKey: input.dedupeKey },
+  })
+}
+
 export async function notifyDepositCreated(userId: string, amountUsd: number, referenceId: string) {
   return createUserNotification({
     userId,
@@ -133,8 +156,9 @@ export async function notifyInvestmentCreated(
 export async function notifyKycStatusChange(userId: string, status: 'Verified' | 'Rejected' | 'Pending') {
   if (status === 'Pending') return null
 
-  return createUserNotification({
+  return createUserNotificationOnce({
     userId,
+    dedupeKey: `kyc_status:${status}`,
     title: status === 'Verified' ? 'KYC approved' : 'KYC rejected',
     message:
       status === 'Verified'
@@ -142,5 +166,19 @@ export async function notifyKycStatusChange(userId: string, status: 'Verified' |
         : 'Your identity verification was rejected. Please review your documents and contact support.',
     type: 'security',
     metadata: { status, event: 'kyc_status' },
+  })
+}
+
+export async function notifySupportTicketReply(
+  userId: string,
+  ticketId: string,
+  subject: string
+) {
+  return createUserNotification({
+    userId,
+    title: 'Support replied to your ticket',
+    message: `Our team responded to "${subject}". Open Support to read the reply.`,
+    type: 'general',
+    metadata: { ticketId, event: 'support_ticket_reply' },
   })
 }

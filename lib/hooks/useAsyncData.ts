@@ -7,16 +7,22 @@ export function useAsyncData<T>(
   deps: unknown[] = [],
   initialData?: T
 ) {
-  const [data, setData] = useState<T | undefined>(initialData)
+  const [data, setDataState] = useState<T | undefined>(initialData)
   const [loading, setLoading] = useState(initialData === undefined)
   const [error, setError] = useState<string | null>(null)
 
-  const reload = useCallback(async () => {
-    setLoading(true)
+  const setData = useCallback((value: T | undefined | ((prev: T | undefined) => T | undefined)) => {
+    setDataState(value)
+  }, [])
+
+  const reload = useCallback(async (options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      setLoading(true)
+    }
     setError(null)
     try {
       const result = await loader()
-      setData(result)
+      setDataState(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data')
     } finally {
@@ -34,7 +40,7 @@ export function useAsyncData<T>(
       setError(null)
       try {
         const result = await loader()
-        if (active) setData(result)
+        if (active) setDataState(result)
       } catch (err) {
         if (active) {
           setError(err instanceof Error ? err.message : 'Failed to load data')
@@ -52,5 +58,12 @@ export function useAsyncData<T>(
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loader identity follows deps
   }, [initialData, ...deps])
 
-  return { data, loading, error, reload }
+  return {
+    data,
+    loading: loading && data === undefined,
+    isRefreshing: loading && data !== undefined,
+    error,
+    reload,
+    setData,
+  }
 }

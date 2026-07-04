@@ -11,8 +11,14 @@ import {
   getWallet,
   getMarketAssets,
   getAcademyCourses,
+  getAcademyCourseById,
+  getAcademyLessonsByCourseId,
+  getUserCourseEnrollment,
+  getUserLessonProgress,
   getCommunityPosts,
   getSupportTickets,
+  getSupportTicketById,
+  getSupportTicketMessages,
   getUserPreferences,
   upsertUserPreferences,
   getMarketInsights,
@@ -20,11 +26,21 @@ import {
   getRewardCatalog,
 } from '@/lib/db/supabase'
 import { mapDbPlansToInvestmentPlans, PLAN_UI_META } from '@/lib/invest/plan-mapper'
+import {
+  buildMonthlyReturnPoints,
+  buildPortfolioChartData,
+  computePortfolioPerformanceStats,
+  type PortfolioChartPeriod,
+} from '@/lib/data/portfolio-performance'
+import { mapDbTransactionToItem } from '@/lib/data/transaction-map'
 import { formatCurrency, formatDate, formatDateTime, formatPercent, formatRelativeTime, toNumber } from '@/lib/data/format'
 import type {
+  AcademyCourseDetail,
   AcademyCourseItem,
+  AcademyLessonItem,
   AcademyStats,
   AssetAllocationItem,
+  CapitalWithdrawalRequestItem,
   ChartPoint,
   CommunityMemberItem,
   CommunityPostItem,
@@ -41,6 +57,8 @@ import type {
   RewardTierItem,
   RewardsData,
   SupportTicketItem,
+  SupportTicketDetail,
+  SupportTicketMessage,
   TransactionItem,
   UserPreferencesData,
   WalletActivitySummary,
@@ -49,7 +67,6 @@ import type {
 } from '@/lib/data/types'
 
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 async function requireUserId() {
   const { data: user } = await getCurrentUser()
@@ -85,6 +102,30 @@ function formatMonthOverMonthChange(current: number, previous: number) {
 function formatCourseDurationWeeks(minutes?: number | null) {
   const weeks = Math.max(1, Math.round((minutes ?? 60) / (60 * 7)))
   return weeks
+}
+
+function mapAcademyCourseRow(
+  course: Record<string, unknown>,
+  progressRow?: Record<string, unknown> | null
+): AcademyCourseItem {
+  const progress = toNumber(progressRow?.progress_percentage as string | number | null | undefined)
+  const completed = progress >= 100 || Boolean(progressRow?.completed_at)
+  const difficulty = (course.difficulty as string) ?? 'Beginner'
+
+  return {
+    id: course.id as string,
+    title: course.title as string,
+    description: (course.description as string) ?? '',
+    category: (course.category as string) ?? 'General',
+    lessons: Number(course.lessons_count ?? 0),
+    duration: String(formatCourseDurationWeeks(course.duration_minutes as number)),
+    difficulty,
+    instructor: (course.instructor_name as string) ?? 'PrimeFx Academy',
+    progress,
+    completed,
+    locked: difficulty.toLowerCase() === 'advanced',
+    lockReason: difficulty.toLowerCase() === 'advanced' ? 'Prime Investor' : undefined,
+  }
 }
 
 export async function fetchInvestmentPlans(): Promise<InvestmentPlan[]> {
@@ -157,37 +198,23 @@ function emptyPortfolioMetrics(): PortfolioMetrics {
   }
 }
 
-export async function fetchPortfolioChart(): Promise<ChartPoint[]> {
+export async function fetchPortfolioChart(
+  period: PortfolioChartPeriod = 'This Year'
+): Promise<ChartPoint[]> {
   const userId = await requireUserId()
   if (!userId) return []
 
-  const [{ data: investments }, { data: portfolio }] = await Promise.all([
+  const [{ data: investments }, { data: portfolio }, { data: transactions }] = await Promise.all([
     getUserInvestments(userId),
     getUserPortfolio(userId),
+    getUserTransactions(userId),
   ])
 
-  const currentValue = toNumber(portfolio?.current_value)
-  const year = new Date().getFullYear()
-  const monthly = new Map<number, number>()
-
-  investments?.forEach((investment) => {
-    const date = new Date(investment.created_at)
-    if (date.getFullYear() !== year) return
-    const month = date.getMonth()
-    monthly.set(month, (monthly.get(month) ?? 0) + toNumber(investment.current_value ?? investment.amount))
-  })
-
-  if (monthly.size === 0) {
-    return MONTHS.map((month, index) => ({
-      month,
-      value: Math.round((currentValue / 12) * (index + 1)),
-    }))
-  }
-
-  let running = 0
-  return MONTHS.map((month, index) => {
-    running += monthly.get(index) ?? 0
-    return { month, value: Math.round(running || currentValue * ((index + 1) / 12)) }
+  return buildPortfolioChartData({
+    transactions: transactions ?? [],
+    investments: investments ?? [],
+    currentValue: toNumber(portfolio?.current_value),
+    period,
   })
 }
 
@@ -228,24 +255,20 @@ export async function fetchRecentTransactions(limit = 4): Promise<TransactionIte
   const { data } = await getUserTransactions(userId)
   if (!data?.length) return []
 
-  return data.slice(0, limit).map((tx) => {
-    const amount = toNumber(tx.amount)
-    const rawType = String(tx.type ?? '')
-    const type = normalizeTransactionType(rawType)
-    const isCredit = isCreditTransactionType(rawType)
-    const signedAmount = isCredit ? Math.abs(amount) : -Math.abs(amount)
-    return {
-      id: tx.id,
-      type,
-      description: tx.description ?? type,
-      amount: formatCurrency(signedAmount, { signed: true }),
-      amountValue: signedAmount,
-      isCredit,
-      date: formatDateTime(tx.created_at),
-      status: capitalize(tx.status ?? 'Completed'),
-      referenceId: tx.reference_id ?? undefined,
-    }
-  })
+  return data.slice(0, limit).map((tx) =>
+    mapDbTransactionToItem(
+      {
+        id: tx.id as string,
+        type: tx.type as string,
+        amount: tx.amount,
+        status: tx.status as string,
+        description: tx.description as string | null,
+        reference_id: tx.reference_id as string | null,
+        created_at: tx.created_at as string,
+      },
+      'recent'
+    )
+  )
 }
 
 export async function fetchWalletData(): Promise<WalletData> {
@@ -296,27 +319,20 @@ export async function fetchWalletTransactions(): Promise<TransactionItem[]> {
   const { data } = await getUserTransactions(userId)
   if (!data?.length) return []
 
-  return data.map((tx) => {
-    const amount = toNumber(tx.amount)
-    const rawType = String(tx.type ?? '')
-    const type = normalizeTransactionType(rawType)
-    const isCredit = isCreditTransactionType(rawType)
-    const signedAmount = isCredit ? Math.abs(amount) : -Math.abs(amount)
-    const created = new Date(tx.created_at)
-    return {
-      id: tx.id,
-      type,
-      description: tx.description ?? type,
-      amount: formatCurrency(signedAmount, { signed: true }),
-      amountValue: signedAmount,
-      isCredit,
-      date: formatDate(tx.created_at),
-      time: created.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-      status: capitalize(tx.status ?? 'Pending'),
-      referenceId: tx.reference_id ?? `TXN-${tx.id.slice(0, 8).toUpperCase()}`,
-      createdAt: tx.created_at as string,
-    }
-  })
+  return data.map((tx) =>
+    mapDbTransactionToItem(
+      {
+        id: tx.id as string,
+        type: tx.type as string,
+        amount: tx.amount,
+        status: tx.status as string,
+        description: tx.description as string | null,
+        reference_id: tx.reference_id as string | null,
+        created_at: tx.created_at as string,
+      },
+      'wallet'
+    )
+  )
 }
 
 export async function fetchWalletActivitySummary(): Promise<WalletActivitySummary> {
@@ -785,6 +801,30 @@ export async function fetchPortfolioInvestments() {
   return { active, completed }
 }
 
+export async function fetchCapitalWithdrawalRequests(): Promise<CapitalWithdrawalRequestItem[]> {
+  const userId = await requireUserId()
+  if (!userId) return []
+
+  const { data, error } = await supabase
+    .from('investment_withdrawal_requests')
+    .select('id, investment_id, amount_usd, status, requested_at, available_at, reference_id')
+    .eq('user_id', userId)
+    .in('status', ['pending_notice', 'ready'])
+    .order('requested_at', { ascending: false })
+
+  if (error || !data?.length) return []
+
+  return data.map((row) => ({
+    id: row.id as string,
+    investmentId: row.investment_id as string,
+    amountUsd: toNumber(row.amount_usd),
+    status: String(row.status ?? 'pending_notice'),
+    requestedAt: row.requested_at as string,
+    availableAt: row.available_at as string,
+    referenceId: (row.reference_id as string | null) ?? null,
+  }))
+}
+
 function mapInvestmentRow(investment: Record<string, unknown>) {
   const plan = investment.investment_plans as { name?: string; risk_level?: string } | undefined
   const invested = toNumber(investment.amount as string | number | null | undefined)
@@ -825,13 +865,11 @@ function mapCompletedInvestmentRow(investment: Record<string, unknown>) {
   }
 }
 
-export async function fetchMonthlyReturns(): Promise<ChartPoint[]> {
-  const chart = await fetchPortfolioChart()
-  return chart.map((point, index, arr) => {
-    const prev = index > 0 ? arr[index - 1].value : point.value
-    const change = prev > 0 ? ((point.value - prev) / prev) * 100 : 0
-    return { month: point.month, value: Math.round(change * 10) / 10 }
-  })
+export async function fetchMonthlyReturns(
+  period: PortfolioChartPeriod = 'This Year'
+): Promise<ChartPoint[]> {
+  const chart = await fetchPortfolioChart(period)
+  return buildMonthlyReturnPoints(chart)
 }
 
 export async function fetchAcademyCourses(): Promise<AcademyCourseItem[]> {
@@ -849,24 +887,59 @@ export async function fetchAcademyCourses(): Promise<AcademyCourseItem[]> {
 
   return courses.map((course) => {
     const progressRow = progressMap.get(course.id as string)
-    const progress = toNumber(progressRow?.progress_percentage)
-    const completed =
-      progress >= 100 || Boolean(progressRow?.completed_at)
-    const difficulty = (course.difficulty as string) ?? 'Beginner'
-
-    return {
-      id: course.id as string,
-      title: course.title as string,
-      category: (course.category as string) ?? 'General',
-      lessons: Number(course.lessons_count ?? 0),
-      duration: String(formatCourseDurationWeeks(course.duration_minutes as number)),
-      difficulty,
-      progress,
-      completed,
-      locked: difficulty.toLowerCase() === 'advanced',
-      lockReason: difficulty.toLowerCase() === 'advanced' ? 'Prime Investor' : undefined,
-    }
+    return mapAcademyCourseRow(course as Record<string, unknown>, progressRow)
   })
+}
+
+export async function fetchAcademyCourseDetail(
+  courseId: string
+): Promise<AcademyCourseDetail | null> {
+  const userId = await requireUserId()
+  const [{ data: course }, { data: lessons }] = await Promise.all([
+    getAcademyCourseById(courseId),
+    getAcademyLessonsByCourseId(courseId),
+  ])
+
+  if (!course) return null
+
+  const enrollment = userId
+    ? (await getUserCourseEnrollment(userId, courseId)).data
+    : null
+
+  const lessonIds = (lessons ?? []).map((row) => row.id as string)
+  const { data: progressRows } = userId
+    ? await getUserLessonProgress(userId, lessonIds)
+    : { data: [] }
+
+  const completedLessonIds = new Set(
+    (progressRows ?? []).map((row) => row.lesson_id as string)
+  )
+
+  const lessonsList: AcademyLessonItem[] = (lessons ?? []).map((lesson) => ({
+    id: lesson.id as string,
+    title: lesson.title as string,
+    description: (lesson.description as string) ?? '',
+    content:
+      (lesson.content as string) ??
+      'Review this lesson material and mark it complete when you are ready to continue.',
+    contentType: (lesson.content_type as string) ?? 'article',
+    sortOrder: Number(lesson.sort_order ?? 0),
+    durationMinutes: Number(lesson.duration_minutes ?? 10),
+    completed: completedLessonIds.has(lesson.id as string),
+  }))
+
+  const base = mapAcademyCourseRow(
+    course as Record<string, unknown>,
+    enrollment as Record<string, unknown> | null
+  )
+
+  return {
+    ...base,
+    enrolled: Boolean(enrollment),
+    enrolledAt: enrollment?.created_at as string | undefined,
+    completedAt: enrollment?.completed_at as string | undefined,
+    lessonsList,
+  }
 }
 
 export async function fetchAcademyStats(): Promise<AcademyStats> {
@@ -960,15 +1033,76 @@ export async function fetchSupportTickets(): Promise<SupportTicketItem[]> {
   const { data } = await getSupportTickets(userId)
   if (!data?.length) return []
 
-  return data.map((ticket) => ({
-    id: (ticket.id as string).slice(0, 8).toUpperCase(),
+  const ticketIds = data.map((row) => row.id as string)
+  const replyCounts = new Map<string, number>()
+  await Promise.all(
+    ticketIds.map(async (ticketId) => {
+      const { data: rows } = await getSupportTicketMessages(ticketId)
+      replyCounts.set(ticketId, rows?.length ?? 0)
+    })
+  )
+
+  return data.map((ticket) => {
+    const ticketId = ticket.id as string
+    return {
+      id: ticketId.slice(0, 8).toUpperCase(),
+      ticketId,
+      subject: ticket.subject as string,
+      description: ticket.description as string,
+      status: (ticket.status as string) ?? 'open',
+      priority: (ticket.priority as string) ?? 'medium',
+      created: formatDate(ticket.created_at as string),
+      updated: formatDate(ticket.updated_at as string),
+      replyCount: replyCounts.get(ticketId) ?? 0,
+    }
+  })
+}
+
+export async function fetchSupportTicketDetail(
+  ticketId: string
+): Promise<SupportTicketDetail | null> {
+  const userId = await requireUserId()
+  if (!userId) return null
+
+  const { data: ticket } = await getSupportTicketById(ticketId, userId)
+  if (!ticket) return null
+
+  const { data: messageRows } = await getSupportTicketMessages(ticketId)
+  const { data: profile } = await getUser(userId)
+  const userName =
+    (profile?.full_name as string | undefined)?.trim() ||
+    (profile?.email as string | undefined)?.split('@')[0] ||
+    'You'
+
+  const threadMessages: SupportTicketMessage[] = [
+    {
+      id: `initial-${ticketId}`,
+      senderType: 'user',
+      senderName: userName,
+      message: ticket.description as string,
+      createdAt: formatDateTime(ticket.created_at as string),
+    },
+    ...(messageRows ?? []).map((row) => ({
+      id: row.id as string,
+      senderType: row.sender_type as 'user' | 'admin',
+      senderName: row.sender_type === 'admin' ? 'Support Team' : userName,
+      message: row.message as string,
+      createdAt: formatDateTime(row.created_at as string),
+    })),
+  ]
+
+  return {
+    id: ticketId.slice(0, 8).toUpperCase(),
+    ticketId,
     subject: ticket.subject as string,
     description: ticket.description as string,
     status: (ticket.status as string) ?? 'open',
     priority: (ticket.priority as string) ?? 'medium',
     created: formatDate(ticket.created_at as string),
     updated: formatDate(ticket.updated_at as string),
-  }))
+    replyCount: messageRows?.length ?? 0,
+    messages: threadMessages,
+  }
 }
 
 export async function fetchSupportTicketStats() {
@@ -1132,27 +1266,7 @@ export async function fetchRewardCatalogItems(): Promise<RewardCatalogItem[]> {
   }))
 }
 
-export async function fetchPortfolioPerformanceStats() {
-  const monthlyReturns = await fetchMonthlyReturns()
-  if (!monthlyReturns.length) {
-    return {
-      bestMonth: '0%',
-      avgMonthlyReturn: '0%',
-      winningMonths: '0',
-      maxDrawdown: '0%',
-    }
-  }
-
-  const positive = monthlyReturns.filter((row) => row.value > 0)
-  const best = monthlyReturns.reduce((max, row) => (row.value > max.value ? row : max), monthlyReturns[0])
-  const worst = monthlyReturns.reduce((min, row) => (row.value < min.value ? row : min), monthlyReturns[0])
-  const avg =
-    monthlyReturns.reduce((sum, row) => sum + row.value, 0) / monthlyReturns.length
-
-  return {
-    bestMonth: formatPercent(best.value, { signed: true }),
-    avgMonthlyReturn: formatPercent(avg, { signed: true }),
-    winningMonths: String(positive.length),
-    maxDrawdown: formatPercent(worst.value, { signed: true }),
-  }
+export async function fetchPortfolioPerformanceStats(period: PortfolioChartPeriod = '1Y') {
+  const monthlyReturns = await fetchMonthlyReturns(period)
+  return computePortfolioPerformanceStats(monthlyReturns)
 }

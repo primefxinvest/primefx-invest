@@ -337,6 +337,160 @@ function transactionAmount(tx: { amount?: unknown }) {
   return Math.abs(Number(tx.amount ?? 0))
 }
 
+const ACTIVE_WITHDRAWAL_REQUEST_STATUSES = ['pending_notice', 'ready'] as const
+
+async function getWalletPendingBalance(userId: string) {
+  const db = getDb()
+  const { data: wallet, error } = await db
+    .from('wallet_balances')
+    .select('pending_balance')
+    .eq('user_id', userId)
+    .single()
+
+  if (error || !wallet) {
+    throw new Error(error?.message ?? 'Wallet not found.')
+  }
+
+  return Number(wallet.pending_balance ?? 0)
+}
+
+/** Return held withdrawal funds to available balance and cancel the linked request. */
+async function cancelWalletWithdrawalRequest(referenceId: string, userId: string, amount: number) {
+  const db = getDb()
+  const { data: request } = await db
+    .from('withdrawal_requests')
+    .select('id, status, amount_usd')
+    .eq('reference_id', referenceId)
+    .maybeSingle()
+
+  if (!request) return false
+
+  const status = String(request.status ?? '').toLowerCase()
+  if (!ACTIVE_WITHDRAWAL_REQUEST_STATUSES.includes(status as (typeof ACTIVE_WITHDRAWAL_REQUEST_STATUSES)[number])) {
+    return false
+  }
+
+  const requestAmount = Number(request.amount_usd ?? amount)
+  await restoreWalletHold(userId, requestAmount)
+
+  await db
+    .from('withdrawal_requests')
+    .update({
+      status: 'cancelled',
+      processed_at: new Date().toISOString(),
+    })
+    .eq('id', request.id)
+
+  return true
+}
+
+/** Cancel a pending investment capital withdrawal — funds remain in the investment. */
+async function cancelInvestmentCapitalWithdrawalRequest(referenceId: string) {
+  const db = getDb()
+  const { data: request } = await db
+    .from('investment_withdrawal_requests')
+    .select('id, status')
+    .eq('reference_id', referenceId)
+    .maybeSingle()
+
+  if (!request) return false
+
+  const status = String(request.status ?? '').toLowerCase()
+  if (!ACTIVE_WITHDRAWAL_REQUEST_STATUSES.includes(status as (typeof ACTIVE_WITHDRAWAL_REQUEST_STATUSES)[number])) {
+    return false
+  }
+
+  await db
+    .from('investment_withdrawal_requests')
+    .update({
+      status: 'cancelled',
+      processed_at: new Date().toISOString(),
+    })
+    .eq('id', request.id)
+
+  return true
+}
+
+/**
+ * Return rejected withdrawal funds to the wallet.
+ * Prefers restoring a pending hold; falls back to crediting available balance
+ * when funds were already debited (legacy payment flow).
+ */
+export async function reverseRejectedWithdrawal(input: {
+  userId: string
+  amount: number
+  referenceId?: string | null
+}) {
+  const { userId, amount, referenceId } = input
+  if (amount <= 0) return
+
+  if (referenceId) {
+    const cancelled = await cancelWalletWithdrawalRequest(referenceId, userId, amount)
+    if (cancelled) return
+
+    const payment = await getPaymentByOrderId(referenceId)
+    if (payment) {
+      await creditInvestorWallet(userId, amount)
+      await updatePaymentStatus(referenceId, 'failed')
+      return
+    }
+  }
+
+  const pending = await getWalletPendingBalance(userId)
+  if (pending >= amount) {
+    await restoreWalletHold(userId, amount)
+    return
+  }
+
+  await creditInvestorWallet(userId, amount)
+}
+
+/** Return funds after an external payout fails once the notice period has already settled. */
+export async function reverseFailedWithdrawalPayout(input: {
+  userId: string
+  amount: number
+  referenceId: string
+}) {
+  const { userId, amount, referenceId } = input
+  if (amount <= 0) return
+
+  const db = getDb()
+  const { data: request } = await db
+    .from('withdrawal_requests')
+    .select('id, status, amount_usd')
+    .eq('reference_id', referenceId)
+    .maybeSingle()
+
+  const requestAmount = Number(request?.amount_usd ?? amount)
+
+  if (request) {
+    const status = String(request.status ?? '').toLowerCase()
+    if (ACTIVE_WITHDRAWAL_REQUEST_STATUSES.includes(status as (typeof ACTIVE_WITHDRAWAL_REQUEST_STATUSES)[number])) {
+      await restoreWalletHold(userId, requestAmount)
+    } else {
+      await creditInvestorWallet(userId, requestAmount)
+    }
+
+    await db
+      .from('withdrawal_requests')
+      .update({
+        status: 'failed',
+        processed_at: new Date().toISOString(),
+      })
+      .eq('id', request.id)
+    return
+  }
+
+  const payment = await getPaymentByOrderId(referenceId)
+  if (payment) {
+    await creditInvestorWallet(userId, Number(payment.amount_usd ?? amount))
+    await updatePaymentStatus(referenceId, 'failed')
+    return
+  }
+
+  await creditInvestorWallet(userId, amount)
+}
+
 /** Apply wallet balance changes when an admin approves a pending transaction. */
 export async function settleApprovedTransaction(tx: {
   user_id: string
@@ -385,7 +539,7 @@ export async function settleApprovedTransaction(tx: {
   }
 }
 
-/** Reverse or skip wallet holds when an admin rejects a pending transaction. */
+/** Reverse wallet / investment effects when an admin rejects a pending transaction. */
 export async function settleRejectedTransaction(tx: {
   user_id: string
   type: string
@@ -395,25 +549,24 @@ export async function settleRejectedTransaction(tx: {
   const type = normalizeTxType(tx.type)
   const amount = transactionAmount(tx)
   const userId = String(tx.user_id)
+  const referenceId = tx.reference_id ?? null
 
   if (amount <= 0) return
 
   if (type === 'withdrawal') {
-    if (tx.reference_id) {
-      const payment = await getPaymentByOrderId(tx.reference_id)
-      if (payment) {
-        await creditInvestorWallet(userId, amount)
-        await updatePaymentStatus(tx.reference_id, 'failed')
-        return
-      }
-    }
+    await reverseRejectedWithdrawal({ userId, amount, referenceId })
     return
   }
 
-  if (type === 'deposit' && tx.reference_id) {
-    const payment = await getPaymentByOrderId(tx.reference_id)
+  if (type === 'investment' && referenceId) {
+    await cancelInvestmentCapitalWithdrawalRequest(referenceId)
+    return
+  }
+
+  if (type === 'deposit' && referenceId) {
+    const payment = await getPaymentByOrderId(referenceId)
     if (payment) {
-      await updatePaymentStatus(tx.reference_id, 'failed')
+      await updatePaymentStatus(referenceId, 'failed')
     }
   }
 }

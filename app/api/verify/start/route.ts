@@ -46,7 +46,11 @@ export async function POST(request: Request) {
     .eq('id', userId)
     .maybeSingle()
 
-  if (profile?.is_verified || String(profile?.kyc_status).toLowerCase() === 'verified') {
+  if (
+    profile?.is_verified ||
+    profile?.verification_status === 'approved' ||
+    String(profile?.kyc_status).toLowerCase() === 'verified'
+  ) {
     return NextResponse.json({ error: 'Identity is already verified.' }, { status: 409 })
   }
 

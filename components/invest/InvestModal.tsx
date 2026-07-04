@@ -92,6 +92,13 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
       return
     }
 
+    if (result.investorTierUpgraded) {
+      toast.success(`Upgraded to ${result.investorTierUpgraded} Investor`, {
+        description: `Your account tier now matches your ${plan.name} investment.`,
+      })
+      window.dispatchEvent(new Event('primefx:profile-updated'))
+    }
+
     router.refresh()
     onSuccess(plan, numericAmount)
     onClose()

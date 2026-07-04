@@ -12,7 +12,12 @@ interface ProcessInvestmentInput {
 
 export async function processInvestment(
   input: ProcessInvestmentInput
-): Promise<{ success: boolean; error?: string; referenceId?: string }> {
+): Promise<{
+  success: boolean
+  error?: string
+  referenceId?: string
+  investorTierUpgraded?: string
+}> {
   const supabase = await createServerSupabaseClient()
   const {
     data: { user },
@@ -34,7 +39,13 @@ export async function processInvestment(
     revalidatePath('/dashboard')
     revalidatePath('/wallet')
     revalidatePath('/transactions')
+    revalidatePath('/profile')
   }
 
-  return result
+  return {
+    success: result.success,
+    error: result.error,
+    referenceId: result.referenceId,
+    investorTierUpgraded: result.investorTierUpgraded,
+  }
 }

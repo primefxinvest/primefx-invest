@@ -32,6 +32,10 @@ import type {
   AdminVerificationSessionsResult,
 } from '@/lib/admin/types'
 import { formatDateTime } from '@/lib/data/format'
+import {
+  useAdminVerificationSessionsRealtime,
+  type VerificationSessionRealtimeRow,
+} from '@/lib/hooks/useVerificationRealtime'
 import { cn } from '@/lib/utils'
 
 const STATUS_OPTIONS = [
@@ -114,6 +118,30 @@ function SessionIdCell({ sessionId }: { sessionId: string }) {
   )
 }
 
+function statsBucketForStatus(status: string): 'approved' | 'declined' | 'inReview' | 'pending' | null {
+  if (status === 'Approved') return 'approved'
+  if (status === 'Declined') return 'declined'
+  if (status === 'In Review') return 'inReview'
+  if (status === 'Not Started' || status === 'In Progress') return 'pending'
+  return null
+}
+
+function mapRealtimeSessionRow(row: VerificationSessionRealtimeRow): AdminVerificationSessionRow {
+  return {
+    id: '',
+    session_id: row.session_id,
+    vendor_data: null,
+    status: row.status,
+    decision: row.decision,
+    workflow_id: null,
+    user_id: row.user_id,
+    user_email: null,
+    user_name: null,
+    created_at: row.updated_at,
+    updated_at: row.updated_at,
+  }
+}
+
 export function AdminVerificationsView({
   initialData,
   initialStatus,
@@ -170,6 +198,64 @@ export function AdminVerificationsView({
     )
   }
 
+  const handleRealtimeSessionChange = useCallback(
+    (row: VerificationSessionRealtimeRow, eventType: 'INSERT' | 'UPDATE') => {
+      setRows((current) => {
+        const index = current.findIndex((item) => item.session_id === row.session_id)
+
+        if (eventType === 'UPDATE' && index >= 0) {
+          const existing = current[index]
+          const nextRow: AdminVerificationSessionRow = {
+            ...existing,
+            status: row.status,
+            decision: row.decision,
+            updated_at: row.updated_at,
+          }
+
+          if (existing.status !== row.status) {
+            setStats((prev) => {
+              const next = { ...prev }
+              const fromBucket = statsBucketForStatus(existing.status)
+              const toBucket = statsBucketForStatus(row.status)
+              if (fromBucket) next[fromBucket] = Math.max(0, next[fromBucket] - 1)
+              if (toBucket) next[toBucket] += 1
+              return next
+            })
+          }
+
+          setDecisionRow((open) =>
+            open?.session_id === row.session_id ? { ...open, ...nextRow } : open
+          )
+
+          return current.map((item, itemIndex) => (itemIndex === index ? nextRow : item))
+        }
+
+        if (
+          eventType === 'INSERT' &&
+          page === 1 &&
+          !search.trim() &&
+          (statusFilter === 'all' || statusFilter === row.status)
+        ) {
+          setTotal((value) => value + 1)
+          setStats((prev) => {
+            const next = { ...prev, total: prev.total + 1 }
+            const bucket = statsBucketForStatus(row.status)
+            if (bucket) next[bucket] += 1
+            return next
+          })
+          return [mapRealtimeSessionRow(row), ...current].slice(0, initialData.pageSize)
+        }
+
+        return current
+      })
+    },
+    [initialData.pageSize, page, search, statusFilter]
+  )
+
+  useAdminVerificationSessionsRealtime({
+    onSessionChange: handleRealtimeSessionChange,
+  })
+
   const refreshRow = async (sessionId: string) => {
     setRowLoadingId(sessionId)
     try {
@@ -177,12 +263,21 @@ export function AdminVerificationsView({
       const payload = (await response.json()) as {
         session?: AdminVerificationSessionRow
         error?: string
+        sessionNotFound?: boolean
+        message?: string
       }
       if (!response.ok || !payload.session) {
-        throw new Error(payload.error ?? 'Refresh failed')
+        throw new Error(payload.error ?? payload.message ?? 'Refresh failed')
       }
       updateRow(payload.session)
-      toast.success('Session refreshed from Didit')
+      setDecisionRow((current) =>
+        current?.session_id === sessionId ? payload.session! : current
+      )
+      if (payload.sessionNotFound) {
+        toast.info(payload.message ?? 'Session not found in Didit — marked as expired locally.')
+      } else {
+        toast.success('Session refreshed from Didit')
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Refresh failed')
     } finally {
@@ -285,7 +380,7 @@ export function AdminVerificationsView({
                 if (e.key === 'Enter') applyFilters({ search, page: 1 })
               }}
               placeholder="Search session ID or vendor data…"
-              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+              className="min-w-0 flex-1 bg-transparent text-sm rounded outline-none"
             />
           </div>
           <select
@@ -494,10 +589,37 @@ export function AdminVerificationsView({
               <DialogTitle>Decision payload</DialogTitle>
               <p className="mt-1 text-sm text-muted-foreground">
                 Session {decisionRow?.session_id}
+                {decisionRow?.status ? ` · ${decisionRow.status}` : null}
               </p>
-              <pre className="primefx-scrollbar mt-4 max-h-[60vh] overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-relaxed text-slate-100">
-                {JSON.stringify(decisionRow?.decision ?? {}, null, 2)}
-              </pre>
+              {decisionRow?.decision &&
+              typeof decisionRow.decision === 'object' &&
+              Object.keys(decisionRow.decision).length > 0 ? (
+                <pre className="primefx-scrollbar mt-4 max-h-[60vh] overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-relaxed text-slate-100">
+                  {JSON.stringify(decisionRow.decision, null, 2)}
+                </pre>
+              ) : (
+                <div className="mt-4 space-y-3 rounded-lg border border-dashed border-border bg-muted/30 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    No decision data is stored for this session yet. Didit returns the full report
+                    from their API — use refresh to pull the latest payload.
+                  </p>
+                  {decisionRow ? (
+                    <button
+                      type="button"
+                      disabled={rowLoadingId === decisionRow.session_id}
+                      onClick={() => refreshRow(decisionRow.session_id)}
+                      className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
+                    >
+                      {rowLoadingId === decisionRow.session_id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      Refresh from Didit
+                    </button>
+                  ) : null}
+                </div>
+              )}
             </DialogPopup>
           </DialogViewport>
         </DialogPortal>

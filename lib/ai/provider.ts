@@ -52,6 +52,11 @@ export function getPrimeAiConfigError(): string {
   return 'PrimeAI requires GEMINI_API_KEY. Get a free key at https://aistudio.google.com/apikey'
 }
 
+/** Safe message for API responses and UI — never mentions env vars. */
+export function getPrimeAiUnavailableUserMessage(): string {
+  return 'PrimeAI is temporarily unavailable. Please try again later.'
+}
+
 export function getAiConfigError(): string {
   return 'AI is not configured. Add GEMINI_API_KEY (https://aistudio.google.com/apikey) or OPENAI_API_KEY for KYC document scanning.'
 }

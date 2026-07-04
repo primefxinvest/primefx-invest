@@ -1,5 +1,17 @@
 import { NextResponse } from 'next/server'
+import { getVerificationSessionIdFromSearchParams } from '@/lib/didit/callback-params'
 import { fetchDiditSessionDecision } from '@/lib/didit/client'
+import {
+  resolveDiditDecisionPayload,
+  resolveDiditSessionStatus,
+  resolveDiditVendorData,
+  resolveDiditWorkflowId,
+} from '@/lib/didit/decision-normalize'
+import {
+  getDiditSessionNotFoundUserMessage,
+  isDiditSessionNotFoundError,
+} from '@/lib/didit/errors'
+import { markDiditSessionNotFound } from '@/lib/didit/session-not-found'
 import {
   mapDiditStatusToVerificationStatus,
   syncUserVerificationFromDidit,
@@ -21,7 +33,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const sessionId = new URL(request.url).searchParams.get('session_id')?.trim()
+  const sessionId = getVerificationSessionIdFromSearchParams(new URL(request.url).searchParams)
   if (!sessionId) {
     return NextResponse.json({ error: 'session_id is required' }, { status: 400 })
   }
@@ -42,14 +54,16 @@ export async function GET(request: Request) {
   }
 
   try {
-    const decision = await fetchDiditSessionDecision(sessionId)
-    const diditStatus = decision.status ?? 'In Progress'
+    const apiResponse = await fetchDiditSessionDecision(sessionId)
+    const diditStatus = resolveDiditSessionStatus(apiResponse)
+    const decisionPayload = resolveDiditDecisionPayload(apiResponse)
 
     await upsertVerificationSession({
       sessionId,
-      vendorData: decision.vendor_data ?? user.id,
+      vendorData: resolveDiditVendorData(apiResponse) ?? user.id,
       status: diditStatus,
-      decision: decision.decision ?? null,
+      decision: decisionPayload,
+      workflowId: resolveDiditWorkflowId(apiResponse),
       userId: user.id,
     })
 
@@ -61,12 +75,27 @@ export async function GET(request: Request) {
     }
 
     const terminalStatuses = ['Approved', 'Declined', 'Expired', 'KYC Expired']
+    const mappedVerificationStatus = mapDiditStatusToVerificationStatus(diditStatus)
+
+    if (
+      terminalStatuses.includes(diditStatus) &&
+      profile?.verification_status === mappedVerificationStatus
+    ) {
+      return NextResponse.json({
+        sessionId,
+        diditStatus,
+        verificationStatus: mappedVerificationStatus,
+        isVerified: Boolean(profile?.is_verified),
+        kycStatus: profile?.kyc_status ?? 'Pending',
+      })
+    }
+
     if (terminalStatuses.includes(diditStatus)) {
       const synced = await syncUserVerificationFromDidit({
         userId: user.id,
         sessionId,
         diditStatus,
-        decision: decision.decision ?? null,
+        decision: decisionPayload,
       })
 
       return NextResponse.json({
@@ -89,6 +118,23 @@ export async function GET(request: Request) {
       pending: true,
     })
   } catch (err) {
+    if (isDiditSessionNotFoundError(err)) {
+      await markDiditSessionNotFound({
+        sessionId: err.sessionId,
+        userId: user.id,
+      })
+
+      return NextResponse.json({
+        sessionId: err.sessionId,
+        diditStatus: 'Expired',
+        verificationStatus: 'expired',
+        isVerified: false,
+        kycStatus: profile?.kyc_status ?? 'Pending',
+        sessionNotFound: true,
+        message: getDiditSessionNotFoundUserMessage(),
+      })
+    }
+
     console.error('[verify/status]', err)
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to fetch verification status' },

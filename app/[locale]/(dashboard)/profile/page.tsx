@@ -78,11 +78,13 @@ export default function ProfilePage() {
     }
 
     window.addEventListener('primefx:profile-updated', handleUpdate)
+    window.addEventListener('primefx:verification-updated', handleUpdate)
     const handleOpenEdit = () => setEditOpen(true)
     window.addEventListener('primefx:open-edit-profile', handleOpenEdit)
     return () => {
       active = false
       window.removeEventListener('primefx:profile-updated', handleUpdate)
+      window.removeEventListener('primefx:verification-updated', handleUpdate)
       window.removeEventListener('primefx:open-edit-profile', handleOpenEdit)
     }
   }, [loadProfile])

@@ -3,6 +3,7 @@ import 'server-only'
 import { createBinancePayOrder } from './binance-pay'
 import { generatePaymentReference } from './reference'
 import { resolveDepositProvider, PAYMENT_PROVIDERS } from './config'
+import { isCurrencySupportedByProvider } from './currency-options'
 import { isProviderConfigured } from './env'
 import { createNowPaymentsInvoice } from './nowpayments'
 import type { CreateDepositResult, CreateWithdrawalResult } from './types'
@@ -16,8 +17,10 @@ import {
   creditInvestorWallet,
   getPaymentByOrderId,
   recordDepositPayment,
+  reverseFailedWithdrawalPayout,
   updatePaymentStatus,
 } from './wallet-ledger'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/referral/program-config'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
@@ -35,6 +38,7 @@ export async function createDepositPayment(input: {
   amountUsd: number
   currency: string
   customerEmail?: string
+  provider?: PaymentProviderId
 }): Promise<CreateDepositResult> {
   const kyc = await requireVerifiedKyc(input.userId, 'deposit')
   if (!kyc.allowed) {
@@ -52,7 +56,19 @@ export async function createDepositPayment(input: {
     }
   }
 
-  const provider = resolveDepositProvider(input.currency)
+  const provider = resolveDepositProvider(input.currency, input.provider)
+
+  if (!isCurrencySupportedByProvider(input.currency, provider)) {
+    const hint =
+      provider === 'binance_pay'
+        ? 'Choose a Binance Pay currency such as BNB, USDT, or BUSD.'
+        : 'Choose a NOWPayments currency such as USDT (TRC20) or BTC.'
+    return {
+      success: false,
+      error: `This currency is not available for the selected payment method. ${hint}`,
+    }
+  }
+
   if (!isProviderConfigured(provider)) {
     const error =
       provider === 'binance_pay'
@@ -213,6 +229,42 @@ export async function completeDepositFromWebhook(orderId: string) {
   await notifyDepositCompleted(userId, amount, orderId)
 
   await markReferralActiveOnFirstActivity(userId)
+}
+
+export async function failWithdrawalFromWebhook(
+  orderId: string,
+  status: 'failed' | 'cancelled' | 'rejected'
+) {
+  const db = createAdminSupabaseClient()
+  if (!db) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for withdrawal operations.')
+  }
+
+  const { data: request } = await db
+    .from('withdrawal_requests')
+    .select('user_id, amount_usd, status')
+    .eq('reference_id', orderId)
+    .maybeSingle()
+
+  const normalizedStatus = status === 'cancelled' ? 'cancelled' : 'failed'
+  const txStatus = status === 'cancelled' ? 'Cancelled' : 'Failed'
+
+  if (request) {
+    const userId = String(request.user_id)
+    const amount = Number(request.amount_usd)
+    await reverseFailedWithdrawalPayout({ userId, amount, referenceId: orderId })
+  } else {
+    const payment = await getPaymentByOrderId(orderId)
+    if (payment) {
+      await reverseFailedWithdrawalPayout({
+        userId: String(payment.investor_id),
+        amount: Number(payment.amount_usd),
+        referenceId: orderId,
+      })
+    }
+  }
+
+  await completeTransaction(orderId, txStatus)
 }
 
 export async function failDepositFromWebhook(

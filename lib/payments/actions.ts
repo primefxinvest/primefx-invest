@@ -6,8 +6,9 @@ import { requireServerMfaEnabled } from '@/lib/auth/mfa-server'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { fetchPaymentProviderOptionsServer } from '@/lib/payments/options-server'
+import { syncUserPendingDeposits } from '@/lib/payments/deposit-sync'
 import { createDepositPayment, createWithdrawalPayment } from '@/lib/payments/service'
-import type { CreateDepositResult, CreateWithdrawalResult } from '@/lib/payments/types'
+import type { CreateDepositResult, CreateWithdrawalResult, PaymentProviderId } from '@/lib/payments/types'
 
 async function requireUser() {
   const supabase = await createServerSupabaseClient()
@@ -29,6 +30,7 @@ export async function getPaymentProviderOptions() {
 export async function initiateDeposit(input: {
   amountUsd: number
   currency: string
+  provider?: PaymentProviderId
 }): Promise<CreateDepositResult> {
   const user = await requireUser()
 
@@ -42,6 +44,7 @@ export async function initiateDeposit(input: {
     amountUsd: input.amountUsd,
     currency: input.currency,
     customerEmail: user.email ?? undefined,
+    provider: input.provider,
   })
 
   if (result.success) {
@@ -86,6 +89,20 @@ export async function initiateWithdrawal(input: {
     revalidatePath('/wallet/deposit')
     revalidatePath('/wallet/withdraw')
     revalidatePath('/wallet/transfer')
+    revalidatePath('/transactions')
+  }
+
+  return result
+}
+
+export async function syncPendingDeposits() {
+  const user = await requireUser()
+  const result = await syncUserPendingDeposits(user.id)
+
+  if (result.completed > 0) {
+    revalidatePath('/wallet')
+    revalidatePath('/wallet/deposit')
+    revalidatePath('/dashboard')
     revalidatePath('/transactions')
   }
 

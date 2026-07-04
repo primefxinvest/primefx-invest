@@ -1,5 +1,5 @@
 import { convertToModelMessages, streamText, type UIMessage } from 'ai'
-import { getActiveAiProviderLabel, getChatModel, getPrimeAiConfigError } from '@/lib/ai/provider'
+import { getActiveAiProviderLabel, getChatModel, getPrimeAiConfigError, getPrimeAiUnavailableUserMessage } from '@/lib/ai/provider'
 import { getPrimeAIInvestContext } from '@/lib/ai/invest-context'
 
 export const runtime = 'nodejs'
@@ -26,10 +26,17 @@ export async function POST(req: Request) {
   try {
     const model = getChatModel()
     if (!model) {
-      return new Response(JSON.stringify({ error: getPrimeAiConfigError() }), {
-        status: 503,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      console.warn('[PrimeAI]', getPrimeAiConfigError())
+      return new Response(
+        JSON.stringify({
+          error: getPrimeAiUnavailableUserMessage(),
+          code: 'PRIMEAI_UNAVAILABLE',
+        }),
+        {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
     }
 
     const body = await req.json()
@@ -50,9 +57,12 @@ export async function POST(req: Request) {
     return result.toUIMessageStreamResponse()
   } catch (error) {
     console.error('PrimeAI chat error:', error)
-    return new Response(JSON.stringify({ error: 'Failed to process chat request.' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({ error: getPrimeAiUnavailableUserMessage(), code: 'PRIMEAI_ERROR' }),
+      {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
   }
 }

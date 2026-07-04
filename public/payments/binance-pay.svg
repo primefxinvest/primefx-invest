@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" role="img" aria-label="Binance Pay">
+  <rect width="160" height="40" rx="8" fill="#1E2329"/>
+  <g fill="#F0B90B" transform="translate(10 8)">
+    <path d="M12 0 14.8 2.8 12 5.6 9.2 2.8 12 0Zm0 18.4 2.8-2.8L12 12.8l-2.8 2.8 2.8 2.8Zm-7.2-7.2 2.8-2.8L4.8 12l2.8 2.8 2.8-2.8Zm14.4 0-2.8-2.8L19.2 12l2.8 2.8-2.8 2.8ZM12 7.2 9.2 10l2.8 2.8L14.8 10 12 7.2Z"/>
+  </g>
+  <text x="44" y="17" fill="#F0B90B" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700">Binance</text>
+  <text x="44" y="30" fill="#FFFFFF" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700">Pay</text>
+</svg>

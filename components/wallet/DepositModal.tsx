@@ -9,12 +9,38 @@ import { initiateDeposit } from '@/lib/payments/actions'
 import {
   buildDepositCurrencyOptions,
   DEFAULT_DEPOSIT_CURRENCY,
-  toSelectOptions,
 } from '@/lib/payments/currency-options'
-import type { PaymentProviderOptions } from '@/lib/payments/types'
+import type { PaymentProviderId, PaymentProviderOptions } from '@/lib/payments/types'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { kycBlockReason, kycFallbackMessage } from '@/lib/investor/kyc-i18n'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
+
+type DepositCurrencyOption = {
+  value: string
+  label: string
+  provider: PaymentProviderId
+  currency: string
+}
+
+function toDepositSelectOptions(items: PaymentProviderOptions['depositCurrencies']): DepositCurrencyOption[] {
+  const valueCounts = items.reduce<Record<string, number>>((acc, item) => {
+    acc[item.value] = (acc[item.value] ?? 0) + 1
+    return acc
+  }, {})
+
+  return items.map((item) => {
+    const duplicate = (valueCounts[item.value] ?? 0) > 1
+    const value = duplicate ? `${item.provider}:${item.value}` : item.value
+    const providerLabel = item.provider === 'binance_pay' ? 'Binance Pay' : 'NOWPayments'
+
+    return {
+      value,
+      label: duplicate ? `${item.label} · ${providerLabel}` : item.label,
+      provider: item.provider,
+      currency: item.value,
+    }
+  })
+}
 
 interface DepositModalProps {
   open: boolean
@@ -22,7 +48,6 @@ interface DepositModalProps {
 }
 
 type DepositStep = 'form' | 'ready'
-
 export default function DepositModal({ open, onOpenChange }: DepositModalProps) {
   const t = useTranslations('wallet.modals.deposit')
   const tCommon = useTranslations('common')
@@ -30,7 +55,15 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
   const kyc = useFinancialKycAccess()
   const [amount, setAmount] = useState('100')
   const [currency, setCurrency] = useState(DEFAULT_DEPOSIT_CURRENCY)
-  const [currencies, setCurrencies] = useState(() => toSelectOptions(buildDepositCurrencyOptions()))
+  const [depositOptions, setDepositOptions] = useState<DepositCurrencyOption[]>(() =>
+    toDepositSelectOptions(buildDepositCurrencyOptions())
+  )
+  const [currencies, setCurrencies] = useState(() =>
+    toDepositSelectOptions(buildDepositCurrencyOptions()).map((item) => ({
+      value: item.value,
+      label: item.label,
+    }))
+  )
   const [step, setStep] = useState<DepositStep>('form')
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
   const [checkoutProvider, setCheckoutProvider] = useState<'binance_pay' | 'now_payments' | null>(
@@ -68,13 +101,13 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
       .then((options) => {
         if (options.depositCurrencies.length === 0) return
 
-        setCurrencies(
-          options.depositCurrencies.map((item) => ({ value: item.value, label: item.label }))
-        )
+        const nextOptions = toDepositSelectOptions(options.depositCurrencies)
+        setDepositOptions(nextOptions)
+        setCurrencies(nextOptions.map((item) => ({ value: item.value, label: item.label })))
         setCurrency((current) =>
-          options.depositCurrencies.some((item) => item.value === current)
+          nextOptions.some((item) => item.value === current)
             ? current
-            : options.depositCurrencies[0].value
+            : nextOptions[0]?.value ?? DEFAULT_DEPOSIT_CURRENCY
         )
       })
       .catch((err) => {
@@ -124,7 +157,15 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
     }
 
     startTransition(async () => {
-      const result = await initiateDeposit({ amountUsd: value, currency })
+      const selected =
+        depositOptions.find((item) => item.value === currency) ??
+        depositOptions.find((item) => item.currency === currency)
+
+      const result = await initiateDeposit({
+        amountUsd: value,
+        currency: selected?.currency ?? currency,
+        provider: selected?.provider,
+      })
 
       if (!result.success) {
         toast.error(t('failed'), { description: result.error })

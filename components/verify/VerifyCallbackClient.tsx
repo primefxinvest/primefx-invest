@@ -1,12 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { AlertCircle, CheckCircle2, Clock, Loader2 } from 'lucide-react'
 import { VerifyIdentityButton } from '@/components/VerifyIdentityButton'
 import { getUserProfile } from '@/lib/profile/actions'
+import {
+  getDiditCallbackStatus,
+  getVerificationSessionIdFromSearchParams,
+  mapDiditCallbackStatusToVerificationStatus,
+} from '@/lib/didit/callback-params'
+import { isTerminalDiditStatus } from '@/lib/didit/status-maps'
+import { useUserVerificationRealtime } from '@/lib/hooks/useVerificationRealtime'
 
 type VerificationResult = {
   sessionId: string
@@ -14,19 +21,32 @@ type VerificationResult = {
   verificationStatus: string
   isVerified: boolean
   pending?: boolean
+  sessionNotFound?: boolean
+  message?: string
   error?: string
 }
 
 export function VerifyCallbackClient() {
   const t = useTranslations('verification')
   const tCommon = useTranslations('common')
-  const tErrors = useTranslations('errors')
   const searchParams = useSearchParams()
-  const sessionId = searchParams.get('session_id')?.trim() ?? ''
+  const queryString = searchParams.toString()
+  const sessionId = useMemo(
+    () => getVerificationSessionIdFromSearchParams(searchParams),
+    // searchParams identity changes; queryString is the stable serialized form
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryString]
+  )
+  const callbackStatus = useMemo(
+    () => getDiditCallbackStatus(searchParams),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryString]
+  )
   const [loading, setLoading] = useState(true)
   const [result, setResult] = useState<VerificationResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [profileUserId, setProfileUserId] = useState<string | undefined>()
+  const pollCancelledRef = useRef(false)
 
   useEffect(() => {
     getUserProfile()
@@ -36,32 +56,67 @@ export function VerifyCallbackClient() {
       .catch(() => {})
   }, [])
 
+  const applyVerificationResult = useCallback((payload: VerificationResult) => {
+    setResult(payload)
+    setError(null)
+    setLoading(false)
+  }, [])
+
+  useUserVerificationRealtime({
+    userId: profileUserId,
+    sessionId: sessionId || undefined,
+    onUpdate: (update) => {
+      pollCancelledRef.current = true
+      applyVerificationResult({
+        sessionId: update.sessionId ?? sessionId ?? '',
+        diditStatus: update.diditStatus ?? update.verificationStatus,
+        verificationStatus: update.verificationStatus,
+        isVerified: update.isVerified,
+        pending:
+          !update.isVerified &&
+          !isTerminalDiditStatus(update.diditStatus) &&
+          update.verificationStatus === 'pending',
+      })
+    },
+  })
+
+  const missingSessionIdMessage = t('missingSessionId')
+  const statusCheckFailedMessage = t('statusCheckFailed')
+
   useEffect(() => {
     if (!sessionId) {
-      setError(t('missingSessionId'))
+      setError(missingSessionIdMessage)
       setLoading(false)
+      setResult(null)
       return
     }
+
+    setLoading(true)
+    setError(null)
+    setResult(null)
+    pollCancelledRef.current = false
 
     let cancelled = false
     let attempts = 0
 
     async function poll() {
+      if (pollCancelledRef.current || cancelled) return
+
       try {
         const response = await fetch(
-          `/api/verify/status?session_id=${encodeURIComponent(sessionId)}`
+          `/api/verify/status?verificationSessionId=${encodeURIComponent(sessionId)}`
         )
         const payload = (await response.json()) as VerificationResult & { error?: string }
 
         if (!response.ok) {
-          throw new Error(payload.error ?? t('statusCheckFailed'))
+          throw new Error(payload.error ?? statusCheckFailedMessage)
         }
 
-        if (cancelled) return
+        if (cancelled || pollCancelledRef.current) return
 
-        setResult(payload)
+        applyVerificationResult(payload)
 
-        if (payload.pending && attempts < 8) {
+        if (payload.pending && attempts < 8 && !pollCancelledRef.current) {
           attempts += 1
           window.setTimeout(poll, 2500)
           return
@@ -69,8 +124,8 @@ export function VerifyCallbackClient() {
 
         setLoading(false)
       } catch (err) {
-        if (cancelled) return
-        setError(err instanceof Error ? err.message : t('statusCheckFailed'))
+        if (cancelled || pollCancelledRef.current) return
+        setError(err instanceof Error ? err.message : statusCheckFailedMessage)
         setLoading(false)
       }
     }
@@ -80,7 +135,7 @@ export function VerifyCallbackClient() {
     return () => {
       cancelled = true
     }
-  }, [sessionId, t])
+  }, [sessionId, missingSessionIdMessage, statusCheckFailedMessage, applyVerificationResult])
 
   if (loading) {
     return (
@@ -108,25 +163,37 @@ export function VerifyCallbackClient() {
     )
   }
 
-  const isApproved = result?.isVerified || result?.verificationStatus === 'approved'
-  const isDeclined = result?.verificationStatus === 'declined'
-  const isExpired = result?.verificationStatus === 'expired'
-
-  const title = isApproved
-    ? t('identityVerified')
-    : isDeclined
-      ? t('verificationDeclined')
-      : isExpired
-        ? t('verificationExpired')
-        : t('verificationInReview')
+  const isApproved =
+    result?.isVerified ||
+    result?.verificationStatus === 'approved' ||
+    mapDiditCallbackStatusToVerificationStatus(callbackStatus) === 'approved'
+  const isDeclined =
+    result?.verificationStatus === 'declined' ||
+    mapDiditCallbackStatusToVerificationStatus(callbackStatus) === 'declined'
+  const isExpired =
+    result?.sessionNotFound ||
+    result?.verificationStatus === 'expired' ||
+    mapDiditCallbackStatusToVerificationStatus(callbackStatus) === 'expired'
 
   const message = isApproved
     ? t('approvedMessage')
     : isDeclined
       ? t('declinedMessage')
       : isExpired
-        ? t('expiredMessage')
+        ? result?.sessionNotFound
+          ? t('sessionNotFoundMessage')
+          : t('expiredMessage')
         : t('reviewMessage')
+
+  const title = isApproved
+    ? t('identityVerified')
+    : isDeclined
+      ? t('verificationDeclined')
+      : isExpired
+        ? result?.sessionNotFound
+          ? t('sessionNotFoundTitle')
+          : t('verificationExpired')
+        : t('verificationInReview')
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
@@ -134,6 +201,8 @@ export function VerifyCallbackClient() {
         <CheckCircle2 className="h-12 w-12 text-emerald-500" />
       ) : isDeclined ? (
         <AlertCircle className="h-12 w-12 text-red-500" />
+      ) : isExpired ? (
+        <AlertCircle className="h-12 w-12 text-amber-500" />
       ) : (
         <Clock className="h-12 w-12 text-amber-500" />
       )}
@@ -145,7 +214,9 @@ export function VerifyCallbackClient() {
         {!isApproved ? (
           <VerifyIdentityButton
             userId={profileUserId}
-            verificationStatus={result?.verificationStatus ?? 'pending'}
+            verificationStatus={
+              isExpired ? 'expired' : (result?.verificationStatus ?? 'pending')
+            }
           />
         ) : null}
         <Link

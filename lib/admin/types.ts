@@ -261,3 +261,43 @@ export interface AdminVerificationSessionsResult {
     pending: number
   }
 }
+
+export interface AdminSupportTicketRow {
+  id: string
+  shortId: string
+  userId: string
+  userEmail: string
+  userName: string | null
+  subject: string
+  status: string
+  priority: string
+  createdAt: string
+  updatedAt: string
+  replyCount: number
+  lastReplyAt: string | null
+  lastReplyBy: 'user' | 'admin' | null
+}
+
+export interface AdminSupportTicketMessage {
+  id: string
+  senderType: 'user' | 'admin'
+  senderId: string
+  senderName: string
+  message: string
+  createdAt: string
+}
+
+export interface AdminSupportTicketDetail {
+  id: string
+  shortId: string
+  userId: string
+  userEmail: string
+  userName: string | null
+  subject: string
+  description: string
+  status: string
+  priority: string
+  createdAt: string
+  updatedAt: string
+  messages: AdminSupportTicketMessage[]
+}

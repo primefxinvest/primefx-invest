@@ -7,7 +7,6 @@ import {
   ArrowRight,
   Bitcoin,
   Check,
-  Zap,
   ExternalLink,
   Loader2,
   QrCode,
@@ -18,6 +17,7 @@ import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
 import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
 import { WalletStatCard } from '@/components/wallet/layout/WalletStatCard'
 import { WalletStepIndicator } from '@/components/wallet/layout/WalletStepIndicator'
+import { PaymentMethodBrand } from '@/components/wallet/PaymentMethodBrand'
 import {
   WalletDepositCta,
   WalletHelpPanel,
@@ -28,6 +28,7 @@ import { CustomSelect } from '@/components/ui/custom-select'
 import { AsyncState } from '@/components/shared/data-state'
 import { MetricCardsSkeleton } from '@/components/shared/skeletons'
 import { useWalletPageData } from '@/lib/hooks/useWalletPageData'
+import { SyncPendingDeposits } from '@/components/wallet/SyncPendingDeposits'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { kycBlockReason, kycFallbackMessage } from '@/lib/investor/kyc-i18n'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
@@ -36,26 +37,10 @@ import {
   buildDepositCurrencyOptions,
   DEFAULT_DEPOSIT_CURRENCY,
 } from '@/lib/payments/currency-options'
+import { DEPOSIT_METHOD_OPTIONS, type DepositMethodId } from '@/lib/payments/brands'
 import { initiateDeposit } from '@/lib/wallet/actions'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { cn } from '@/lib/utils'
-
-const DEPOSIT_METHODS = [
-  {
-    id: 'nowpayments',
-    icon: Bitcoin,
-    etaKey: 'etaCrypto',
-    badgeKey: 'badgeCrypto',
-    labelKey: 'methodNowPayments',
-  },
-  {
-    id: 'binancepay',
-    icon: Zap,
-    etaKey: 'etaCrypto',
-    badgeKey: 'badgeNoFee',
-    labelKey: 'methodBinancePay',
-  },
-] as const
 
 type DepositPageViewProps = {
   initialPaymentOptions: PaymentProviderOptions
@@ -78,7 +63,7 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
     transactionsError,
     reloadTransactions,
   } = useWalletPageData()
-  const [method, setMethod] = useState<(typeof DEPOSIT_METHODS)[number]['id']>('nowpayments')
+  const [method, setMethod] = useState<DepositMethodId>('nowpayments')
   const [amount, setAmount] = useState('500')
   const nowPaymentsEnabled = initialPaymentOptions.nowPaymentsEnabled
   const binancePayEnabled = initialPaymentOptions.binancePayEnabled
@@ -184,7 +169,8 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
     }
 
     startTransition(async () => {
-      const result = await initiateDeposit({ amountUsd: value, currency })
+      const provider = method === 'binancepay' ? 'binance_pay' : 'now_payments'
+      const result = await initiateDeposit({ amountUsd: value, currency, provider })
       if (!result.success) {
         toast.error(t('depositFailed'), { description: result.error })
         return
@@ -199,6 +185,7 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
 
   return (
     <div className="space-y-6">
+      <SyncPendingDeposits onSynced={reloadWallet} />
       <WalletPageHeader title={t('title')} description={t('description')} />
 
       <KycFinancialBanner />
@@ -254,9 +241,9 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
             <h2 className="text-lg font-bold text-gray-900">{t('selectMethod')}</h2>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {DEPOSIT_METHODS.map((item) => {
-                const Icon = item.icon
+              {DEPOSIT_METHOD_OPTIONS.map((item) => {
                 const selected = method === item.id
+                const label = t(item.labelKey)
                 return (
                   <button
                     key={item.id}
@@ -277,8 +264,12 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
                         <Check className="h-3 w-3" />
                       </span>
                     ) : null}
-                    <Icon className="h-6 w-6 text-[#0052ff]" />
-                    <p className="mt-3 font-semibold text-gray-900">{t(item.labelKey)}</p>
+                    <PaymentMethodBrand
+                      src={item.logoSrc}
+                      alt={label}
+                      fallbackIcon={item.fallbackIcon}
+                    />
+                    <p className="mt-3 font-semibold text-gray-900">{label}</p>
                     <p className="mt-1 text-xs text-gray-500">{t(item.etaKey)}</p>
                     <span className="mt-2 inline-block rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-600">
                       {t(item.badgeKey)}

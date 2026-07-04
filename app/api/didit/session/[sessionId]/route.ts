@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireAdminApiModule } from '@/lib/admin/api-auth'
 import { logAdminAction } from '@/lib/admin/audit'
 import { refreshDiditSessionFromApi } from '@/lib/didit/session-admin'
+import { getDiditSessionNotFoundAdminMessage, isDiditSessionNotFoundError } from '@/lib/didit/errors'
 
 export const runtime = 'nodejs'
 
@@ -27,9 +28,30 @@ export async function GET(_request: Request, context: RouteContext) {
       afterState: { session_id: trimmed, status: session.status },
     })
 
-    return NextResponse.json({ session })
+    const sessionNotFound =
+      session.status === 'Expired' &&
+      typeof session.decision === 'object' &&
+      session.decision !== null &&
+      (session.decision as Record<string, unknown>).reason === 'session_not_found'
+
+    return NextResponse.json({
+      session,
+      ...(sessionNotFound
+        ? { sessionNotFound: true, message: getDiditSessionNotFoundAdminMessage() }
+        : {}),
+    })
   } catch (err) {
     console.error('[didit/session GET]', err)
+    if (isDiditSessionNotFoundError(err)) {
+      return NextResponse.json(
+        {
+          error: getDiditSessionNotFoundAdminMessage(),
+          sessionNotFound: true,
+          sessionId: err.sessionId,
+        },
+        { status: 404 }
+      )
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Failed to refresh session' },
       { status: 500 }

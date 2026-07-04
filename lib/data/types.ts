@@ -50,6 +50,16 @@ export interface TransactionItem {
   createdAt?: string
 }
 
+export interface CapitalWithdrawalRequestItem {
+  id: string
+  investmentId: string
+  amountUsd: number
+  status: string
+  requestedAt: string
+  availableAt: string
+  referenceId: string | null
+}
+
 export interface WalletData {
   userId?: string
   primeFxId?: string
@@ -132,14 +142,34 @@ export interface WalletActivitySummary {
 export interface AcademyCourseItem {
   id: string
   title: string
+  description: string
   category: string
   lessons: number
   duration: string
   difficulty: string
+  instructor: string
   progress: number
   completed: boolean
   locked: boolean
   lockReason?: string
+}
+
+export interface AcademyLessonItem {
+  id: string
+  title: string
+  description: string
+  content: string
+  contentType: string
+  sortOrder: number
+  durationMinutes: number
+  completed: boolean
+}
+
+export interface AcademyCourseDetail extends AcademyCourseItem {
+  enrolled: boolean
+  enrolledAt?: string
+  completedAt?: string
+  lessonsList: AcademyLessonItem[]
 }
 
 export interface AcademyStats {
@@ -171,12 +201,26 @@ export interface CommunityMemberItem {
 
 export interface SupportTicketItem {
   id: string
+  ticketId: string
   subject: string
   description: string
   status: string
   priority: string
   created: string
   updated: string
+  replyCount?: number
+}
+
+export interface SupportTicketMessage {
+  id: string
+  senderType: 'user' | 'admin'
+  senderName: string
+  message: string
+  createdAt: string
+}
+
+export interface SupportTicketDetail extends SupportTicketItem {
+  messages: SupportTicketMessage[]
 }
 
 export interface MarketInsightItem {

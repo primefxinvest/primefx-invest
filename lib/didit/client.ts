@@ -6,6 +6,7 @@ import {
   getDiditWorkflowId,
   getVerificationCallbackUrl,
 } from '@/lib/didit/env'
+import { DiditSessionNotFoundError } from '@/lib/didit/errors'
 
 export type DiditVerificationStatus =
   | 'Approved'
@@ -35,9 +36,13 @@ export interface DiditCreateSessionResponse {
 export interface DiditSessionDecision {
   session_id?: string
   status?: DiditVerificationStatus | string
+  /** Present on webhook envelopes; GET /decision/ returns feature arrays at the root instead. */
   decision?: Record<string, unknown>
   vendor_data?: string
+  workflow_id?: string
+  session_kind?: string
   metadata?: Record<string, unknown>
+  [key: string]: unknown
 }
 
 function assertDiditConfigured() {
@@ -90,13 +95,29 @@ async function diditRequest<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    const detail = await response.text()
+    const detailText = await response.text()
+    let detailMessage = detailText
+
+    try {
+      const parsed = JSON.parse(detailText) as { detail?: string; message?: string }
+      detailMessage = parsed.detail ?? parsed.message ?? detailText
+    } catch {
+      // keep raw body
+    }
+
+    if (response.status === 404 && /session not found/i.test(detailMessage)) {
+      const sessionMatch = path.match(/\/v3\/session\/([^/]+)\/decision\/?/)
+      if (sessionMatch?.[1]) {
+        throw new DiditSessionNotFoundError(sessionMatch[1])
+      }
+    }
+
     if (response.status === 401) {
       throw new Error(
         'Didit API rejected the API key (401). Verify DIDIT_API_KEY in your Didit dashboard application credentials.'
       )
     }
-    throw new Error(`Didit API ${path} failed (${response.status}): ${detail}`)
+    throw new Error(`Didit API ${path} failed (${response.status}): ${detailText}`)
   }
 
   return (await response.json()) as T
