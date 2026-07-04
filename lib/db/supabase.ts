@@ -85,12 +85,32 @@ export async function createInvestment(investment: {
 }
 
 // Transaction functions
-export async function getUserTransactions(userId: string) {
+export async function getUserTransactions(userId: string, options?: { limit?: number }) {
+  try {
+    let query = supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+
+    if (options?.limit) {
+      query = query.limit(options.limit)
+    }
+
+    const { data, error } = await query
+    return { data, error }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+export async function getUserTransactionsSince(userId: string, since: Date) {
   try {
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
       .eq('user_id', userId)
+      .gte('created_at', since.toISOString())
       .order('created_at', { ascending: false })
     return { data, error }
   } catch (error) {

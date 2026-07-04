@@ -14,7 +14,7 @@ import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { fetchNotifications } from '@/lib/data/queries'
 import { cn } from '@/lib/utils'
-import { SIDEBAR_OFFSET_CLASS } from '@/lib/layout/sidebar'
+import { SIDEBAR_OFFSET_CLASS, SIDEBAR_OFFSET_TABLET_CLASS } from '@/lib/layout/sidebar'
 
 const DashboardCommandMenu = dynamic(
   () =>
@@ -75,13 +75,13 @@ export default function Navbar() {
 
   return (
     <>
-      <header className={cn('fixed left-0 right-0 top-0 z-30 border-b border-gray-200 bg-white/95 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md', SIDEBAR_OFFSET_CLASS)}>
+      <header className={cn('fixed left-0 right-0 top-0 z-30 border-b border-gray-200 bg-white/95 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md', SIDEBAR_OFFSET_TABLET_CLASS, SIDEBAR_OFFSET_CLASS)}>
         <div className="flex h-14 items-center gap-2 px-3 sm:gap-3 sm:px-6">
           <button
             type="button"
             onClick={toggleMobileNav}
             aria-label={t('openMenu')}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
+            className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
           >
             <Menu className="size-5" />
           </button>

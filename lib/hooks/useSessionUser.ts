@@ -6,6 +6,7 @@ import { getDefaultAvatarUrl } from '@/lib/profile/avatar'
 import { getStoredProfileAvatar, getStoredProfileFullName } from '@/lib/profile/actions'
 import { resolveUserDisplayName } from '@/lib/profile/display-name'
 import { formatInvestorTierLabel } from '@/lib/investor/tiers'
+import { prefetchInvestmentPlans } from '@/lib/invest/plans-cache'
 
 export interface SessionUser {
   id: string
@@ -95,6 +96,7 @@ async function loadSessionUser() {
     loaded: true,
   }
   emit()
+  prefetchInvestmentPlans()
 }
 
 function ensureSessionLoaded() {

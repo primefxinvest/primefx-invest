@@ -58,7 +58,7 @@ export function AdminShell({ context, children }: AdminShellProps) {
         )}
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-4 lg:px-6 lg:py-6">
-          <Logo href="/admin" tagline="ADMIN" size={40} />
+          <Logo href="/admin" tagline="ADMIN" sizeKey="sidebarFull" />
           <button
             type="button"
             onClick={closeMobile}

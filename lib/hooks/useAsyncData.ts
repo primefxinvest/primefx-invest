@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   DEFAULT_ASYNC_CACHE_TTL_MS,
   invalidateAsyncCache,
@@ -25,6 +25,11 @@ export function useAsyncData<T>(
   const [loading, setLoading] = useState(initialData === undefined)
   const [error, setError] = useState<string | null>(null)
 
+  const loaderRef = useRef(loader)
+  loaderRef.current = loader
+
+  const stableLoader = useCallback(() => loaderRef.current(), [])
+
   const cacheKey = options?.cacheKey
   const cacheTtlMs = options?.cacheTtlMs ?? DEFAULT_ASYNC_CACHE_TTL_MS
   const timeoutMs = options?.timeoutMs
@@ -32,8 +37,8 @@ export function useAsyncData<T>(
   const runWithTimeout = useCallback(
     async () => {
       const promise = cacheKey
-        ? loadWithAsyncCache(cacheKey, loader, cacheTtlMs)
-        : loader()
+        ? loadWithAsyncCache(cacheKey, stableLoader, cacheTtlMs)
+        : stableLoader()
 
       if (!timeoutMs) return promise
 
@@ -44,7 +49,7 @@ export function useAsyncData<T>(
         }),
       ])
     },
-    [cacheKey, cacheTtlMs, loader, timeoutMs, ...deps]
+    [cacheKey, cacheTtlMs, stableLoader, timeoutMs, ...deps]
   )
 
   const runLoader = runWithTimeout
@@ -96,7 +101,7 @@ export function useAsyncData<T>(
     return () => {
       active = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- loader identity follows deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stableLoader keeps loader identity stable
   }, [initialData, runLoader, ...deps])
 
   return {

@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import { ArrowRight, Star } from 'lucide-react'
 import type { InvestmentPlan } from '@/lib/invest/plan-config'
 import { formatPlanDisplayName, formatPlanRiskLabel } from '@/lib/invest/plan-mapper'
@@ -13,7 +14,7 @@ interface InvestPlansTableProps {
   onInvest: (plan: InvestmentPlan) => void
 }
 
-export default function InvestPlansTable({
+function InvestPlansTable({
   plans,
   selectedPlanId,
   onSelect,
@@ -24,8 +25,8 @@ export default function InvestPlansTable({
   return (
     <>
       {/* Desktop / tablet table */}
-      <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[720px] table-fixed text-sm">
+      <div className="hidden md:block">
+        <table className="w-full table-fixed text-sm">
           <colgroup>
             <col style={{ width: '26%' }} />
             <col style={{ width: '12%' }} />
@@ -263,3 +264,5 @@ function PlanMobileRow({
     </article>
   )
 }
+
+export default memo(InvestPlansTable)

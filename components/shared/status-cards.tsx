@@ -16,16 +16,16 @@ type StatusCardGridProps = {
 }
 
 const columnClasses: Record<2 | 3 | 4 | 5, string> = {
-  2: 'grid-cols-2',
-  3: 'grid-cols-2 xl:grid-cols-3',
-  4: 'grid-cols-2 xl:grid-cols-4',
-  5: 'grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
+  2: 'grid-cols-1 md:grid-cols-2',
+  3: 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3',
+  4: 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4',
+  5: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5',
 }
 
-/** Two columns on mobile, expanding on larger breakpoints. */
+/** Responsive grid: 1 col mobile, 2 col tablet, expands on desktop. */
 export function StatusCardGrid({ children, columns = 4, className }: StatusCardGridProps) {
   return (
-    <div className={cn('grid gap-3 sm:gap-4', columnClasses[columns], className)}>
+    <div className={cn('grid gap-4 sm:gap-6', columnClasses[columns], className)}>
       {children}
     </div>
   )

@@ -1,12 +1,10 @@
 'use client'
 
 import { Link } from '@/i18n/navigation'
-import {
-  Download,
-  Send,
-  Upload,
-} from 'lucide-react'
+import { Download, Send, Upload } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { statusCardSurfaceClass } from '@/lib/layout/surfaces'
+import { cn } from '@/lib/utils'
 
 const actionIds = ['deposit', 'withdraw', 'transfer'] as const
 
@@ -20,24 +18,35 @@ export default function WalletActionCards() {
   const t = useTranslations('wallet.actions')
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div
+      className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-3 sm:gap-4"
+      aria-label="Wallet actions"
+    >
       {actionIds.map((id) => {
         const config = actionConfig[id]
         const Icon = config.icon
-        const label = t(id)
-        const description = t(`${id}Desc`)
 
         return (
           <Link
             key={id}
             href={config.href}
-            className="rounded-xl border border-gray-200 bg-white p-4 text-left shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50"
+            className={cn(
+              statusCardSurfaceClass,
+              'group flex h-full min-h-[4.5rem] items-center gap-3 p-3.5 transition-colors hover:border-primary/20 sm:min-h-[5rem] sm:p-4'
+            )}
           >
-            <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${config.iconBg} text-white`}>
-              <Icon className="h-5 w-5" />
+            <div
+              className={cn(
+                'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition-transform group-hover:scale-[1.02]',
+                config.iconBg
+              )}
+            >
+              <Icon className="h-5 w-5" aria-hidden />
             </div>
-            <p className="text-sm font-semibold text-gray-900">{label}</p>
-            <p className="mt-0.5 text-xs text-gray-500">{description}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-foreground">{t(id)}</p>
+              <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{t(`${id}Desc`)}</p>
+            </div>
           </Link>
         )
       })}

@@ -8,6 +8,7 @@ import {
   getUserInvestments,
   getUserPortfolio,
   getUserTransactions,
+  getUserTransactionsSince,
   getWallet,
   getMarketAssets,
   getAcademyCourses,
@@ -25,6 +26,7 @@ import {
   getRewardsTiers,
   getRewardCatalog,
 } from '@/lib/db/supabase'
+import { getCachedUserTransactions } from '@/lib/data/user-transactions-cache'
 import { mapDbPlansToInvestmentPlans, PLAN_UI_META } from '@/lib/invest/plan-mapper'
 import {
   buildMonthlyReturnPoints,
@@ -64,6 +66,7 @@ import type {
   WalletActivitySummary,
   WalletData,
   WalletHealthData,
+  DashboardCoreData,
 } from '@/lib/data/types'
 
 
@@ -71,6 +74,11 @@ import type {
 async function requireUserId() {
   const { data: user } = await getCurrentUser()
   return user?.id ?? null
+}
+
+function metricsTransactionWindowStart() {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth() - 1, 1)
 }
 
 function sumTransactionsInMonth(
@@ -145,7 +153,7 @@ export async function fetchPortfolioMetrics(): Promise<PortfolioMetrics> {
   }
 
   const { data: portfolio } = await getUserPortfolio(userId)
-  const { data: transactions } = await getUserTransactions(userId)
+  const { data: transactions } = await getUserTransactionsSince(userId, metricsTransactionWindowStart())
   const txs = transactions ?? []
   const totalInvested = toNumber(portfolio?.total_invested)
   const currentValue = toNumber(portfolio?.current_value)
@@ -204,14 +212,14 @@ export async function fetchPortfolioChart(
   const userId = await requireUserId()
   if (!userId) return []
 
-  const [{ data: investments }, { data: portfolio }, { data: transactions }] = await Promise.all([
+  const [{ data: investments }, { data: portfolio }, transactions] = await Promise.all([
     getUserInvestments(userId),
     getUserPortfolio(userId),
-    getUserTransactions(userId),
+    getCachedUserTransactions(userId),
   ])
 
   return buildPortfolioChartData({
-    transactions: transactions ?? [],
+    transactions,
     investments: investments ?? [],
     currentValue: toNumber(portfolio?.current_value),
     period,
@@ -248,12 +256,159 @@ export async function fetchAssetAllocation(): Promise<AssetAllocationItem[]> {
   }))
 }
 
+function buildPortfolioMetricsFromRows(
+  portfolio: Record<string, unknown> | null | undefined,
+  transactions: Array<{ type?: string | null; amount?: unknown; created_at: string }>
+): PortfolioMetrics {
+  const windowStart = metricsTransactionWindowStart()
+  const txs = transactions.filter((tx) => new Date(tx.created_at) >= windowStart)
+  const totalInvested = toNumber(portfolio?.total_invested)
+  const currentValue = toNumber(portfolio?.current_value)
+  const profit = toNumber(portfolio?.profit_loss)
+  const roi = toNumber(portfolio?.roi_percentage)
+
+  const investedThis = sumTransactionsInMonth(txs, 0, (type) => type.includes('investment'))
+  const investedLast = sumTransactionsInMonth(txs, -1, (type) => type.includes('investment'))
+  const profitThis = sumTransactionsInMonth(
+    txs,
+    0,
+    (type) => type.includes('profit') || type.includes('bonus') || type.includes('referral')
+  )
+  const profitLast = sumTransactionsInMonth(
+    txs,
+    -1,
+    (type) => type.includes('profit') || type.includes('bonus') || type.includes('referral')
+  )
+  const depositThis = sumTransactionsInMonth(txs, 0, (type) => type.includes('deposit'))
+  const depositLast = sumTransactionsInMonth(txs, -1, (type) => type.includes('deposit'))
+  const roiThis = investedThis > 0 ? (profitThis / investedThis) * 100 : 0
+  const roiLast = investedLast > 0 ? (profitLast / investedLast) * 100 : 0
+
+  return {
+    totalInvested: formatCurrency(totalInvested),
+    currentValue: formatCurrency(currentValue),
+    totalProfit: formatCurrency(profit, { signed: true }),
+    roiPercentage: formatPercent(roi, { signed: true }),
+    trends: [
+      { percentage: formatMonthOverMonthChange(investedThis, investedLast), label: 'from last month' },
+      { percentage: formatMonthOverMonthChange(depositThis + investedThis, depositLast + investedLast), label: 'from last month' },
+      { percentage: formatMonthOverMonthChange(profitThis, profitLast), label: 'from last month' },
+      { percentage: formatMonthOverMonthChange(roiThis, roiLast), label: 'from last month' },
+    ],
+  }
+}
+
+function buildAssetAllocationFromInvestments(
+  investments: Array<Record<string, unknown>>
+): AssetAllocationItem[] {
+  if (!investments.length) return []
+
+  const totals = new Map<string, { value: number; color: string }>()
+
+  investments.forEach((investment) => {
+    const plan = investment.investment_plans as Record<string, unknown> | null | undefined
+    const planName = (plan?.name as string) ?? 'Mixed'
+    const meta = PLAN_UI_META[planName]
+    const className = meta?.assetClass ?? 'Mixed'
+    const color = meta?.color ?? '#0052ff'
+    const amount = toNumber(investment.current_value ?? investment.amount)
+    const existing = totals.get(className) ?? { value: 0, color }
+    totals.set(className, { value: existing.value + amount, color })
+  })
+
+  const total = Array.from(totals.values()).reduce((sum, item) => sum + item.value, 0)
+  if (total === 0) return []
+
+  return Array.from(totals.entries()).map(([name, item]) => ({
+    name,
+    value: Math.round((item.value / total) * 100),
+    color: item.color,
+    amount: formatCurrency(item.value),
+  }))
+}
+
+async function buildWalletDataFromRow(
+  userId: string,
+  wallet: Record<string, unknown> | null | undefined
+): Promise<WalletData> {
+  const { formatPrimeFxId } = await import('@/lib/wallet/primefx-id')
+  const available = toNumber(wallet?.available_balance)
+  const pending = toNumber(wallet?.pending_balance)
+  const bonus = toNumber(wallet?.bonus_balance)
+  const total = toNumber(wallet?.total_balance) || available + pending + bonus
+
+  const breakdown = [
+    { label: 'Available Balance', value: available, color: '#10b981' },
+    { label: 'Pending Balance', value: pending, color: '#f97316' },
+    { label: 'Bonus Balance', value: bonus, color: '#8b5cf6' },
+  ]
+
+  return {
+    userId,
+    primeFxId: formatPrimeFxId(userId),
+    availableBalance: formatCurrency(available),
+    pendingBalance: formatCurrency(pending),
+    bonusBalance: formatCurrency(bonus),
+    totalBalance: formatCurrency(total),
+    balanceBreakdown: breakdown.map((item) => ({
+      ...item,
+      percentage: total > 0 ? Math.round((item.value / total) * 1000) / 10 : 0,
+    })),
+  }
+}
+
+/** Single bundled fetch for dashboard KPIs, wallet, allocation, and chart inputs. */
+export async function fetchDashboardCoreData(): Promise<DashboardCoreData> {
+  const userId = await requireUserId()
+  if (!userId) {
+    return {
+      metrics: emptyPortfolioMetrics(),
+      wallet: emptyWalletData(),
+      allocation: [],
+      investments: [],
+      portfolioCurrentValue: 0,
+      transactions: [],
+    }
+  }
+
+  const [{ data: portfolio }, { data: wallet }, { data: investments }, transactions] =
+    await Promise.all([
+      getUserPortfolio(userId),
+      getWallet(userId),
+      getUserInvestments(userId),
+      getCachedUserTransactions(userId),
+    ])
+
+  const investmentRows = (investments ?? []) as Array<Record<string, unknown>>
+  const txRows = transactions as Array<Record<string, unknown>>
+
+  const [walletData, metrics, allocation] = await Promise.all([
+    buildWalletDataFromRow(userId, wallet),
+    Promise.resolve(
+      buildPortfolioMetricsFromRows(
+        portfolio,
+        txRows as Array<{ type?: string | null; amount?: unknown; created_at: string }>
+      )
+    ),
+    Promise.resolve(buildAssetAllocationFromInvestments(investmentRows)),
+  ])
+
+  return {
+    metrics,
+    wallet: walletData,
+    allocation,
+    investments: investmentRows,
+    portfolioCurrentValue: toNumber(portfolio?.current_value),
+    transactions: txRows,
+  }
+}
+
 export async function fetchRecentTransactions(limit = 4): Promise<TransactionItem[]> {
   const userId = await requireUserId()
   if (!userId) return []
 
-  const { data } = await getUserTransactions(userId)
-  if (!data?.length) return []
+  const data = await getCachedUserTransactions(userId)
+  if (!data.length) return []
 
   return data.slice(0, limit).map((tx) =>
     mapDbTransactionToItem(
@@ -316,8 +471,8 @@ export async function fetchWalletTransactions(): Promise<TransactionItem[]> {
   const userId = await requireUserId()
   if (!userId) return []
 
-  const { data } = await getUserTransactions(userId)
-  if (!data?.length) return []
+  const data = await getCachedUserTransactions(userId)
+  if (!data.length) return []
 
   return data.map((tx) =>
     mapDbTransactionToItem(
@@ -347,7 +502,7 @@ export async function fetchWalletActivitySummary(): Promise<WalletActivitySummar
     }
   }
 
-  const { data } = await getUserTransactions(userId)
+  const data = await getCachedUserTransactions(userId)
   const now = new Date()
 
   const sums = { deposit: 0, withdrawal: 0, transfer: 0, bonus: 0 }
@@ -866,10 +1021,29 @@ function mapCompletedInvestmentRow(investment: Record<string, unknown>) {
 }
 
 export async function fetchMonthlyReturns(
-  period: PortfolioChartPeriod = 'This Year'
+  period: PortfolioChartPeriod = 'This Year',
+  chart?: ChartPoint[]
 ): Promise<ChartPoint[]> {
+  const source = chart ?? (await fetchPortfolioChart(period))
+  return buildMonthlyReturnPoints(source)
+}
+
+export type PortfolioChartsBundle = {
+  chart: ChartPoint[]
+  monthlyReturns: ChartPoint[]
+  performanceStats: ReturnType<typeof computePortfolioPerformanceStats>
+}
+
+export async function fetchPortfolioChartsBundle(
+  period: PortfolioChartPeriod = '1Y'
+): Promise<PortfolioChartsBundle> {
   const chart = await fetchPortfolioChart(period)
-  return buildMonthlyReturnPoints(chart)
+  const monthlyReturns = buildMonthlyReturnPoints(chart)
+  return {
+    chart,
+    monthlyReturns,
+    performanceStats: computePortfolioPerformanceStats(monthlyReturns),
+  }
 }
 
 export async function fetchAcademyCourses(): Promise<AcademyCourseItem[]> {
@@ -1267,6 +1441,6 @@ export async function fetchRewardCatalogItems(): Promise<RewardCatalogItem[]> {
 }
 
 export async function fetchPortfolioPerformanceStats(period: PortfolioChartPeriod = '1Y') {
-  const monthlyReturns = await fetchMonthlyReturns(period)
-  return computePortfolioPerformanceStats(monthlyReturns)
+  const bundle = await fetchPortfolioChartsBundle(period)
+  return bundle.performanceStats
 }

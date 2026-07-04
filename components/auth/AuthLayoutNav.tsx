@@ -26,7 +26,7 @@ export function AuthLayoutNav() {
   const authToggle = getAuthToggle(pathname, t)
 
   return (
-    <header className="absolute inset-x-0 top-0 z-10 bg-background/85 backdrop-blur-md">
+    <header className="absolute inset-x-0 top-0 z-20 bg-background/90 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-4 sm:gap-3 sm:px-6">
         <Link
           href="/"

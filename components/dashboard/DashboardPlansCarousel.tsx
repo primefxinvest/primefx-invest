@@ -6,9 +6,9 @@ import { Link } from '@/i18n/navigation'
 import { ChevronRight } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
 import { PlanCardsSkeleton } from '@/components/shared/skeletons'
-import { useAsyncData } from '@/lib/hooks/useAsyncData'
-import { loadInvestmentPlans } from '@/lib/invest/plan-actions'
-import { dashboardCardClass, dashboardSectionTitleClass } from '@/lib/layout/surfaces'
+import { useInvestmentPlans } from '@/lib/hooks/useInvestmentPlans'
+import { DashboardSectionHeader } from '@/components/dashboard/DashboardSectionHeader'
+import { dashboardCardClass } from '@/lib/layout/surfaces'
 import { cn } from '@/lib/utils'
 
 function useRiskLabel(t: ReturnType<typeof useTranslations<'dashboard'>>) {
@@ -43,12 +43,7 @@ function getPlanStyle(plan: { popular?: boolean; riskLevel: string }) {
 export default function DashboardPlansCarousel() {
   const t = useTranslations('dashboard')
   const riskLabel = useRiskLabel(t)
-  const { data: plans, loading, error, reload } = useAsyncData(
-    () => loadInvestmentPlans(),
-    [],
-    undefined,
-    { cacheKey: 'dashboard-investment-plans', cacheTtlMs: 60_000 }
-  )
+  const { data: plans, loading, error, reload } = useInvestmentPlans()
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
 
@@ -63,41 +58,51 @@ export default function DashboardPlansCarousel() {
   }
 
   return (
-    <div className={dashboardCardClass}>
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className={dashboardSectionTitleClass}>{t('topPlans')}</h2>
-        <Link
-          href="/invest"
-          className="flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline"
-        >
-          {t('viewAllPlans')}
-          <ChevronRight className="h-3.5 w-3.5" />
-        </Link>
-      </div>
-
-      <AsyncState
-        loading={loading}
-        error={error}
-        onRetry={reload}
-        isEmpty={!plans?.length}
-        emptyTitle={t('noPlansTitle')}
-        emptyDescription={t('noPlansDesc')}
-        emptyAction={
-          <Link href="/invest" className="text-sm font-semibold text-primary hover:underline">
-            {t('viewInvestPage')}
+    <section aria-labelledby="dashboard-plans-heading" className={dashboardCardClass}>
+      <DashboardSectionHeader
+        title={t('topPlans')}
+        action={
+          <Link
+            href="/invest"
+            className="flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+          >
+            {t('viewAllPlans')}
+            <ChevronRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
         }
-        skeleton={<PlanCardsSkeleton />}
-        compact
-      >
+        className="mb-0"
+      />
+      <h2 id="dashboard-plans-heading" className="sr-only">
+        {t('topPlans')}
+      </h2>
+
+      <div className="mt-4">
+        <AsyncState
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          isEmpty={!plans?.length}
+          emptyTitle={t('noPlansTitle')}
+          emptyDescription={t('noPlansDesc')}
+          emptyAction={
+            <Link href="/invest" className="text-sm font-semibold text-primary hover:underline">
+              {t('viewInvestPage')}
+            </Link>
+          }
+          skeleton={<PlanCardsSkeleton />}
+          compact
+        >
         <>
           <div
             ref={scrollRef}
-            className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 scrollbar-hide"
+            className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain px-1 pb-2 scrollbar-hide md:gap-3"
+            role="list"
+            aria-label={t('topPlans')}
             onScroll={(e) => {
               const container = e.currentTarget
-              const index = Math.round(container.scrollLeft / (container.offsetWidth * 0.45))
-              setActiveIndex(Math.min(index, (plans?.length ?? 1) - 1))
+              const cardWidth = container.firstElementChild?.clientWidth ?? container.offsetWidth
+              const index = Math.round(container.scrollLeft / (cardWidth + 16))
+              setActiveIndex(Math.min(Math.max(index, 0), (plans?.length ?? 1) - 1))
             }}
           >
             {plans?.map((plan) => {
@@ -105,8 +110,9 @@ export default function DashboardPlansCarousel() {
               return (
                 <div
                   key={plan.id}
+                  role="listitem"
                   className={cn(
-                    'relative min-w-[180px] flex-shrink-0 snap-start rounded-xl border bg-card p-3.5 sm:min-w-[200px]',
+                    'relative w-[calc(100%-0.5rem)] flex-shrink-0 snap-center rounded-xl border bg-card p-4 sm:w-[min(220px,78vw)] md:min-w-[200px] md:snap-start md:w-auto',
                     style.borderClass,
                     plan.popular && 'bg-purple-50/30'
                   )}
@@ -161,7 +167,8 @@ export default function DashboardPlansCarousel() {
             ))}
           </div>
         </>
-      </AsyncState>
-    </div>
+        </AsyncState>
+      </div>
+    </section>
   )
 }

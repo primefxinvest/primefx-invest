@@ -71,18 +71,24 @@ export function SyncPendingDeposits({ onSynced }: SyncPendingDepositsProps) {
 
       timerRef.current = setTimeout(() => {
         attemptsRef.current += 1
-        void runSync().then(scheduleNext)
+        void runSync().then((shouldContinue) => {
+          if (!shouldContinue && !fromDepositReturn) return
+          scheduleNext(shouldContinue || fromDepositReturn)
+        })
       }, pollInterval)
     }
 
-    void runSync().then(scheduleNext)
+    void runSync().then((shouldContinue) => {
+      if (!shouldContinue && !fromDepositReturn) return
+      scheduleNext(shouldContinue || fromDepositReturn)
+    })
 
     return () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current)
       }
     }
-  }, [pollInterval, runSync])
+  }, [fromDepositReturn, pollInterval, runSync])
 
   return null
 }

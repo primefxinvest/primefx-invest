@@ -13,8 +13,7 @@ import {
   Crown,
   Gem,
 } from 'lucide-react'
-import { SummaryCard } from '@/components/portfolio/SummaryCard'
-import { StatusCardGrid } from '@/components/shared/status-cards'
+import { KpiCard, KpiGrid } from '@/components/shared/kpi'
 import { ScrollTable } from '@/components/shared/ScrollTable'
 import { ErrorState } from '@/components/shared/data-state'
 import { MetricCardsSkeleton, TableSkeleton } from '@/components/shared/skeletons'
@@ -31,11 +30,9 @@ import { pageStackClass } from '@/lib/layout/spacing'
 import {
   fetchAssetAllocation,
   fetchCapitalWithdrawalRequests,
-  fetchMonthlyReturns,
-  fetchPortfolioChart,
+  fetchPortfolioChartsBundle,
   fetchPortfolioInvestments,
   fetchPortfolioOverview,
-  fetchPortfolioPerformanceStats,
 } from '@/lib/data/queries'
 import type { PortfolioChartPeriod } from '@/lib/data/portfolio-performance'
 const planIcons: Record<string, typeof Sprout> = {
@@ -45,27 +42,45 @@ const planIcons: Record<string, typeof Sprout> = {
   'Elite Plan': Gem,
 }
 
+const PORTFOLIO_CACHE_OPTS = { cacheTtlMs: 30_000 } as const
+
 export default function PortfolioPage() {
   const user = useSessionUser()
   const [chartPeriod, setChartPeriod] = useState<PortfolioChartPeriod>('1Y')
   const { data: overview, loading: overviewLoading, error: overviewError, reload: reloadOverview } =
-    useAsyncData(() => fetchPortfolioOverview(), [])
-  const { data: performanceStats } = useAsyncData(
-    () => fetchPortfolioPerformanceStats(chartPeriod),
-    [chartPeriod]
+    useAsyncData(() => fetchPortfolioOverview(), [], undefined, {
+      ...PORTFOLIO_CACHE_OPTS,
+      cacheKey: 'portfolio-overview',
+    })
+  const { data: chartsBundle } = useAsyncData(
+    () => fetchPortfolioChartsBundle(chartPeriod),
+    [chartPeriod],
+    undefined,
+    {
+      ...PORTFOLIO_CACHE_OPTS,
+      cacheKey: `portfolio-charts-bundle-${chartPeriod}`,
+    }
   )
-  const { data: chartData = [] } = useAsyncData(() => fetchPortfolioChart(chartPeriod), [chartPeriod])
-  const { data: allocation = [] } = useAsyncData(() => fetchAssetAllocation(), [])
-  const { data: monthlyReturns = [] } = useAsyncData(
-    () => fetchMonthlyReturns(chartPeriod),
-    [chartPeriod]
-  )
+  const { data: allocation = [] } = useAsyncData(() => fetchAssetAllocation(), [], undefined, {
+    ...PORTFOLIO_CACHE_OPTS,
+    cacheKey: 'portfolio-asset-allocation',
+  })
   const { data: investments, loading: investmentsLoading, error: investmentsError, reload: reloadInvestments } =
-    useAsyncData(() => fetchPortfolioInvestments(), [])
+    useAsyncData(() => fetchPortfolioInvestments(), [], undefined, {
+      ...PORTFOLIO_CACHE_OPTS,
+      cacheKey: 'portfolio-investments',
+    })
   const {
     data: capitalWithdrawals = [],
     reload: reloadCapitalWithdrawals,
-  } = useAsyncData(() => fetchCapitalWithdrawalRequests(), [])
+  } = useAsyncData(() => fetchCapitalWithdrawalRequests(), [], undefined, {
+    ...PORTFOLIO_CACHE_OPTS,
+    cacheKey: 'portfolio-capital-withdrawals',
+  })
+
+  const chartData = chartsBundle?.chart ?? []
+  const monthlyReturns = chartsBundle?.monthlyReturns ?? []
+  const performanceStats = chartsBundle?.performanceStats
 
   const reloadCapitalWithdrawalState = useCallback(() => {
     void reloadCapitalWithdrawals()
@@ -165,42 +180,38 @@ export default function PortfolioPage() {
       </header>
 
       <section aria-label="Portfolio summary">
-        <div className="space-y-3">
-          <StatusCardGrid columns={2}>
-            <SummaryCard
-              label="Current Value"
-              value={portfolioOverview.currentValue}
-              subtext="Updated in real-time"
-              icon={<TrendingUp className="h-5 w-5" />}
-              iconClass="bg-emerald-50 text-emerald-600"
-            />
-            <SummaryCard
-              label="Profit / Loss"
-              value={portfolioOverview.profitLoss}
-              subtext="Total profit or loss"
-              icon={<BarChart2 className="h-5 w-5" />}
-              iconClass="bg-violet-50 text-violet-600"
-              valueClass={isProfitNegative ? 'text-red-600' : 'text-emerald-600'}
-            />
-          </StatusCardGrid>
-          <StatusCardGrid columns={2} className="max-w-2xl">
-            <SummaryCard
-              label="Total Invested"
-              value={portfolioOverview.totalInvested}
-              subtext={`Across ${portfolioOverview.activePlans} active plans`}
-              icon={<DollarSign className="h-5 w-5" />}
-              iconClass="bg-blue-50 text-[#0052ff]"
-            />
-            <SummaryCard
-              label="ROI %"
-              value={portfolioOverview.roi}
-              subtext="Overall return"
-              icon={<Percent className="h-5 w-5" />}
-              iconClass="bg-orange-50 text-orange-500"
-              valueClass={isProfitNegative ? 'text-red-600' : 'text-emerald-600'}
-            />
-          </StatusCardGrid>
-        </div>
+        <KpiGrid count={4} aria-label="Portfolio summary">
+          <KpiCard
+            label="Current Value"
+            value={portfolioOverview.currentValue}
+            caption="Updated in real-time"
+            icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
+            iconBg="bg-emerald-50 text-emerald-600"
+          />
+          <KpiCard
+            label="Profit / Loss"
+            value={portfolioOverview.profitLoss}
+            caption="Total profit or loss"
+            valueClassName={isProfitNegative ? 'text-red-600' : 'text-emerald-600'}
+            icon={<BarChart2 className="h-4 w-4 sm:h-5 sm:w-5" />}
+            iconBg="bg-violet-50 text-violet-600"
+          />
+          <KpiCard
+            label="Total Invested"
+            value={portfolioOverview.totalInvested}
+            caption={`Across ${portfolioOverview.activePlans} active plans`}
+            icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />}
+            iconBg="bg-blue-50 text-[#0052ff]"
+          />
+          <KpiCard
+            label="ROI %"
+            value={portfolioOverview.roi}
+            caption="Overall return"
+            valueClassName={isProfitNegative ? 'text-red-600' : 'text-emerald-600'}
+            icon={<Percent className="h-4 w-4 sm:h-5 sm:w-5" />}
+            iconBg="bg-orange-50 text-orange-500"
+          />
+        </KpiGrid>
       </section>
 
       <section aria-label="Performance charts" className="grid grid-cols-1 gap-4 xl:grid-cols-12">

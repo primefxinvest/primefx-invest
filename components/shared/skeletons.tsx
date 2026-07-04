@@ -1,6 +1,7 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { skeletonCardSurfaceClass } from '@/lib/layout/surfaces'
+import { KpiGrid, type KpiGridCount } from '@/components/shared/kpi/KpiGrid'
 
 const SKELETON_CARD = skeletonCardSurfaceClass
 
@@ -8,25 +9,31 @@ function staggerDelay(index: number, step = 70) {
   return index * step
 }
 
-export function MetricCardsSkeleton({ count = 4 }: { count?: number }) {
+function KpiCardSkeletonItem({ index }: { index: number }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-      {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className={SKELETON_CARD}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1 space-y-2.5">
-              <Skeleton className="h-3.5 w-[42%]" delay={staggerDelay(i)} />
-              <Skeleton className="h-8 w-[68%]" delay={staggerDelay(i, 90)} />
-              <Skeleton className="h-3 w-[52%]" delay={staggerDelay(i, 110)} />
-            </div>
-            <Skeleton
-              className="h-10 w-10 shrink-0 rounded-xl"
-              delay={staggerDelay(i, 80)}
-            />
-          </div>
+    <div className={cn(SKELETON_CARD, 'flex h-full min-h-[5.5rem] flex-col justify-between sm:min-h-[6rem]')}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1 space-y-2.5">
+          <Skeleton className="h-3.5 w-[42%]" delay={staggerDelay(index)} />
+          <Skeleton className="h-7 w-[68%] sm:h-8" delay={staggerDelay(index, 90)} />
+          <Skeleton className="h-3 w-[52%]" delay={staggerDelay(index, 110)} />
         </div>
-      ))}
+        <Skeleton className="h-9 w-9 shrink-0 rounded-lg lg:h-10 lg:w-10" delay={staggerDelay(index, 80)} />
+      </div>
     </div>
+  )
+}
+
+export function MetricCardsSkeleton({ count = 4 }: { count?: number }) {
+  const gridCount: KpiGridCount = count >= 5 ? 5 : 4
+  const itemCount = count >= 5 ? 5 : count
+
+  return (
+    <KpiGrid count={gridCount}>
+      {Array.from({ length: itemCount }).map((_, i) => (
+        <KpiCardSkeletonItem key={i} index={i} />
+      ))}
+    </KpiGrid>
   )
 }
 

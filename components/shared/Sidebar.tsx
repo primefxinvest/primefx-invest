@@ -43,16 +43,18 @@ import {
 } from '@/lib/wallet/navigation'
 import { useReferralProgramEnabled } from '@/lib/hooks/useReferralProgramEnabled'
 import { fetchNotifications } from '@/lib/data/queries'
-import { SIDEBAR_WIDTH_DESKTOP_CLASS, SIDEBAR_WIDTH_MOBILE_CLASS } from '@/lib/layout/sidebar'
+import { SIDEBAR_WIDTH_DESKTOP_CLASS, SIDEBAR_WIDTH_MOBILE_CLASS, SIDEBAR_WIDTH_TABLET_CLASS } from '@/lib/layout/sidebar'
 import {
   NAV_ICON_SLOT,
   NAV_ITEM_ACTIVE,
   NAV_ITEM_BASE,
   NAV_ITEM_INACTIVE,
+  NAV_LABEL_CLASS,
   NAV_SECTION_DIVIDER,
   NAV_SUB_ITEM_ACTIVE,
   NAV_SUB_ITEM_BASE,
   NAV_SUB_ITEM_INACTIVE,
+  NAV_WALLET_SUBMENU_CLASS,
 } from '@/lib/layout/nav-styles'
 
 const navIconMap = {
@@ -101,7 +103,12 @@ const WALLET_SUB_LABEL_KEYS: Record<string, string> = {
 }
 
 function navItemClass(active: boolean, extra?: string) {
-  return cn(NAV_ITEM_BASE, active ? NAV_ITEM_ACTIVE : NAV_ITEM_INACTIVE, extra)
+  return cn(
+    NAV_ITEM_BASE,
+    'md:justify-center md:gap-0 md:px-2 lg:justify-start lg:gap-2.5 lg:px-3',
+    active ? NAV_ITEM_ACTIVE : NAV_ITEM_INACTIVE,
+    extra
+  )
 }
 
 function subNavItemClass(active: boolean) {
@@ -188,7 +195,7 @@ export default function Sidebar() {
         <button
           type="button"
           aria-label={t('closeMenu')}
-          className="fixed inset-0 z-40 bg-gray-900/40 backdrop-blur-[1px] lg:hidden"
+          className="fixed inset-0 z-40 bg-gray-900/50 backdrop-blur-[2px] transition-opacity duration-300 lg:hidden"
           onClick={close}
         />
       ) : null}
@@ -198,26 +205,28 @@ export default function Sidebar() {
         aria-label="Main navigation"
         aria-modal={open ? true : undefined}
         className={cn(
-          'fixed left-0 top-0 z-50 flex h-[100dvh] flex-col border-r border-gray-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-xl transition-transform duration-300 ease-out lg:shadow-none',
+          'fixed left-0 top-0 z-50 flex h-[100dvh] flex-col border-r border-gray-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-2xl transition-[transform,width] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] lg:shadow-none',
           SIDEBAR_WIDTH_MOBILE_CLASS,
+          SIDEBAR_WIDTH_TABLET_CLASS,
           SIDEBAR_WIDTH_DESKTOP_CLASS,
-          open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-3 py-3">
-          <Logo href="/dashboard" size={34} className="gap-2" />
+        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3.5">
+          <Logo href="/dashboard" sizeKey="sidebarIcon" showText={false} className="md:flex lg:hidden" priority />
+          <Logo href="/dashboard" sizeKey="sidebarFull" showText className="hidden lg:flex" priority />
           <button
             type="button"
             onClick={close}
             aria-label={t('closeNavMenu')}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="primefx-scrollbar min-h-0 flex-1 overflow-y-auto px-2 py-4" aria-label="Dashboard pages">
-          <div className="space-y-1">
+        <nav className="primefx-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-4" aria-label="Dashboard pages">
+          <div className="space-y-1.5">
             {INVESTOR_NAV_ITEMS.map((item) => {
               const Icon = navIconMap[item.href as keyof typeof navIconMap] ?? Home
               const tierLocked = item.requiredTier ? !canAccessRoute(tierKey, item.href) : false
@@ -235,7 +244,7 @@ export default function Sidebar() {
                     <span className={cn(NAV_ICON_SLOT, 'opacity-50')}>
                       <Icon />
                     </span>
-                    <span className="min-w-0 flex-1 truncate">
+                    <span className={NAV_LABEL_CLASS}>
                       {t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}
                     </span>
                     <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -259,7 +268,7 @@ export default function Sidebar() {
                     <span className={NAV_ICON_SLOT}>
                       <Icon />
                     </span>
-                    <span className="min-w-0 flex-1 truncate">
+                    <span className={NAV_LABEL_CLASS}>
                       {t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}
                     </span>
                     <Lock className="h-3.5 w-3.5 shrink-0 text-violet-500" aria-hidden />
@@ -272,18 +281,30 @@ export default function Sidebar() {
 
                 return (
                   <div key={item.href} className="space-y-1">
+                    <Link
+                      href="/wallet"
+                      title={t('wallet')}
+                      aria-current={walletActive ? 'page' : undefined}
+                      className={cn(navItemClass(walletActive), 'hidden md:flex lg:hidden')}
+                    >
+                      <span className={NAV_ICON_SLOT}>
+                        <Wallet />
+                      </span>
+                      <span className="sr-only">{t('wallet')}</span>
+                    </Link>
+
                     <button
                       type="button"
                       id="sidebar-wallet-toggle"
                       aria-expanded={walletOpen}
                       aria-controls="sidebar-wallet-submenu"
                       onClick={() => setWalletOpen((current) => !current)}
-                      className={navItemClass(walletActive)}
+                      className={cn(navItemClass(walletActive), 'max-md:flex md:hidden lg:flex')}
                     >
                       <span className={NAV_ICON_SLOT}>
                         <Wallet />
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-left">{t('wallet')}</span>
+                      <span className={cn(NAV_LABEL_CLASS, 'text-left')}>{t('wallet')}</span>
                       {walletOpen ? (
                         <ChevronDown className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
                       ) : (
@@ -296,7 +317,7 @@ export default function Sidebar() {
                         id="sidebar-wallet-submenu"
                         role="group"
                         aria-labelledby="sidebar-wallet-toggle"
-                        className="ml-3 space-y-1 border-l border-gray-200 pl-2"
+                        className={NAV_WALLET_SUBMENU_CLASS}
                       >
                         {WALLET_NAV_ITEMS.map((subItem) => {
                           const subActive = isWalletNavActive(pathname, subItem.href)
@@ -314,7 +335,7 @@ export default function Sidebar() {
                                 )}
                                 aria-hidden
                               />
-                              <span className="min-w-0 flex-1 truncate">
+                              <span className={NAV_LABEL_CLASS}>
                                 {t(WALLET_SUB_LABEL_KEYS[subItem.href] as 'overview')}
                               </span>
                             </Link>
@@ -338,7 +359,7 @@ export default function Sidebar() {
                   <span className={NAV_ICON_SLOT}>
                     <Icon />
                   </span>
-                  <span className="min-w-0 flex-1 truncate">
+                  <span className={NAV_LABEL_CLASS}>
                     {t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}
                   </span>
                 </Link>
@@ -361,7 +382,7 @@ export default function Sidebar() {
                   <span className={NAV_ICON_SLOT}>
                     <Icon />
                   </span>
-                  <span className="min-w-0 flex-1 truncate">{t(item.labelKey)}</span>
+                  <span className={NAV_LABEL_CLASS}>{t(item.labelKey)}</span>
                   {item.href === '/notifications' && unreadCount > 0 ? (
                     <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                       {unreadCount > 9 ? '9+' : unreadCount}
@@ -375,7 +396,7 @@ export default function Sidebar() {
 
         <SidebarUpgradeCard />
 
-        <div className="shrink-0 border-t border-gray-200 px-2 py-3">
+        <div className="shrink-0 border-t border-gray-200 px-3 py-3.5">
           <button
             type="button"
             onClick={handleLogout}
@@ -385,7 +406,7 @@ export default function Sidebar() {
             <span className={NAV_ICON_SLOT}>
               <LogOut />
             </span>
-            <span>{loggingOut ? t('loggingOut') : t('logout')}</span>
+            <span className={NAV_LABEL_CLASS}>{loggingOut ? t('loggingOut') : t('logout')}</span>
           </button>
         </div>
       </aside>

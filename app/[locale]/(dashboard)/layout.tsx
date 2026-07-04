@@ -12,8 +12,6 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { redirect } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
 
-export const dynamic = 'force-dynamic'
-
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')
   return buildPageMetadata({

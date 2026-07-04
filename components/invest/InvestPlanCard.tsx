@@ -1,5 +1,6 @@
 'use client'
 
+import { memo } from 'react'
 import {
   ArrowRight,
   Calendar,
@@ -24,7 +25,7 @@ interface InvestPlanCardProps {
   onInvest: (plan: InvestmentPlan) => void
 }
 
-export default function InvestPlanCard({
+function InvestPlanCard({
   plan,
   index = 0,
   selected,
@@ -156,6 +157,8 @@ export default function InvestPlanCard({
     </div>
   )
 }
+
+export default memo(InvestPlanCard)
 
 function StatRow({
   icon: Icon,

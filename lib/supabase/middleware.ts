@@ -62,87 +62,50 @@ async function enforceSessionIdleTimeout(
 
 
 
-async function needsServerMfaChallenge(
+type UserMiddlewareProfile = {
+  mfa_disabled_at: string | null
+  is_verified: boolean | null
+  kyc_status: string | null
+  verification_status: string | null
+}
 
+async function getUserMiddlewareProfile(
   supabase: ReturnType<typeof createServerClient>,
-
   userId: string
-
-) {
-
+): Promise<UserMiddlewareProfile | null> {
   try {
-
-    const { data: profile } = await supabase
-
+    const { data } = await supabase
       .from('users')
-
-      .select('mfa_disabled_at')
-
+      .select('mfa_disabled_at, is_verified, kyc_status, verification_status')
       .eq('id', userId)
-
       .maybeSingle()
+    return data
+  } catch {
+    return null
+  }
+}
 
-
-
+async function profileNeedsServerMfaChallenge(
+  supabase: ReturnType<typeof createServerClient>,
+  profile: UserMiddlewareProfile | null
+) {
+  try {
     if (profile?.mfa_disabled_at) return false
 
-
-
     const { data: aal, error } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-
     if (error) return false
-
     return aal?.nextLevel === 'aal2' && aal.currentLevel !== 'aal2'
-
   } catch {
-
     return false
-
   }
-
 }
 
-
-
-async function needsIdentityVerification(
-
-  supabase: ReturnType<typeof createServerClient>,
-
-  userId: string
-
-) {
-
-  try {
-
-    const { data } = await supabase
-
-      .from('users')
-
-      .select('is_verified, kyc_status, verification_status')
-
-      .eq('id', userId)
-
-      .maybeSingle()
-
-
-
-    if (!data) return true
-
-    if (data.is_verified) return false
-
-    if (String(data.verification_status).toLowerCase() === 'approved') return false
-
-    return String(data.kyc_status).toLowerCase() !== 'verified'
-
-  } catch {
-
-    return false
-
-  }
-
+function profileNeedsIdentityVerification(profile: UserMiddlewareProfile | null) {
+  if (!profile) return true
+  if (profile.is_verified) return false
+  if (String(profile.verification_status).toLowerCase() === 'approved') return false
+  return String(profile.kyc_status).toLowerCase() !== 'verified'
 }
-
-
 
 export async function updateSession(request: NextRequest, intlResponse?: NextResponse) {
 
@@ -246,8 +209,8 @@ export async function updateSession(request: NextRequest, intlResponse?: NextRes
 
 
   if (activeUser) {
-
-    const pendingMfa = await needsServerMfaChallenge(supabase, activeUser.id)
+    const profile = await getUserMiddlewareProfile(supabase, activeUser.id)
+    const pendingMfa = await profileNeedsServerMfaChallenge(supabase, profile)
 
 
 
@@ -291,7 +254,7 @@ export async function updateSession(request: NextRequest, intlResponse?: NextRes
 
       !pathname.startsWith('/verify') &&
 
-      (await needsIdentityVerification(supabase, activeUser.id))
+      profileNeedsIdentityVerification(profile)
 
     ) {
 

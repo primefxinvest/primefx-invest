@@ -24,6 +24,16 @@ export interface PortfolioMetrics {
   trends: { percentage: string; label: string }[]
 }
 
+/** Raw + derived dashboard payload from a single data fetch. */
+export interface DashboardCoreData {
+  metrics: PortfolioMetrics
+  wallet: WalletData
+  allocation: AssetAllocationItem[]
+  investments: Array<Record<string, unknown>>
+  portfolioCurrentValue: number
+  transactions: Array<Record<string, unknown>>
+}
+
 export interface ChartPoint {
   month: string
   value: number

@@ -2,6 +2,7 @@
 
 import { Crown, Percent, Users } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { KpiCard } from '@/components/shared/kpi'
 import { formatCurrency } from '@/lib/data/format'
 import type { ReferralProgramOverview } from '@/lib/referral/analytics'
 import { cn } from '@/lib/utils'
@@ -64,6 +65,7 @@ type StatCard = {
   trend?: string
   sub?: string
   icon?: LucideIcon
+  iconBg?: string
   primary?: boolean
 }
 
@@ -97,6 +99,7 @@ export function ReferralStatsGrid({ overview }: ReferralStatsGridProps) {
       value: String(overview.activeInvestors),
       trend: overview.trends.newInvestors,
       icon: Users,
+      iconBg: 'bg-violet-50 text-violet-600',
     },
     {
       label: 'Total referrals',
@@ -107,6 +110,7 @@ export function ReferralStatsGrid({ overview }: ReferralStatsGridProps) {
       value: conversionDisplay,
       sub: 'Signups → active investors',
       icon: Percent,
+      iconBg: 'bg-violet-50 text-violet-600',
     },
     {
       label: 'Current rank',
@@ -115,6 +119,7 @@ export function ReferralStatsGrid({ overview }: ReferralStatsGridProps) {
         ? 'Maximum rank'
         : `${overview.rank.membersRemaining} to ${shortRankName(overview.rank.next)}`,
       icon: Crown,
+      iconBg: 'bg-violet-50 text-violet-600',
     },
   ]
 
@@ -127,34 +132,17 @@ export function ReferralStatsGrid({ overview }: ReferralStatsGridProps) {
         {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <div
+            <KpiCard
               key={stat.label}
-              className={cn(
-                'rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md',
-                stat.primary && 'ring-1 ring-[#0052ff]/10'
-              )}
-            >
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500 sm:text-[11px]">
-                {stat.label}
-              </p>
-              <div className="mt-2 flex items-center gap-2">
-                {Icon ? <Icon className="h-4 w-4 shrink-0 text-violet-600" aria-hidden="true" /> : null}
-                <p
-                  className={cn(
-                    'font-bold tabular-nums leading-tight text-gray-900',
-                    stat.primary ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'
-                  )}
-                >
-                  {stat.value}
-                </p>
-              </div>
-              {stat.trend ? (
-                <p className="mt-1 text-[11px] font-semibold text-emerald-600">{stat.trend}</p>
-              ) : null}
-              {stat.sub ? (
-                <p className="mt-1 line-clamp-2 text-[10px] leading-snug text-gray-400">{stat.sub}</p>
-              ) : null}
-            </div>
+              label={stat.label}
+              value={stat.value}
+              trend={stat.trend}
+              caption={stat.sub}
+              captionClassName="text-muted-foreground"
+              icon={Icon ? <Icon className="h-4 w-4 sm:h-5 sm:w-5" /> : undefined}
+              iconBg={stat.iconBg}
+              className={cn(stat.primary && 'ring-1 ring-[#0052ff]/10')}
+            />
           )
         })}
         <HealthScoreGauge score={overview.healthScore} label={overview.healthLabel} />

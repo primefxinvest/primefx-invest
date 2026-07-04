@@ -907,6 +907,16 @@ export function ReferralProgramView({
 
       <ReferralStatsGrid overview={overview} />
 
+      <div className="xl:hidden">
+        <ReferralLinkCenter
+          referralData={referralData}
+          loading={loading}
+          error={error}
+          onRetry={reload}
+          compact
+        />
+      </div>
+
       <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-8">
           <section aria-label="Rank progression" className={sectionStackClass}>
@@ -1089,7 +1099,7 @@ export function ReferralProgramView({
           </section>
         </div>
 
-        <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+        <div className="hidden space-y-4 xl:sticky xl:top-24 xl:block xl:self-start">
         <ReferralLinkCenter
           referralData={referralData}
           loading={loading}
@@ -1097,9 +1107,12 @@ export function ReferralProgramView({
           onRetry={reload}
         />
 
-        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
-            <h3 className="font-semibold text-gray-900">Top referrers</h3>
+            <div>
+              <h3 className="font-semibold text-foreground">Top earning referrals</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">Commissions from your network</p>
+            </div>
             <Crown className="h-4 w-4 text-amber-500" aria-hidden="true" />
           </div>
             {overview.leaderboard.length > 0 ? (
@@ -1121,7 +1134,7 @@ export function ReferralProgramView({
                       >
                         {entry.rank}
                       </span>
-                      <span className="truncate font-medium text-gray-900">{entry.name}</span>
+                      <span className="truncate font-medium text-foreground">{entry.name}</span>
                     </span>
                     <span className="shrink-0 font-semibold tabular-nums text-emerald-600">
                       {formatCurrency(entry.earnings)}
@@ -1138,14 +1151,13 @@ export function ReferralProgramView({
                 className="border-0 bg-transparent"
               />
             )}
-            <button
-              type="button"
-              disabled
-              className="mt-4 inline-flex w-full items-center justify-center gap-1 text-sm font-semibold text-gray-400"
+            <a
+              href="#all-referrals"
+              className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-1 rounded-xl border border-border bg-muted/40 text-sm font-semibold text-primary transition-colors hover:bg-muted"
             >
-              View Full Leaderboard
-              <span className="text-[10px] uppercase">(Coming Soon)</span>
-            </button>
+              View all referrals
+              <ChevronRight className="h-4 w-4" aria-hidden />
+            </a>
           </div>
         </div>
       </div>

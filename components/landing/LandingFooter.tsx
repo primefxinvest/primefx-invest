@@ -12,7 +12,7 @@ export default async function LandingFooter() {
       <div className="mx-auto max-w-8xl px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <div className="mb-4">
-            <Logo href="/" size={36} />
+            <Logo href="/" sizeKey="marketing" />
           </div>
           <p className="max-w-sm text-sm text-gray-500">{t('tagline')}</p>
         </div>
