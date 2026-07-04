@@ -6,6 +6,7 @@ import {
   normalizeReferralCode,
   recordReferralForNewUser,
 } from '@/lib/referral/server'
+import { enforceIpRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
 
 export async function bootstrapUserProfile(input: {
   userId: string
@@ -14,6 +15,15 @@ export async function bootstrapUserProfile(input: {
   investorTier: string
   referralCode?: string | null
 }): Promise<{ success: boolean; error?: string }> {
+  try {
+    await enforceIpRateLimit('auth:signup')
+  } catch (err) {
+    if (err instanceof RateLimitExceededError) {
+      return { success: false, error: err.message }
+    }
+    throw err
+  }
+
   const admin = createAdminSupabaseClient()
   const keyIssue = getServiceRoleKeyIssue()
   if (!admin || keyIssue) {

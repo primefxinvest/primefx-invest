@@ -1,9 +1,12 @@
 'use client'
 
 import { Link } from '@/i18n/navigation'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { BookOpen, Share2, Shield, Trophy } from 'lucide-react'
 import { StatusCardGrid, statusCardSurfaceClass } from '@/components/shared/status-cards'
+import { getMfaStatus, type MfaStatus } from '@/lib/auth/mfa'
+import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import type { LearningProgress, ReferralData, RewardsData } from '@/lib/data/types'
 
 interface DashboardStatusCardsProps {
@@ -18,6 +21,26 @@ export default function DashboardStatusCards({
   learning,
 }: DashboardStatusCardsProps) {
   const t = useTranslations('dashboard')
+  const tSettings = useTranslations('settings')
+  const kycAccess = useFinancialKycAccess()
+  const [mfaStatus, setMfaStatus] = useState<MfaStatus>({ enabled: false, provider: null })
+
+  useEffect(() => {
+    let active = true
+    getMfaStatus()
+      .then((status) => {
+        if (active) setMfaStatus(status)
+      })
+      .catch(() => {
+        if (active) setMfaStatus({ enabled: false, provider: null })
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
+  const kycVerified = kycAccess.verified
+  const securityItemsComplete = (mfaStatus.enabled ? 1 : 0) + (kycVerified ? 1 : 0)
 
   return (
     <StatusCardGrid columns={4}>
@@ -92,11 +115,24 @@ export default function DashboardStatusCards({
           </div>
           <h3 className="text-xs font-bold text-gray-900">{t('securityStatus')}</h3>
         </div>
-        <p className="text-base font-bold text-emerald-600">{t('securityVeryStrong')}</p>
-        <p className="mt-2 text-[11px] leading-relaxed text-gray-500">{t('securityProtected')}</p>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100">
-          <div className="h-full w-[92%] rounded-full bg-emerald-500" />
-        </div>
+        <p className="text-base font-bold text-gray-900">
+          {securityItemsComplete}/2
+        </p>
+        <ul className="mt-2 space-y-1 text-[11px] text-gray-500">
+          <li>
+            {tSettings('twoFactor')}:{' '}
+            {mfaStatus.enabled ? tSettings('active') : tSettings('off')}
+          </li>
+          <li>
+            KYC: {kycVerified ? tSettings('active') : kycAccess.status}
+          </li>
+        </ul>
+        <Link
+          href="/settings"
+          className="mt-3 inline-block text-[11px] font-semibold text-[#0052ff] hover:underline"
+        >
+          {t('viewDetails')}
+        </Link>
       </div>
     </StatusCardGrid>
   )

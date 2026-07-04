@@ -4,11 +4,61 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { getAuthenticatedEntryPath } from '@/lib/auth/session'
 
+import { INVESTOR_RULES } from '@/lib/investor/rules'
+
 import { isAuthRoute, isMfaVerifyRoute, isProtectedRoute, MFA_VERIFY_ROUTE, requiresIdentityVerification } from '@/lib/auth/routes'
 
 import { getLocaleFromPathname, localizePath, stripLocalePrefix } from '@/lib/i18n/pathname'
 
 import { getSupabaseAnonKey, getSupabaseUrl } from './config'
+
+const SESSION_IDLE_COOKIE = 'primefx_last_activity'
+const SESSION_IDLE_MS = INVESTOR_RULES.security.sessionTimeoutMinutes * 60 * 1000
+
+async function enforceSessionIdleTimeout(
+  request: NextRequest,
+  response: NextResponse,
+  supabase: ReturnType<typeof createServerClient>,
+  activeUser: { id: string } | null,
+  locale: ReturnType<typeof getLocaleFromPathname>,
+  pathname: string
+) {
+  if (!activeUser) {
+    response.cookies.delete(SESSION_IDLE_COOKIE)
+    return { response, activeUser }
+  }
+
+  const now = Date.now()
+  const lastActivityRaw = request.cookies.get(SESSION_IDLE_COOKIE)?.value
+  const lastActivity = lastActivityRaw ? Number.parseInt(lastActivityRaw, 10) : NaN
+
+  if (Number.isFinite(lastActivity) && now - lastActivity > SESSION_IDLE_MS) {
+    await supabase.auth.signOut()
+    response.cookies.delete(SESSION_IDLE_COOKIE)
+
+    if (isProtectedRoute(pathname) || isMfaVerifyRoute(pathname)) {
+      const loginUrl = request.nextUrl.clone()
+      loginUrl.pathname = localizePath('/login', locale)
+      loginUrl.searchParams.set('redirect', pathname)
+      loginUrl.searchParams.set('reason', 'session_expired')
+      const redirect = NextResponse.redirect(loginUrl)
+      redirect.cookies.delete(SESSION_IDLE_COOKIE)
+      return { response: redirect, activeUser: null }
+    }
+
+    return { response, activeUser: null }
+  }
+
+  response.cookies.set(SESSION_IDLE_COOKIE, String(now), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: Math.ceil(SESSION_IDLE_MS / 1000) + 60,
+  })
+
+  return { response, activeUser }
+}
 
 
 
@@ -155,6 +205,21 @@ export async function updateSession(request: NextRequest, intlResponse?: NextRes
   const pathname = stripLocalePrefix(rawPathname)
 
   const locale = getLocaleFromPathname(rawPathname)
+
+  const idleResult = await enforceSessionIdleTimeout(
+    request,
+    response,
+    supabase,
+    activeUser,
+    locale,
+    pathname
+  )
+
+  response = idleResult.response
+
+  activeUser = idleResult.activeUser
+
+
 
   const onMfaVerify = isMfaVerifyRoute(pathname)
 

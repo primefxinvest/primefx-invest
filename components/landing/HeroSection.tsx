@@ -112,13 +112,13 @@ export default function HeroSection() {
                 {loading ? t('ctaStart') : primaryLabel}
                 <ArrowRight className="h-4 w-4" />
               </Link>
-              <Link
-                href="#how-it-works"
+              <a
+                href="/#how-it-works"
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#0052ff] bg-white px-8 py-3.5 text-sm font-semibold text-[#0052ff] transition-colors hover:bg-blue-50 sm:w-auto"
               >
                 <Play className="h-4 w-4 fill-[#0052ff]" />
                 {t('ctaWatch')}
-              </Link>
+              </a>
             </div>
 
             <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row lg:items-center lg:justify-start">

@@ -59,16 +59,22 @@ export default function PlanCompareView({ plans, onInvest }: PlanCompareViewProp
           </tr>
         </thead>
         <tbody>
-          {compareRows.map((row) => (
-            <tr key={row.label} className="border-b border-gray-50">
-              <td className="px-4 py-3 text-sm font-medium text-gray-500 sm:px-6">{row.label}</td>
+          {compareRows.map((row, rowIndex) => (
+            <tr
+              key={row.label}
+              className={cn(
+                'border-b border-gray-50',
+                rowIndex % 2 === 1 && 'bg-gray-50/40'
+              )}
+            >
+              <td className="px-4 py-3.5 text-sm font-medium text-gray-500 sm:px-6">{row.label}</td>
               {plans.map((plan, idx) => {
                 const theme = getPlanTheme(plan, idx)
                 return (
                   <td
                     key={plan.id}
                     className={cn(
-                      'px-3 py-3 text-center text-xs font-semibold text-gray-900 sm:px-4 sm:text-sm',
+                      'px-3 py-3.5 text-center text-xs font-semibold tabular-nums text-gray-900 sm:px-4 sm:text-sm',
                       row.key === 'riskLevel' && theme.riskColor
                     )}
                   >
@@ -78,8 +84,8 @@ export default function PlanCompareView({ plans, onInvest }: PlanCompareViewProp
               })}
             </tr>
           ))}
-          <tr className="border-b border-gray-50">
-            <td className="px-4 py-3 text-sm font-medium text-gray-500 sm:px-6">Capital Protection</td>
+          <tr className="border-b border-gray-50 bg-gray-50/40">
+            <td className="px-4 py-3.5 text-sm font-medium text-gray-500 sm:px-6">Capital Protection</td>
             {plans.map((plan) => (
               <td key={plan.id} className="px-3 py-3 text-center sm:px-4">
                 <Check className="mx-auto h-5 w-5 text-emerald-500" />

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireAdminApiModule } from '@/lib/admin/api-auth'
 import { logAdminAction } from '@/lib/admin/audit'
+import { logSecurityAudit } from '@/lib/security/security-audit'
 import { applyDiditSessionStatusOverride } from '@/lib/didit/session-admin'
 
 export const runtime = 'nodejs'
@@ -44,6 +45,13 @@ export async function PATCH(request: Request, context: RouteContext) {
       module: 'kyc_aml_compliance',
       action: status === 'Approved' ? 'didit_session_approved' : 'didit_session_declined',
       afterState: { session_id: trimmed, status: session.status },
+    })
+
+    await logSecurityAudit({
+      eventType: 'kyc.admin_override',
+      actorId: auth.context!.userId,
+      resourceId: trimmed,
+      metadata: { status, source: 'didit_session_status_api' },
     })
 
     return NextResponse.json({ session })

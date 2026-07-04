@@ -3,7 +3,8 @@
 import { Link } from '@/i18n/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { useState } from 'react'
-import { Bot, Mic, Send, Sparkles } from 'lucide-react'
+import { Bot, Send, Sparkles } from 'lucide-react'
+import { useSessionUser } from '@/lib/hooks/useSessionUser'
 
 const defaultSuggestions = [
   'Analyze my portfolio',
@@ -20,6 +21,7 @@ export default function InvestPrimeAIWidget({
   suggestions = defaultSuggestions,
 }: InvestPrimeAIWidgetProps) {
   const router = useRouter()
+  const user = useSessionUser()
   const [query, setQuery] = useState('')
 
   const openChat = (message?: string) => {
@@ -56,7 +58,9 @@ export default function InvestPrimeAIWidget({
           <Bot className="h-5 w-5 text-[#0052ff]" />
         </div>
         <div>
-          <p className="text-xs font-semibold text-gray-900">Hello John!</p>
+          <p className="text-xs font-semibold text-gray-900">
+            {user.name && user.name !== 'Guest' ? user.name : 'PrimeAI'}
+          </p>
           <p className="mt-1 text-xs leading-relaxed text-gray-500">
             How can I help you today?
           </p>
@@ -92,15 +96,6 @@ export default function InvestPrimeAIWidget({
           <Send className="h-3.5 w-3.5" />
         </button>
       </form>
-
-      <button
-        type="button"
-        onClick={() => openChat()}
-        className="mt-3 flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-[#0052ff] hover:underline"
-      >
-        <Mic className="h-3.5 w-3.5" />
-        Voice Chat
-      </button>
 
       <Link
         href="/primeai"

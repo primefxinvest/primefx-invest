@@ -6,7 +6,7 @@ import { Link } from '@/i18n/navigation'
 import { Calendar, DollarSign, TrendingUp, Award, Percent, Wallet } from 'lucide-react'
 import MetricCard from '@/components/shared/MetricCard'
 import { StatusCardGrid } from '@/components/shared/status-cards'
-import { PortfolioChart, AssetAllocationChart } from '@/components/shared/Charts'
+import { PortfolioChart, AssetAllocationChart } from '@/components/shared/Charts.lazy'
 import DashboardQuickActions from '@/components/dashboard/DashboardQuickActions'
 import { CustomSelect } from '@/components/ui/custom-select'
 import DashboardPlansCarousel from '@/components/dashboard/DashboardPlansCarousel'
@@ -31,12 +31,22 @@ import {
 } from '@/lib/data/queries'
 import { formatDate } from '@/lib/data/format'
 import { SyncPendingDeposits } from '@/components/wallet/SyncPendingDeposits'
+import { pageStackClass, gridGapClass, pageHeaderGapClass } from '@/lib/layout/spacing'
+import {
+  dashboardCardClass,
+  dashboardSectionTitleClass,
+  dashboardMutedTextClass,
+} from '@/lib/layout/surfaces'
+import { CHART_HEIGHT_AREA, CHART_HEIGHT_DONUT, CHART_SKELETON_AREA_CLASS } from '@/lib/layout/charts'
+import { cn } from '@/lib/utils'
 
 const PERIOD_KEYS = {
   'This Year': 'periodThisYear',
   'Last Month': 'periodLastMonth',
   'Last 3 Months': 'periodLast3Months',
 } as const
+
+const CACHE_OPTS = { cacheKey: '', cacheTtlMs: 30_000 } as const
 
 export default function DashboardPage() {
   const t = useTranslations('dashboard')
@@ -53,34 +63,58 @@ export default function DashboardPage() {
     loading: metricsLoading,
     error: metricsError,
     reload: reloadMetrics,
-  } = useAsyncData(() => fetchPortfolioMetrics(), [])
+  } = useAsyncData(() => fetchPortfolioMetrics(), [], undefined, {
+    ...CACHE_OPTS,
+    cacheKey: 'dashboard-portfolio-metrics',
+  })
   const {
     data: wallet,
     loading: walletLoading,
     error: walletError,
     reload: reloadWallet,
-  } = useAsyncData(() => fetchWalletData(), [])
+  } = useAsyncData(() => fetchWalletData(), [], undefined, {
+    ...CACHE_OPTS,
+    cacheKey: 'dashboard-wallet-data',
+  })
   const {
     data: chartData,
     loading: chartLoading,
     error: chartError,
     reload: reloadChart,
-  } = useAsyncData(() => fetchPortfolioChart(selectedPeriod), [selectedPeriod])
+  } = useAsyncData(() => fetchPortfolioChart(selectedPeriod), [selectedPeriod], undefined, {
+    ...CACHE_OPTS,
+    cacheKey: `dashboard-portfolio-chart-${selectedPeriod}`,
+  })
   const {
     data: allocation,
     loading: allocationLoading,
     error: allocationError,
     reload: reloadAllocation,
-  } = useAsyncData(() => fetchAssetAllocation(), [])
+  } = useAsyncData(() => fetchAssetAllocation(), [], undefined, {
+    ...CACHE_OPTS,
+    cacheKey: 'dashboard-asset-allocation',
+  })
   const {
     data: markets,
     loading: marketsLoading,
     error: marketsError,
     reload: reloadMarkets,
-  } = useAsyncData(() => fetchMarketOverview(), [])
-  const { data: rewards } = useAsyncData(() => fetchRewardsData(), [])
-  const { data: referral } = useAsyncData(() => fetchReferralData(), [])
-  const { data: learning } = useAsyncData(() => fetchLearningProgress(), [])
+  } = useAsyncData(() => fetchMarketOverview(), [], undefined, {
+    ...CACHE_OPTS,
+    cacheKey: 'dashboard-market-overview',
+  })
+  const { data: rewards } = useAsyncData(() => fetchRewardsData(), [], undefined, {
+    ...CACHE_OPTS,
+    cacheKey: 'dashboard-rewards-data',
+  })
+  const { data: referral } = useAsyncData(() => fetchReferralData(), [], undefined, {
+    ...CACHE_OPTS,
+    cacheKey: 'dashboard-referral-data',
+  })
+  const { data: learning } = useAsyncData(() => fetchLearningProgress(), [], undefined, {
+    ...CACHE_OPTS,
+    cacheKey: 'dashboard-learning-progress',
+  })
 
   useUserWalletRealtime({
     userId: user.id,
@@ -92,82 +126,93 @@ export default function DashboardPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className={pageStackClass}>
       <Suspense fallback={null}>
         <SyncPendingDeposits onSynced={reloadWallet} />
       </Suspense>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+      <div className={cn('flex flex-col sm:flex-row sm:items-center sm:justify-between', pageHeaderGapClass)}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl font-bold text-foreground sm:text-2xl">
             {t('welcome', { name: user.name.split(' ')[0] })}
           </h1>
-          <p className="mt-0.5 text-sm text-gray-500">{t('overviewSubtitle')}</p>
+          <p className={cn('mt-0.5', dashboardMutedTextClass)}>{t('overviewSubtitle')}</p>
         </div>
-        <div className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-sm">
-          <Calendar className="h-4 w-4 text-gray-400" />
-          <span className="text-sm font-medium text-gray-700">{formatDate(new Date().toISOString())}</span>
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 shadow-sm sm:px-4 sm:py-2.5">
+          <Calendar className="h-3.5 w-3.5 shrink-0 text-muted-foreground sm:h-4 sm:w-4" />
+          <span className="text-xs font-medium text-foreground sm:text-sm">
+            {formatDate(new Date().toISOString())}
+          </span>
         </div>
       </div>
 
-      <AsyncState
-        loading={metricsLoading || walletLoading}
-        error={metricsError ?? walletError}
-        onRetry={() => {
-          void reloadMetrics()
-          void reloadWallet()
-        }}
-        skeleton={<MetricCardsSkeleton count={5} />}
-      >
-        <StatusCardGrid columns={5}>
-          <Link href="/wallet" className="block transition-opacity hover:opacity-95">
-            <MetricCard
-              icon={<Wallet className="h-5 w-5" />}
-              label={t('currentBalance')}
-              value={wallet?.availableBalance ?? '$0.00'}
-              iconBg="bg-emerald-50 text-emerald-600"
-            />
-          </Link>
-          <MetricCard
-            icon={<DollarSign className="h-5 w-5" />}
-            label={t('totalInvested')}
-            value={metrics?.totalInvested ?? '$0.00'}
-            trend={metrics?.trends[0]?.percentage ?? '0%'}
-            iconBg="bg-blue-50 text-[#0052ff]"
-          />
-          <MetricCard
-            icon={<TrendingUp className="h-5 w-5" />}
-            label={t('currentValue')}
-            value={metrics?.currentValue ?? '$0.00'}
-            trend={metrics?.trends[1]?.percentage ?? '0%'}
-            iconBg="bg-emerald-50 text-emerald-600"
-          />
-          <MetricCard
-            icon={<Award className="h-5 w-5" />}
-            label={t('totalProfit')}
-            value={metrics?.totalProfit ?? '$0.00'}
-            trend={metrics?.trends[2]?.percentage ?? '0%'}
-            iconBg="bg-purple-50 text-purple-600"
-          />
-          <MetricCard
-            icon={<Percent className="h-5 w-5" />}
-            label={t('roiOverall')}
-            value={metrics?.roiPercentage ?? '0%'}
-            trend={metrics?.trends[3]?.percentage ?? '0%'}
-            iconBg="bg-orange-50 text-orange-600"
-          />
-        </StatusCardGrid>
-      </AsyncState>
+      <section aria-label={t('overviewSubtitle')}>
+        <AsyncState
+          loading={metricsLoading || walletLoading}
+          error={metricsError ?? walletError}
+          onRetry={() => {
+            void reloadMetrics()
+            void reloadWallet()
+          }}
+          skeleton={<MetricCardsSkeleton count={3} />}
+        >
+          <div className="space-y-2.5 sm:space-y-3">
+            <StatusCardGrid columns={3}>
+              <Link href="/wallet" className="block transition-opacity hover:opacity-95">
+                <MetricCard
+                  icon={<Wallet className="h-4 w-4 sm:h-5 sm:w-5" />}
+                  label={t('currentBalance')}
+                  value={wallet?.availableBalance ?? '$0.00'}
+                  iconBg="bg-emerald-50 text-emerald-600"
+                />
+              </Link>
+              <Link href="/portfolio" className="block transition-opacity hover:opacity-95">
+                <MetricCard
+                  icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
+                  label={t('currentValue')}
+                  value={metrics?.currentValue ?? '$0.00'}
+                  trend={metrics?.trends[1]?.percentage ?? '0%'}
+                  iconBg="bg-emerald-50 text-emerald-600"
+                />
+              </Link>
+              <MetricCard
+                icon={<Award className="h-4 w-4 sm:h-5 sm:w-5" />}
+                label={t('totalProfit')}
+                value={metrics?.totalProfit ?? '$0.00'}
+                trend={metrics?.trends[2]?.percentage ?? '0%'}
+                iconBg="bg-purple-50 text-purple-600"
+              />
+            </StatusCardGrid>
+            <StatusCardGrid columns={2} className="max-w-2xl">
+              <MetricCard
+                icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />}
+                label={t('totalInvested')}
+                value={metrics?.totalInvested ?? '$0.00'}
+                trend={metrics?.trends[0]?.percentage ?? '0%'}
+                iconBg="bg-primary/10 text-primary"
+              />
+              <MetricCard
+                icon={<Percent className="h-4 w-4 sm:h-5 sm:w-5" />}
+                label={t('roiOverall')}
+                value={metrics?.roiPercentage ?? '0%'}
+                trend={metrics?.trends[3]?.percentage ?? '0%'}
+                iconBg="bg-orange-50 text-orange-600"
+              />
+            </StatusCardGrid>
+          </div>
+        </AsyncState>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm xl:col-span-2">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-gray-900">{t('portfolioPerformance')}</h2>
+      <section aria-label={t('portfolioPerformance')} className={cn('grid grid-cols-1 xl:grid-cols-3', gridGapClass)}>
+        <div className={cn(dashboardCardClass, 'xl:col-span-2')}>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className={dashboardSectionTitleClass}>{t('portfolioPerformance')}</h2>
             <CustomSelect
               value={selectedPeriod}
               onValueChange={(value) => setSelectedPeriod(value as keyof typeof PERIOD_KEYS)}
               size="sm"
               className="min-w-0 w-auto"
-              triggerClassName="border-0 bg-transparent px-1 shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 text-gray-600 font-medium"
+              triggerClassName="border-0 bg-transparent px-1 shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 text-muted-foreground font-medium"
               options={periodOptions}
               placeholder={t('period')}
             />
@@ -180,22 +225,24 @@ export default function DashboardPage() {
             emptyTitle={t('noPerformanceTitle')}
             emptyDescription={t('noPerformanceDesc')}
             emptyAction={
-              <Link
-                href="/invest"
-                className="text-sm font-semibold text-[#0052ff] hover:underline"
-              >
+              <Link href="/invest" className="text-sm font-semibold text-primary hover:underline">
                 {t('explorePlans')}
               </Link>
             }
-            skeleton={<Skeleton className="h-64 w-full rounded-lg" />}
+            skeleton={<Skeleton className={cn('w-full rounded-lg', CHART_SKELETON_AREA_CLASS)} />}
             compact
           >
-            <PortfolioChart data={chartData ?? []} />
+            <PortfolioChart data={chartData ?? []} height={CHART_HEIGHT_AREA} />
           </AsyncState>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-4 text-sm font-bold text-gray-900">{t('assetAllocation')}</h2>
+        <div className={dashboardCardClass}>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className={dashboardSectionTitleClass}>{t('assetAllocation')}</h2>
+            <Link href="/portfolio" className="shrink-0 text-xs font-semibold text-primary hover:underline">
+              {t('viewAll')}
+            </Link>
+          </div>
           <AsyncState
             loading={allocationLoading}
             error={allocationError}
@@ -204,19 +251,16 @@ export default function DashboardPage() {
             emptyTitle={t('noAllocationTitle')}
             emptyDescription={t('noAllocationDesc')}
             emptyAction={
-              <Link
-                href="/invest"
-                className="text-sm font-semibold text-[#0052ff] hover:underline"
-              >
+              <Link href="/invest" className="text-sm font-semibold text-primary hover:underline">
                 {t('startInvesting')}
               </Link>
             }
             skeleton={
-              <div className="space-y-4">
-                <Skeleton className="mx-auto h-40 w-40 rounded-full" />
+              <div className="space-y-3">
+                <Skeleton className="mx-auto h-32 w-32 rounded-full" />
                 <div className="space-y-2">
                   {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className="h-3 w-full" />
+                    <Skeleton key={i} className="h-2.5 w-full" />
                   ))}
                 </div>
               </div>
@@ -224,27 +268,27 @@ export default function DashboardPage() {
             compact
           >
             <>
-              <AssetAllocationChart data={allocation ?? []} />
-              <div className="mt-4 space-y-2">
+              <AssetAllocationChart data={allocation ?? []} height={CHART_HEIGHT_DONUT} />
+              <div className="mt-3 space-y-1.5">
                 {allocation?.map((asset) => (
                   <div key={asset.name} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: asset.color }} />
-                      <span className="text-gray-500">{asset.name}</span>
+                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: asset.color }} />
+                      <span className="text-muted-foreground">{asset.name}</span>
                     </div>
-                    <span className="font-semibold text-gray-900">{asset.value}%</span>
+                    <span className="font-semibold text-foreground">{asset.value}%</span>
                   </div>
                 ))}
               </div>
             </>
           </AsyncState>
         </div>
-      </div>
+      </section>
 
       <DashboardQuickActions />
 
-      <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-3">
-        <div className="space-y-4 xl:col-span-2">
+      <section aria-label={t('recentTransactions')} className={cn('grid grid-cols-1 items-start xl:grid-cols-3', gridGapClass)}>
+        <div className={cn('space-y-3 sm:space-y-4', 'xl:col-span-2')}>
           <DashboardPlansCarousel />
           <DashboardRecentTransactions />
         </div>
@@ -256,15 +300,17 @@ export default function DashboardPage() {
             isEmpty={!markets?.length}
             emptyTitle={t('noMarketTitle')}
             emptyDescription={t('noMarketDesc')}
-            skeleton={<ChartCardSkeleton height="h-48" />}
+            skeleton={<ChartCardSkeleton height="h-40" />}
             compact
           >
             <MarketOverviewWidget markets={markets ?? []} />
           </AsyncState>
         </div>
-      </div>
+      </section>
 
-      <DashboardStatusCards rewards={rewards} referral={referral} learning={learning} />
+      <section aria-label={t('rewardsProgress')}>
+        <DashboardStatusCards rewards={rewards} referral={referral} learning={learning} />
+      </section>
     </div>
   )
 }

@@ -29,7 +29,7 @@ interface PortfolioAreaChartProps {
 
 export function PortfolioAreaChart({
   data,
-  height = 300,
+  height = 220,
   valueLabel = 'Portfolio Value',
   gradientColor = '#0052ff',
 }: PortfolioAreaChartProps) {

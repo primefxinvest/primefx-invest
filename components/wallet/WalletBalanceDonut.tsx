@@ -12,7 +12,9 @@ import { formatCurrency } from '@/lib/data/format'
 
 export default function WalletBalanceDonut() {
   const t = useTranslations('wallet.balanceDonut')
-  const { data: wallet, loading, error, reload } = useAsyncData(() => fetchWalletData(), [])
+  const { data: wallet, loading, error, reload } = useAsyncData(() => fetchWalletData(), [], undefined, {
+    cacheKey: 'wallet-data',
+  })
 
   const chartData =
     wallet?.balanceBreakdown.map((item) => ({

@@ -29,8 +29,8 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <div className="relative flex min-h-screen flex-col bg-gradient-to-br from-background to-secondary">
       <AuthLayoutNav />
-      <main className="flex flex-1 items-center justify-center p-4 pt-20 sm:pt-24">
-        <div className="w-full max-w-md">
+      <main className="flex flex-1 items-center justify-center p-4 pt-20 sm:p-6 sm:pt-24">
+        <div className="w-full">
           <Suspense fallback={<AuthLoadingCard />}>
             <AuthRedirectGuard>{children}</AuthRedirectGuard>
           </Suspense>

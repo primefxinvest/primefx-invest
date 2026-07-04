@@ -1,8 +1,8 @@
 'use client'
 
+import { Link } from '@/i18n/navigation'
 import { Settings } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { toast } from 'sonner'
 import WalletBalanceCards from '@/components/wallet/WalletBalanceCards'
 import WalletActionCards from '@/components/wallet/WalletActionCards'
 import WalletBalanceDonut from '@/components/wallet/WalletBalanceDonut'
@@ -13,51 +13,54 @@ import WalletActivitySummary from '@/components/wallet/WalletActivitySummary'
 import PaymentMethodsCard from '@/components/wallet/PaymentMethodsCard'
 import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
 import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
+import { pageStackClass } from '@/lib/layout/spacing'
 
 export default function WalletPage() {
   const t = useTranslations('wallet.overview')
-
-  const handleSettings = () => {
-    toast.info(t('settingsToastTitle'), {
-      description: t('settingsToastDescription'),
-    })
-  }
+  const tTx = useTranslations('wallet.transactions')
 
   return (
-    <div className="space-y-6">
+    <div className={pageStackClass}>
       <WalletPageHeader
         title={t('title')}
         description={t('description')}
         actions={
-          <button
-            type="button"
-            onClick={handleSettings}
+          <Link
+            href="/settings"
             className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
           >
             <Settings className="h-4 w-4" />
             {t('settings')}
-          </button>
+          </Link>
         }
       />
 
       <KycFinancialBanner />
 
-      <WalletBalanceCards />
+      <section aria-label={t('title')} className="space-y-4">
+        <WalletBalanceCards />
+        <WalletActionCards />
+      </section>
 
-      <WalletActionCards />
-
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
+      <section
+        aria-label={t('title')}
+        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      >
         <WalletBalanceDonut />
         <WalletHealthCard />
-        <WalletPrimeAIInsight />
-      </div>
+        <div className="sm:col-span-2 lg:col-span-1">
+          <WalletPrimeAIInsight />
+        </div>
+      </section>
 
-      <WalletTransactionTable />
+      <section aria-label={tTx('tableTitle')}>
+        <WalletTransactionTable />
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_380px]">
+      <section aria-label="Wallet activity and payment methods" className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_min(380px,100%)]">
         <WalletActivitySummary />
         <PaymentMethodsCard />
-      </div>
+      </section>
     </div>
   )
 }

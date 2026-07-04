@@ -1,7 +1,6 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { requireServerMfaEnabled } from '@/lib/auth/mfa-server'
 import { initiateDeposit, initiateWithdrawal } from '@/lib/payments/actions'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import {
@@ -12,6 +11,12 @@ import {
 import {
   lookupTransferRecipient,
 } from '@/lib/wallet/transfer-lookup'
+import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
+import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
+import {
+  assertTransactionAuthorized,
+  type TransactionStepUpCredentials,
+} from '@/lib/security/transaction-protection'
 import type { TransferRecipientMethod } from '@/lib/wallet/types'
 import { notifyDepositCreated, notifyWithdrawalSubmitted } from '@/lib/notifications/service'
 
@@ -47,13 +52,38 @@ export async function searchTransferRecipient(
   return { found: true as const, recipient }
 }
 
-export async function submitWalletTransfer(input: {
-  method: TransferRecipientMethod
-  recipientQuery: string
-  amountUsd: number
-  message?: string
-}) {
+export async function submitWalletTransfer(
+  input: {
+    method: TransferRecipientMethod
+    recipientQuery: string
+    amountUsd: number
+    message?: string
+  } & TransactionStepUpCredentials
+) {
   const user = await requireUser()
+
+  try {
+    await enforceUserRateLimit('transfer', user.id)
+  } catch (err) {
+    if (err instanceof RateLimitExceededError) {
+      return { success: false as const, error: err.message }
+    }
+    throw err
+  }
+
+  const account = await requireActiveAccountForFinancialAction(user.id, 'transfer')
+  if (!account.allowed) {
+    return { success: false as const, error: account.error }
+  }
+
+  const auth = await assertTransactionAuthorized(user.id, 'transfer', {
+    totpCode: input.totpCode,
+    transactionPin: input.transactionPin,
+  })
+  if (!auth.allowed) {
+    return { success: false as const, error: auth.error }
+  }
+
   const recipient = await lookupTransferRecipient(input.method, input.recipientQuery)
 
   if (!recipient) {
@@ -87,6 +117,20 @@ export async function submitBankDeposit(input: { amountUsd: number; note?: strin
   const user = await requireUser()
 
   try {
+    await enforceUserRateLimit('deposit', user.id)
+  } catch (err) {
+    if (err instanceof RateLimitExceededError) {
+      return { success: false as const, error: err.message }
+    }
+    throw err
+  }
+
+  const account = await requireActiveAccountForFinancialAction(user.id, 'deposit')
+  if (!account.allowed) {
+    return { success: false as const, error: account.error }
+  }
+
+  try {
     const { referenceId } = await recordManualBankDeposit({
       userId: user.id,
       amountUsd: input.amountUsd,
@@ -105,16 +149,35 @@ export async function submitBankDeposit(input: { amountUsd: number; note?: strin
   }
 }
 
-export async function submitManualWithdrawal(input: {
-  amountUsd: number
-  methodLabel: string
-  note?: string
-}) {
+export async function submitManualWithdrawal(
+  input: {
+    amountUsd: number
+    methodLabel: string
+    note?: string
+  } & TransactionStepUpCredentials
+) {
   const user = await requireUser()
 
-  const mfa = await requireServerMfaEnabled(user.id)
-  if (!mfa.allowed) {
-    return { success: false as const, error: mfa.error }
+  try {
+    await enforceUserRateLimit('withdrawal', user.id)
+  } catch (err) {
+    if (err instanceof RateLimitExceededError) {
+      return { success: false as const, error: err.message }
+    }
+    throw err
+  }
+
+  const account = await requireActiveAccountForFinancialAction(user.id, 'withdrawal')
+  if (!account.allowed) {
+    return { success: false as const, error: account.error }
+  }
+
+  const auth = await assertTransactionAuthorized(user.id, 'withdrawal', {
+    totpCode: input.totpCode,
+    transactionPin: input.transactionPin,
+  })
+  if (!auth.allowed) {
+    return { success: false as const, error: auth.error }
   }
 
   try {

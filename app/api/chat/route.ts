@@ -1,6 +1,8 @@
 import { convertToModelMessages, streamText, type UIMessage } from 'ai'
 import { getActiveAiProviderLabel, getChatModel, getPrimeAiConfigError, getPrimeAiUnavailableUserMessage } from '@/lib/ai/provider'
 import { getPrimeAIInvestContext } from '@/lib/ai/invest-context'
+import { requireApiUser } from '@/lib/security/require-api-user'
+import { enforceUserRateLimit, RateLimitExceededError, rateLimitResponse } from '@/lib/security/rate-limit'
 
 export const runtime = 'nodejs'
 
@@ -24,6 +26,18 @@ Remember: Past performance does not guarantee future results.`
 
 export async function POST(req: Request) {
   try {
+    const auth = await requireApiUser()
+    if (auth.response) return auth.response
+
+    try {
+      await enforceUserRateLimit('chat', auth.user!.id)
+    } catch (err) {
+      if (err instanceof RateLimitExceededError) {
+        return rateLimitResponse(err)
+      }
+      throw err
+    }
+
     const model = getChatModel()
     if (!model) {
       console.warn('[PrimeAI]', getPrimeAiConfigError())

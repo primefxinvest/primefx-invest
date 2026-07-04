@@ -3,7 +3,8 @@
 import { Link } from '@/i18n/navigation'
 import { useRouter } from '@/i18n/navigation'
 import { useState } from 'react'
-import { Bot, Mic, Send, Sparkles } from 'lucide-react'
+import { Bot, Send, Sparkles } from 'lucide-react'
+import { useSessionUser } from '@/lib/hooks/useSessionUser'
 
 const suggestions = [
   'Analyze my portfolio',
@@ -46,7 +47,7 @@ export default function PrimeAIWidget() {
           <Bot className="h-5 w-5 text-[#0052ff]" />
         </div>
         <div>
-          <p className="text-xs font-semibold text-gray-900">Hi John! I&apos;m PrimeAI.</p>
+          <p className="text-xs font-semibold text-gray-900">PrimeAI Assistant</p>
           <p className="mt-1 text-xs leading-relaxed text-gray-500">
             Ask me anything about your portfolio, market trends, or investment strategies.
           </p>
@@ -83,18 +84,9 @@ export default function PrimeAIWidget() {
         </button>
       </form>
 
-      <button
-        type="button"
-        onClick={() => openChat()}
-        className="mt-3 flex w-full items-center justify-center gap-1.5 text-xs font-semibold text-[#0052ff] hover:underline"
-      >
-        <Mic className="h-3.5 w-3.5" />
-        Voice Chat
-      </button>
-
       <Link
         href="/primeai"
-        className="mt-2 block text-center text-xs font-semibold text-gray-400 hover:text-[#0052ff]"
+        className="mt-3 block text-center text-xs font-semibold text-gray-400 hover:text-[#0052ff]"
       >
         Open Full Chat →
       </Link>

@@ -9,6 +9,22 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { useAuthEntry } from '@/lib/hooks/useAuthEntry'
 import { cn } from '@/lib/utils'
 
+const GUEST_PROTECTED_NAV_ROUTES = [
+  '/invest',
+  '/academy',
+  '/market-insights',
+  '/community',
+  '/support',
+] as const
+
+function resolveNavHref(href: string, isAuthenticated: boolean, signupHref: string) {
+  if (isAuthenticated || href === '/') return href
+  if ((GUEST_PROTECTED_NAV_ROUTES as readonly string[]).includes(href)) {
+    return `${signupHref}?redirect=${encodeURIComponent(href)}`
+  }
+  return href
+}
+
 function NavActions({
   className,
   onNavigate,
@@ -62,6 +78,7 @@ export default function LandingNav() {
   const t = useTranslations('landing')
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+  const { isAuthenticated, signupHref } = useAuthEntry()
 
   const navLinks = [
     { href: '/', label: t('home') },
@@ -82,7 +99,7 @@ export default function LandingNav() {
           {navLinks.map((link) => (
             <Link
               key={link.href}
-              href={link.href}
+              href={resolveNavHref(link.href, isAuthenticated, signupHref)}
               className={cn(
                 'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                 pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href))
@@ -116,7 +133,7 @@ export default function LandingNav() {
             {navLinks.map((link) => (
               <Link
                 key={link.href}
-                href={link.href}
+                href={resolveNavHref(link.href, isAuthenticated, signupHref)}
                 onClick={() => setOpen(false)}
                 className="rounded-lg px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >

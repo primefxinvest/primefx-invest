@@ -115,7 +115,7 @@ export async function listDueWithdrawalRequests(limit = 50) {
   const { data, error } = await db
     .from('withdrawal_requests')
     .select('*')
-    .in('status', ['pending_notice', 'ready'])
+    .eq('status', 'pending_notice')
     .lte('available_at', now)
     .order('available_at', { ascending: true })
     .limit(limit)
@@ -130,14 +130,31 @@ export async function markWithdrawalRequestStatus(
   extra?: Record<string, unknown>
 ) {
   const db = getDb()
-  const { error } = await db
-    .from('withdrawal_requests')
-    .update({
-      status,
-      processed_at: new Date().toISOString(),
-      ...(extra ?? {}),
-    })
-    .eq('id', requestId)
+  const patch: Record<string, unknown> = {
+    status,
+    ...(extra ?? {}),
+  }
+
+  if (['completed', 'failed', 'cancelled'].includes(status)) {
+    patch.processed_at = new Date().toISOString()
+  }
+
+  const { error } = await db.from('withdrawal_requests').update(patch).eq('id', requestId)
 
   if (error) throw new Error(error.message)
+}
+
+/** Atomically claim a due withdrawal request for processing. */
+export async function claimWithdrawalForProcessing(
+  requestId: string,
+  targetStatus: string
+) {
+  const db = getDb()
+  const { data, error } = await db.rpc('claim_withdrawal_request', {
+    p_request_id: requestId,
+    p_target_status: targetStatus,
+  })
+
+  if (error) throw new Error(error.message)
+  return data as Record<string, unknown> | null
 }

@@ -3,6 +3,8 @@ import { createDiditVerificationSession } from '@/lib/didit/client'
 import { upsertVerificationSession } from '@/lib/didit/verification-sessions'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
+import { logSecurityAudit } from '@/lib/security/security-audit'
 
 export const runtime = 'nodejs'
 
@@ -15,6 +17,15 @@ export async function POST(request: Request) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    await enforceUserRateLimit('kyc:start', user.id)
+  } catch (err) {
+    if (err instanceof RateLimitExceededError) {
+      return NextResponse.json({ error: err.message, code: 'RATE_LIMIT_EXCEEDED' }, { status: 429 })
+    }
+    throw err
   }
 
   let requestedUserId: string | undefined
@@ -77,6 +88,13 @@ export async function POST(request: Request) {
       status: session.status ?? 'Not Started',
       workflowId: session.workflow_id ?? null,
       userId,
+    })
+
+    await logSecurityAudit({
+      eventType: 'kyc.verification_started',
+      userId,
+      actorId: user.id,
+      resourceId: session.session_id,
     })
 
     return NextResponse.json({

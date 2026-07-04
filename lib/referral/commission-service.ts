@@ -11,6 +11,7 @@ import { getReferralProgramEnabled } from '@/lib/referral/settings'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { creditInvestorWallet } from '@/lib/payments/wallet-ledger'
 import { generatePaymentReference } from '@/lib/payments/reference'
+import { logFinancialAudit } from '@/lib/payments/financial-audit'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -56,7 +57,27 @@ export async function accrueReferralCommissionsForProfit(input: {
   if (!payable.length) return
 
   const { error } = await db.from('referral_commissions').insert(payable)
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (error.code === '23505') {
+      await logFinancialAudit({
+        eventType: 'referral.commission_duplicate_blocked',
+        userId: input.sourceUserId,
+        referenceId: `${input.periodStart}:${input.periodEnd}`,
+        amountUsd: input.profitUsd,
+        metadata: { reason: 'unique_constraint' },
+      })
+      return
+    }
+    throw new Error(error.message)
+  }
+
+  await logFinancialAudit({
+    eventType: 'referral.commission_accrued',
+    userId: input.sourceUserId,
+    referenceId: `${input.periodStart}:${input.periodEnd}`,
+    amountUsd: input.profitUsd,
+    metadata: { levels: payable.length },
+  })
 }
 
 /** Mark referral active on first deposit/investment. */
@@ -140,7 +161,7 @@ export async function accrueAmbassadorTeamProfits(input: {
 
     if (existing) continue
 
-    await db.from('referral_commissions').insert({
+    const { error: insertError } = await db.from('referral_commissions').insert({
       referrer_id: ambassadorId,
       source_user_id: ambassadorId,
       level: 0,
@@ -152,6 +173,19 @@ export async function accrueAmbassadorTeamProfits(input: {
       commission_type: 'ambassador_team',
       status: 'pending',
     })
+
+    if (insertError) {
+      if (insertError.code === '23505') {
+        await logFinancialAudit({
+          eventType: 'referral.commission_duplicate_blocked',
+          userId: ambassadorId,
+          referenceId: `${input.periodStart}:${input.periodEnd}`,
+          metadata: { commission_type: 'ambassador_team' },
+        })
+        continue
+      }
+      throw new Error(insertError.message)
+    }
 
     accrued += 1
   }
@@ -187,48 +221,74 @@ export async function distributePendingReferralCommissions(periodEnd?: string) {
     const referrerId = row.referrer_id as string
     const commissionType = String(row.commission_type ?? 'profit_share')
 
+    const { data: claimed, error: claimError } = await db.rpc('claim_referral_commission_payout', {
+      p_commission_id: row.id,
+      p_reference_id: referenceId,
+    })
+
+    if (claimError) throw new Error(claimError.message)
+    if (!claimed) continue
+
     const description =
       commissionType === 'ambassador_team'
         ? `Ambassador team profit share ${formatReferralRate(Number(row.commission_rate))} (${row.period_start} – ${row.period_end})`
         : `Level ${row.level} referral profit share (${row.period_start} – ${row.period_end})`
 
-    await creditInvestorWallet(referrerId, commission)
+    try {
+      await creditInvestorWallet(referrerId, commission)
 
-    await db.from('transactions').insert({
-      user_id: referrerId,
-      type: 'referral',
-      amount: commission,
-      status: 'Completed',
-      description,
-      reference_id: referenceId,
-    })
-
-    await db
-      .from('referral_commissions')
-      .update({
-        status: 'paid',
-        paid_at: new Date().toISOString(),
+      await db.from('transactions').insert({
+        user_id: referrerId,
+        type: 'referral',
+        amount: commission,
+        status: 'Completed',
+        description,
         reference_id: referenceId,
       })
-      .eq('id', row.id)
 
-    const { data: stats } = await db
-      .from('user_referral_stats')
-      .select('lifetime_commission_usd')
-      .eq('user_id', referrerId)
-      .maybeSingle()
+      await db
+        .from('referral_commissions')
+        .update({
+          status: 'paid',
+          paid_at: new Date().toISOString(),
+          reference_id: referenceId,
+        })
+        .eq('id', row.id)
+        .eq('status', 'paying')
 
-    await db.from('user_referral_stats').upsert(
-      {
-        user_id: referrerId,
-        lifetime_commission_usd: Number(stats?.lifetime_commission_usd ?? 0) + commission,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'user_id' }
-    )
+      const { data: stats } = await db
+        .from('user_referral_stats')
+        .select('lifetime_commission_usd')
+        .eq('user_id', referrerId)
+        .maybeSingle()
 
-    paid += 1
-    totalUsd += commission
+      await db.from('user_referral_stats').upsert(
+        {
+          user_id: referrerId,
+          lifetime_commission_usd: Number(stats?.lifetime_commission_usd ?? 0) + commission,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: 'user_id' }
+      )
+
+      await logFinancialAudit({
+        eventType: 'referral.commission_paid',
+        userId: referrerId,
+        referenceId,
+        amountUsd: commission,
+        metadata: { commissionType, commissionId: row.id },
+      })
+
+      paid += 1
+      totalUsd += commission
+    } catch (err) {
+      await db
+        .from('referral_commissions')
+        .update({ status: 'pending', reference_id: null })
+        .eq('id', row.id)
+        .eq('status', 'paying')
+      throw err
+    }
   }
 
   return { paid, totalUsd: Math.round(totalUsd * 100) / 100 }
@@ -283,22 +343,47 @@ export async function payPendingRankCashBonuses(limit = 100) {
 
     const referenceId = generatePaymentReference('bonus')
 
-    await creditInvestorWallet(userId, bonus)
-    await db.from('transactions').insert({
-      user_id: userId,
-      type: 'bonus',
-      amount: bonus,
-      status: 'Completed',
-      description: `Referral rank reward — ${reward.rank_key}`,
-      reference_id: referenceId,
+    const { data: claimed, error: claimError } = await db.rpc('claim_referral_rank_bonus_payout', {
+      p_reward_id: reward.id,
     })
 
-    await db
-      .from('referral_rank_rewards')
-      .update({ status: 'paid', paid_at: new Date().toISOString() })
-      .eq('id', reward.id)
+    if (claimError) throw new Error(claimError.message)
+    if (!claimed) continue
 
-    paid += 1
+    try {
+      await creditInvestorWallet(userId, bonus)
+      await db.from('transactions').insert({
+        user_id: userId,
+        type: 'bonus',
+        amount: bonus,
+        status: 'Completed',
+        description: `Referral rank reward — ${reward.rank_key}`,
+        reference_id: referenceId,
+      })
+
+      await db
+        .from('referral_rank_rewards')
+        .update({ status: 'paid', paid_at: new Date().toISOString() })
+        .eq('id', reward.id)
+        .eq('status', 'paying')
+
+      await logFinancialAudit({
+        eventType: 'referral.rank_bonus_paid',
+        userId,
+        referenceId,
+        amountUsd: bonus,
+        metadata: { rankKey: reward.rank_key },
+      })
+
+      paid += 1
+    } catch (err) {
+      await db
+        .from('referral_rank_rewards')
+        .update({ status: 'pending' })
+        .eq('id', reward.id)
+        .eq('status', 'paying')
+      throw err
+    }
   }
 
   return { paid }

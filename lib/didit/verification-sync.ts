@@ -12,6 +12,7 @@ import {
   mapDiditStatusToVerificationStatus,
   type UserVerificationStatus,
 } from '@/lib/didit/status-maps'
+import { logSecurityAudit } from '@/lib/security/security-audit'
 
 export type { UserVerificationStatus } from '@/lib/didit/status-maps'
 export { mapDiditStatusToKycStatus, mapDiditStatusToVerificationStatus } from '@/lib/didit/status-maps'
@@ -134,6 +135,25 @@ export async function syncUserVerificationFromDidit(input: {
     (kycStatus === 'Verified' || kycStatus === 'Rejected')
   ) {
     await notifyKycStatusChange(input.userId, kycStatus)
+  }
+
+  if (kycStatusChanged || verificationStatusChanged) {
+    await logSecurityAudit({
+      eventType:
+        kycStatus === 'Rejected' || verificationStatus === 'declined'
+          ? 'kyc.verification_rejected'
+          : 'kyc.verification_synced',
+      userId: input.userId,
+      resourceId: input.sessionId ?? null,
+      metadata: {
+        previousKycStatus,
+        previousVerificationStatus,
+        kycStatus,
+        verificationStatus,
+        isVerified,
+        source: 'didit_sync',
+      },
+    })
   }
 
   return {

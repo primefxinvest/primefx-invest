@@ -1,18 +1,13 @@
 'use client'
 
-import { Fragment, useEffect, useId, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Award,
-  BookOpen,
   ChevronRight,
-  CircleDollarSign,
   Copy,
   Crown,
   Gem,
-  HelpCircle,
-  Mail,
   Medal,
-  MessageCircle,
   Share2,
   Shield,
   Star,
@@ -20,7 +15,6 @@ import {
   TrendingUp,
   Trophy,
   Users,
-  Zap,
 } from 'lucide-react'
 import {
   Area,
@@ -36,10 +30,17 @@ import {
 } from 'recharts'
 import { toast } from 'sonner'
 import { Link } from '@/i18n/navigation'
-import { AsyncState, EmptyState, ErrorState } from '@/components/shared/data-state'
+import { EmptyState, ErrorState } from '@/components/shared/data-state'
+import { SectionHeading } from '@/components/shared/SectionHeading'
 import { ScrollTable } from '@/components/shared/ScrollTable'
 import { ReferralAchievementsBadgesPanel } from '@/components/referral/ReferralAchievementsBadgesPanel'
-import { ReferralQrCode } from '@/components/referral/ReferralQrCode'
+import { ReferralCommissionSection } from '@/components/referral/ReferralCommissionSection'
+import { ReferralHeroSection } from '@/components/referral/ReferralHeroSection'
+import { ReferralLinkCenter } from '@/components/referral/ReferralLinkCenter'
+import { ReferralPrimeAiInsights } from '@/components/referral/ReferralPrimeAiInsights'
+import { ReferralStatsGrid } from '@/components/referral/ReferralStatsGrid'
+import { ReferralTransparencySection } from '@/components/referral/ReferralTransparencySection'
+import { pageStackClass, sectionStackClass } from '@/lib/layout/spacing'
 import { MetricCardsSkeleton, PageHeaderSkeleton } from '@/components/shared/skeletons'
 import {
   areaChartActiveDot,
@@ -62,177 +63,54 @@ import {
 import type { ReferralListItem, ReferralProgramOverview } from '@/lib/referral/analytics'
 import type { ReferralProgramPageData } from '@/lib/referral/overview-server'
 import {
-  REFERRAL_INVESTMENT_COMMISSION_RATE,
   REFERRAL_RANK_TIERS,
   REFERRAL_UNRANKED,
-  formatProfitShareLevelsSummary,
-  formatReferralRate,
-  getMaxProfitShareRate,
   type ReferralRankKey,
 } from '@/lib/referral/program-config'
+import { REFERRAL_DISPLAY_PROFIT_SHARE } from '@/lib/referral/display-config'
 import { cn } from '@/lib/utils'
 
-const BENEFIT_CARDS = [
-  {
-    title: 'Investment Commission',
-    lead: '',
-    highlight: `Earn ${formatReferralRate(REFERRAL_INVESTMENT_COMMISSION_RATE)} on every deposit`,
-    footer: 'One-time commission',
-    icon: CircleDollarSign,
-    accent: 'bg-orange-50 text-orange-500',
-  },
-  {
-    title: 'Weekly Profit Share',
-    lead: '',
-    highlight: `Earn up to ${formatReferralRate(getMaxProfitShareRate())} weekly`,
-    footer: 'Lifetime earnings',
-    icon: TrendingUp,
-    accent: 'bg-blue-50 text-[#0052ff]',
-  },
-  {
-    title: '4 Levels Deep',
-    lead: '',
-    highlight: formatProfitShareLevelsSummary(),
-    footer: 'Unlimited generations',
-    icon: Users,
-    accent: 'bg-emerald-50 text-emerald-600',
-  },
-] as const
-
-const SHARE_ACTIONS = [
-  { key: 'whatsapp', label: 'WhatsApp', icon: MessageCircle, color: 'text-emerald-600' },
-  { key: 'telegram', label: 'Telegram', icon: Zap, color: 'text-[#0052ff]' },
-  { key: 'facebook', label: 'Facebook', icon: Share2, color: 'text-blue-600' },
-  { key: 'email', label: 'Email', icon: Mail, color: 'text-gray-600' },
-  { key: 'sms', label: 'SMS', icon: MessageCircle, color: 'text-violet-600' },
-  { key: 'copy', label: 'Copy', icon: Copy, color: 'text-gray-700' },
-] as const
-
 function ReferralFunnelPanel({ funnel }: { funnel: ReferralProgramOverview['funnel'] }) {
-  const gradientId = useId().replace(/:/g, '')
   const clicks = funnel.clicks.toLocaleString()
   const signups = funnel.signups.toLocaleString()
+  const deposits = funnel.activeInvestors.toLocaleString()
   const activeInvestors = funnel.activeInvestors.toLocaleString()
   const conversionRate = Number(funnel.conversionRate).toFixed(2)
 
   const statRows = [
-    { key: 'clicks', value: clicks },
-    { key: 'signups', value: signups },
-    {
-      key: 'active',
-      label: 'Active Investors',
-      value: activeInvestors,
-    },
+    { key: 'clicks', label: 'Link clicks', value: clicks },
+    { key: 'signups', label: 'Signups', value: signups },
+    { key: 'deposits', label: 'Deposits', value: deposits },
+    { key: 'active', label: 'Active investors', value: activeInvestors },
   ] as const
 
   return (
-    <div className="h-fit w-full self-start rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <h3 className="font-semibold text-gray-900">Conversion Funnel</h3>
+    <div className="h-fit w-full self-start rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <h3 className="font-bold text-gray-900">Conversion funnel</h3>
+      <p className="mt-1 text-xs text-gray-500">From link click to active investor</p>
 
-      <div className="mt-3 flex items-start gap-3 sm:gap-4">
-        <div className="relative w-[9.5rem] shrink-0 sm:w-[10.5rem]">
-          <svg
-            viewBox="0 0 200 188"
-            className="h-auto w-full"
-            role="img"
-            aria-label={`Conversion funnel: ${clicks} clicks, ${signups} signups, ${activeInvestors} active investors`}
-          >
-            <defs>
-              <linearGradient id={`${gradientId}-purple`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#a78bfa" />
-                <stop offset="100%" stopColor="#7c3aed" />
-              </linearGradient>
-              <linearGradient id={`${gradientId}-blue`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#60a5fa" />
-                <stop offset="100%" stopColor="#2563eb" />
-              </linearGradient>
-              <linearGradient id={`${gradientId}-green`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#34d399" />
-                <stop offset="100%" stopColor="#059669" />
-              </linearGradient>
-              <linearGradient id={`${gradientId}-orange`} x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="#fb923c" />
-                <stop offset="100%" stopColor="#ea580c" />
-              </linearGradient>
-            </defs>
-
-            <path d="M 18 2 L 182 2 L 162 44 L 38 44 Z" fill={`url(#${gradientId}-purple)`} />
-            <rect x="0" y="44" width="200" height="3" fill="#ffffff" />
-            <path d="M 38 47 L 162 47 L 142 89 L 58 89 Z" fill={`url(#${gradientId}-blue)`} />
-            <rect x="0" y="89" width="200" height="3" fill="#ffffff" />
-            <path d="M 58 92 L 142 92 L 122 134 L 78 134 Z" fill={`url(#${gradientId}-green)`} />
-            <rect x="0" y="134" width="200" height="3" fill="#ffffff" />
-            <path d="M 78 137 L 122 137 L 122 177 L 78 177 Z" fill={`url(#${gradientId}-orange)`} />
-
-            <text
-              x="100"
-              y="28"
-              textAnchor="middle"
-              fill="#ffffff"
-              fontSize="13"
-              fontWeight="600"
-              fontFamily="ui-sans-serif, system-ui, sans-serif"
-            >
-              Clicks
-            </text>
-            <text
-              x="100"
-              y="73"
-              textAnchor="middle"
-              fill="#ffffff"
-              fontSize="13"
-              fontWeight="600"
-              fontFamily="ui-sans-serif, system-ui, sans-serif"
-            >
-              Signups
-            </text>
-            <text
-              x="100"
-              y="118"
-              textAnchor="middle"
-              fill="#ffffff"
-              fontSize="14"
-              fontWeight="700"
-              fontFamily="ui-sans-serif, system-ui, sans-serif"
-            >
-              {activeInvestors}
-            </text>
-          </svg>
-
-          <div className="pointer-events-none absolute bottom-[6%] left-1/2 flex h-[21%] w-[22%] -translate-x-1/2 items-center justify-center">
-            <Crown className="h-4 w-4 text-white sm:h-[18px] sm:w-[18px]" strokeWidth={2.25} />
-          </div>
-        </div>
-
-        <div className="flex min-h-[11.75rem] flex-1 flex-col justify-between py-0.5 sm:min-h-[12.5rem]">
-          {statRows.map((row) => (
-            <div
-              key={row.key}
-              className={cn(
-                'flex min-h-[2.65rem] items-center sm:min-h-[2.85rem]',
-                row.key === 'active' && 'flex-col items-start justify-center'
-              )}
-            >
-              {'label' in row ? (
-                <>
-                  <p className="text-[11px] font-medium leading-tight text-gray-500">{row.label}</p>
-                  <p className="text-lg font-bold tabular-nums leading-none text-gray-900 sm:text-xl">
-                    {row.value}
-                  </p>
-                </>
-              ) : (
-                <p className="text-lg font-bold tabular-nums leading-none text-gray-900 sm:text-xl">
-                  {row.value}
-                </p>
-              )}
+      <div className="mt-4 space-y-3">
+        {statRows.map((row, index) => {
+          const width = `${100 - index * 18}%`
+          return (
+            <div key={row.key}>
+              <div className="mb-1 flex items-center justify-between text-xs">
+                <span className="font-medium text-gray-600">{row.label}</span>
+                <span className="font-bold tabular-nums text-gray-900">{row.value}</span>
+              </div>
+              <div className="h-2.5 overflow-hidden rounded-full bg-gray-100">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-[#0052ff] to-violet-500 transition-all duration-700"
+                  style={{ width }}
+                />
+              </div>
             </div>
-          ))}
-          <div className="min-h-[2.4rem]" aria-hidden />
-        </div>
+          )
+        })}
       </div>
 
-      <p className="mt-2 text-right text-sm font-semibold text-emerald-600">
-        Conversion Rate: {conversionRate}%
+      <p className="mt-4 text-right text-sm font-semibold text-emerald-600">
+        Conversion rate: {conversionRate}%
       </p>
     </div>
   )
@@ -357,71 +235,8 @@ function ReferralAllReferralsSection({
   )
 }
 
-function healthScoreStyles(label: string) {
-  if (label === 'Excellent') {
-    return { stroke: '#10b981', text: 'text-emerald-600' }
-  }
-  if (label === 'Good') {
-    return { stroke: '#0052ff', text: 'text-[#0052ff]' }
-  }
-  return { stroke: '#f59e0b', text: 'text-amber-600' }
-}
-
-function ReferralHealthScoreGauge({ score, label }: { score: number; label: string }) {
-  const size = 72
-  const stroke = 6
-  const radius = (size - stroke) / 2
-  const circumference = 2 * Math.PI * radius
-  const progress = Math.min(100, Math.max(0, score))
-  const offset = circumference - (progress / 100) * circumference
-  const { stroke: strokeColor, text: labelColor } = healthScoreStyles(label)
-
-  return (
-    <div className="flex flex-col rounded-xl border border-gray-200 bg-white px-3 py-3 shadow-sm xl:min-w-[150px]">
-      <p className="text-[10px] font-medium text-gray-500 sm:text-[11px]">Health Score</p>
-      <div className="mt-2 flex items-center justify-between gap-2">
-        <div className="relative shrink-0">
-          <svg width={size} height={size} className="-rotate-90" aria-hidden>
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              stroke="#e5e7eb"
-              strokeWidth={stroke}
-            />
-            <circle
-              cx={size / 2}
-              cy={size / 2}
-              r={radius}
-              fill="none"
-              stroke={strokeColor}
-              strokeWidth={stroke}
-              strokeLinecap="round"
-              strokeDasharray={circumference}
-              strokeDashoffset={offset}
-              className="transition-all duration-700 ease-out"
-            />
-          </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-sm font-bold leading-none text-gray-900">
-              {score}
-              <span className="text-[10px] font-medium text-gray-400"> /100</span>
-            </span>
-          </div>
-        </div>
-        <p className={cn('text-right text-xs font-semibold sm:text-sm', labelColor)}>{label}</p>
-      </div>
-    </div>
-  )
-}
-
 function shortRankName(fullName: string) {
   return fullName.replace(/^PrimeFx\s+/i, '')
-}
-
-function isMaxRankMetric(rank: ReferralProgramOverview['rank']) {
-  return rank.current === rank.next
 }
 
 function resolveRankKeyFromName(name: string): ReferralRankKey | 'none' {
@@ -790,11 +605,18 @@ function NetworkLevelColumn({
   const visibleMembers = level.members.slice(0, 4)
   const overflow = Math.max(0, level.count - visibleMembers.length)
   const levelNumber = index + 1
+  const displayRate = REFERRAL_DISPLAY_PROFIT_SHARE[index]?.rate ?? ''
 
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center px-1 sm:px-2">
       <p className="relative z-10 bg-white px-2 text-center text-sm font-semibold text-slate-800">
-        Level {levelNumber} ({level.count})
+        Level {levelNumber}
+      </p>
+      <p className="relative z-10 mt-0.5 bg-white px-2 text-center text-[11px] font-medium text-[#0052ff]">
+        {displayRate} weekly share
+      </p>
+      <p className="relative z-10 bg-white px-2 text-center text-xs text-slate-500">
+        {level.count} member{level.count === 1 ? '' : 's'}
       </p>
 
       <div className="mt-8 flex min-h-[44px] items-center justify-center">
@@ -844,9 +666,12 @@ function ReferralNetworkPanel({
   levels: ReferralProgramOverview['networkLevels']
 }) {
   return (
-    <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="flex h-full flex-col rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="font-semibold text-slate-900">My Referral Network</h3>
+        <div>
+          <h3 className="font-bold text-slate-900">Referral tree</h3>
+          <p className="mt-0.5 text-xs text-slate-500">Levels 1–4 · weekly profit share</p>
+        </div>
         <Link
           href="/referral#all-referrals"
           className="shrink-0 text-sm font-semibold text-violet-600 hover:text-violet-700 hover:underline"
@@ -994,24 +819,6 @@ function ReferralChannelsPanel({
   )
 }
 
-function buildShareUrl(channel: string, link: string, code: string) {
-  const text = `Join me on PrimeFx Invest and start investing smarter. Use my referral link: ${link}`
-  switch (channel) {
-    case 'whatsapp':
-      return `https://wa.me/?text=${encodeURIComponent(text)}`
-    case 'telegram':
-      return `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(text)}`
-    case 'facebook':
-      return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}`
-    case 'email':
-      return `mailto:?subject=${encodeURIComponent('Join PrimeFx Invest')}&body=${encodeURIComponent(text)}`
-    case 'sms':
-      return `sms:?body=${encodeURIComponent(text)}`
-    default:
-      return link
-  }
-}
-
 export function ReferralProgramView({
   initialOverview = null,
 }: {
@@ -1041,19 +848,6 @@ export function ReferralProgramView({
     } catch {
       toast.error('Failed to copy link')
     }
-  }
-
-  const handleShare = async (channel: string) => {
-    if (!referralData?.referralLink) return
-    if (channel === 'copy') {
-      await copyLink()
-      return
-    }
-    window.open(
-      buildShareUrl(channel, referralData.referralLink, referralData.referralCode),
-      '_blank',
-      'noopener,noreferrer'
-    )
   }
 
   const chartData = useMemo(() => {
@@ -1087,115 +881,41 @@ export function ReferralProgramView({
     )
   }
 
-  if (!overview || !referralData) return null
-
-  const metricCards = [
-    { label: 'Lifetime Earnings', value: formatCurrency(overview.lifetimeEarnings), trend: overview.trends.lifetime },
-    { label: 'This Week', value: formatCurrency(overview.thisWeekEarnings), trend: overview.trends.week },
-    { label: 'This Month', value: formatCurrency(overview.thisMonthEarnings), trend: overview.trends.month },
-    { label: 'Active Investors', value: String(overview.activeInvestors), trend: overview.trends.newInvestors },
-    { label: 'Total Referrals', value: String(overview.totalReferrals) },
-    {
-      label: 'Current Rank',
-      value: shortRankName(overview.rank.current),
-      sub: isMaxRankMetric(overview.rank)
-        ? 'Maximum rank'
-        : `${overview.rank.membersRemaining} more for ${shortRankName(overview.rank.next)}`,
-      icon: Crown,
-    },
-  ]
+  if (!overview || !referralData) {
+    return (
+      <EmptyState
+        title="Referral data unavailable"
+        description="We could not load your referral overview. Please try again."
+        action={
+          <button
+            type="button"
+            onClick={() => reload()}
+            className="rounded-lg bg-[#0052ff] px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            Retry
+          </button>
+        }
+      />
+    )
+  }
 
   return (
-    <div className="min-w-0 space-y-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div>
-          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-            <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Referral Program</h1>
-            <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-              Active
-            </span>
-          </div>
-          <p className="mt-1 text-gray-500">Build Your Network. Grow Your Wealth.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <HelpCircle className="h-4 w-4" />
-            How It Works
-          </button>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <BookOpen className="h-4 w-4" />
-            Referral Rules
-          </button>
-        </div>
-      </div>
+    <div className={cn('min-w-0', pageStackClass)}>
+      <ReferralHeroSection overview={overview} />
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex flex-col divide-y divide-gray-200 xl:flex-row xl:divide-x xl:divide-y-0">
-          {BENEFIT_CARDS.map((card) => {
-            const Icon = card.icon
-            return (
-              <div key={card.title} className="flex min-w-0 flex-1 flex-col p-5">
-                <div
-                  className={cn(
-                    'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full',
-                    card.accent
-                  )}
-                >
-                  <Icon className="h-5 w-5" />
-                </div>
-                <h3 className="mt-4 font-semibold text-gray-900">{card.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-600">
-                  {card.lead}
-                  <span className="font-semibold text-gray-900">{card.highlight}</span>
-                </p>
-                <p className="mt-2 text-xs text-gray-400">{card.footer}</p>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+      <ReferralCommissionSection />
 
-      <div className="grid grid-cols-1 items-start gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
-        <div className="grid grid-cols-2 items-start gap-2 sm:grid-cols-3 sm:gap-3 lg:grid-cols-6">
-          {metricCards.map((stat) => {
-            const Icon = stat.icon
-            return (
-              <div
-                key={stat.label}
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm sm:px-3 sm:py-3"
-              >
-                <p className="text-[10px] font-medium leading-tight text-gray-500 sm:text-[11px]">
-                  {stat.label}
-                </p>
-                <div className="mt-1 flex items-center gap-1.5">
-                  {Icon ? <Icon className="h-4 w-4 shrink-0 text-violet-600" /> : null}
-                  <p className="text-base font-bold leading-tight text-gray-900">{stat.value}</p>
-                </div>
-                {stat.trend ? (
-                  <p className="mt-0.5 text-[10px] font-semibold text-emerald-600 sm:text-[11px]">
-                    {stat.trend}
-                  </p>
-                ) : null}
-                {stat.sub ? (
-                  <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-gray-400">{stat.sub}</p>
-                ) : null}
-              </div>
-            )
-          })}
-        </div>
-        <ReferralHealthScoreGauge score={overview.healthScore} label={overview.healthLabel} />
-      </div>
+      <ReferralStatsGrid overview={overview} />
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-8">
+          <section aria-label="Rank progression" className={sectionStackClass}>
+            <SectionHeading>Rank progression</SectionHeading>
           <ReferralRankProgressPanel rank={overview.rank} />
+          </section>
 
+          <section aria-label="Earnings analytics" className="space-y-3">
+            <SectionHeading>Earnings analytics</SectionHeading>
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5 lg:col-span-2">
               <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1284,14 +1004,20 @@ export function ReferralProgramView({
               chartsReady={chartsReady}
             />
           </div>
+          </section>
 
+          <section aria-label="Network overview" className="space-y-3">
+            <SectionHeading>Network overview</SectionHeading>
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <div className="h-full lg:col-span-2">
               <ReferralNetworkPanel levels={overview.networkLevels} />
             </div>
             <ReferralChannelsPanel channels={overview.channels} />
           </div>
+          </section>
 
+          <section aria-label="Activity and achievements" className="space-y-3">
+            <SectionHeading>Activity & achievements</SectionHeading>
           <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3 lg:gap-6">
             <div className="flex flex-col gap-4 lg:col-span-1">
               <div className="h-fit w-full self-start rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -1352,85 +1078,52 @@ export function ReferralProgramView({
               <ReferralAchievementsBadgesPanel badges={overview.badges} streak={overview.streak} />
             </div>
           </div>
+          </section>
 
+          <section aria-label="Referrals and funnel" className="space-y-3">
+            <SectionHeading>Referrals & conversion</SectionHeading>
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <ReferralAllReferralsSection referrals={referrals} onCopyLink={copyLink} />
             <ReferralFunnelPanel funnel={overview.funnel} />
           </div>
+          </section>
         </div>
 
         <div className="space-y-4 xl:sticky xl:top-24 xl:self-start">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <h3 className="font-semibold text-gray-900">Your Referral Link</h3>
-            <AsyncState
-              loading={loading && !referralData}
-              error={error}
-              onRetry={reload}
-              compact
-              skeleton={<div className="mt-3 h-10 animate-pulse rounded-lg bg-gray-100" />}
-            >
-              <div className="mt-3 flex gap-2">
-                <input
-                  readOnly
-                  value={referralData.referralLink}
-                  className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs"
-                />
-                <button
-                  type="button"
-                  onClick={copyLink}
-                  className="inline-flex items-center gap-1 rounded-lg bg-[#0052ff] px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy
-                </button>
-              </div>
-            </AsyncState>
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {SHARE_ACTIONS.map((action) => {
-                const Icon = action.icon
-                return (
-                  <button
-                    key={action.key}
-                    type="button"
-                    onClick={() => handleShare(action.key)}
-                    className="flex flex-col items-center gap-1 rounded-lg border border-gray-200 px-2 py-2.5 text-[10px] font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    <Icon className={cn('h-4 w-4', action.color)} />
-                    {action.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
+        <ReferralLinkCenter
+          referralData={referralData}
+          loading={loading}
+          error={error}
+          onRetry={reload}
+        />
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 text-center shadow-sm">
-            <h3 className="font-semibold text-gray-900">Referral QR Code</h3>
-            <div className="mt-4">
-              <ReferralQrCode value={referralData.referralLink} />
-            </div>
-            {referralData.referralCode ? (
-              <p className="mt-2 text-xs text-gray-500">
-                Code: <span className="font-semibold text-gray-800">{referralData.referralCode}</span>
-              </p>
-            ) : null}
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900">Top referrers</h3>
+            <Crown className="h-4 w-4 text-amber-500" aria-hidden="true" />
           </div>
-
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="font-semibold text-gray-900">Top Referrers This Month</h3>
-              <Crown className="h-4 w-4 text-amber-500" />
-            </div>
             {overview.leaderboard.length > 0 ? (
-              <ul className="space-y-3">
+              <ul className="divide-y divide-gray-100">
                 {overview.leaderboard.map((entry) => (
-                  <li key={entry.rank} className="flex items-center justify-between gap-3 text-sm">
-                    <span className="flex items-center gap-2">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-700">
+                  <li key={entry.rank} className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0">
+                    <span className="flex min-w-0 items-center gap-2.5">
+                      <span
+                        className={cn(
+                          'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
+                          entry.rank === 1
+                            ? 'bg-amber-100 text-amber-800'
+                            : entry.rank === 2
+                              ? 'bg-slate-200 text-slate-700'
+                              : entry.rank === 3
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-gray-100 text-gray-700'
+                        )}
+                      >
                         {entry.rank}
                       </span>
-                      <span className="font-medium text-gray-900">{entry.name}</span>
+                      <span className="truncate font-medium text-gray-900">{entry.name}</span>
                     </span>
-                    <span className="font-semibold text-emerald-600">
+                    <span className="shrink-0 font-semibold tabular-nums text-emerald-600">
                       {formatCurrency(entry.earnings)}
                     </span>
                   </li>
@@ -1447,46 +1140,28 @@ export function ReferralProgramView({
             )}
             <button
               type="button"
-              className="mt-4 inline-flex w-full items-center justify-center gap-1 text-sm font-semibold text-[#0052ff] hover:underline"
+              disabled
+              className="mt-4 inline-flex w-full items-center justify-center gap-1 text-sm font-semibold text-gray-400"
             >
               View Full Leaderboard
-              <ChevronRight className="h-4 w-4" />
+              <span className="text-[10px] uppercase">(Coming Soon)</span>
             </button>
-          </div>
-
-          <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-blue-50 p-5 shadow-sm">
-            <div className="flex items-start gap-3">
-              <Shield className="mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
-              <div>
-                <p className="text-sm font-semibold text-gray-900">Referral rank rewards</p>
-                <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-gray-600">
-                  {REFERRAL_RANK_TIERS.map((tier) => (
-                    <li key={tier.key}>
-                      <span className="font-semibold text-gray-800">{shortRankName(tier.name)}</span>
-                      {' — '}
-                      {tier.minMembers.toLocaleString()} active members
-                      {tier.cashBonusUsd > 0 ? ` · $${tier.cashBonusUsd.toLocaleString()}` : ''}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/support"
-                  className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-[#0052ff] hover:underline"
-                >
-                  View program terms
-                  <Target className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-            </div>
           </div>
         </div>
       </div>
 
+      <ReferralPrimeAiInsights overview={overview} />
+
+      <ReferralTransparencySection />
+
+      <section aria-label="Rank levels" className={sectionStackClass}>
+        <SectionHeading>All rank levels</SectionHeading>
       <ReferralRankLevelsPanel
         activeInvestors={overview.activeInvestors}
         currentRank={overview.rank.current}
         nextRank={overview.rank.next}
       />
+      </section>
     </div>
   )
 }

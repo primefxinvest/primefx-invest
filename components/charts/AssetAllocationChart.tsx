@@ -15,7 +15,7 @@ interface AssetAllocationChartProps {
   height?: number
 }
 
-export function AssetAllocationChart({ data, height = 300 }: AssetAllocationChartProps) {
+export function AssetAllocationChart({ data, height = 180 }: AssetAllocationChartProps) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <PieChart>
@@ -23,8 +23,8 @@ export function AssetAllocationChart({ data, height = 300 }: AssetAllocationChar
           data={data}
           cx="50%"
           cy="50%"
-          innerRadius={55}
-          outerRadius={85}
+          innerRadius={48}
+          outerRadius={72}
           paddingAngle={3}
           dataKey="value"
           strokeWidth={0}

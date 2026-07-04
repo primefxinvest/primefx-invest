@@ -3,6 +3,7 @@
 import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowRight } from 'lucide-react'
+import { dashboardCardClass, dashboardSectionTitleClass } from '@/lib/layout/surfaces'
 
 function Sparkline({ up, id }: { up: boolean; id: string }) {
   const stroke = up ? '#10b981' : '#ef4444'
@@ -39,36 +40,44 @@ interface MarketItem {
   icon: string
 }
 
-export default function MarketOverviewWidget({ markets }: { markets: MarketItem[] }) {
+export default function MarketOverviewWidget({
+  markets,
+  showViewAllLink = true,
+}: {
+  markets: MarketItem[]
+  showViewAllLink?: boolean
+}) {
   const t = useTranslations('dashboard')
 
   return (
-    <div className="h-fit rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-bold text-gray-900">{t('marketOverview')}</h3>
-        <Link
-          href="/market-insights"
-          className="flex items-center gap-0.5 text-xs font-semibold text-[#0052ff] hover:underline"
-        >
-          {t('viewAll')} <ArrowRight className="h-3 w-3" />
-        </Link>
+    <div className={dashboardCardClass + ' h-fit'}>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className={dashboardSectionTitleClass}>{t('marketOverview')}</h3>
+        {showViewAllLink ? (
+          <Link
+            href="/market-insights"
+            className="flex shrink-0 items-center gap-0.5 text-xs font-semibold text-primary hover:underline"
+          >
+            {t('viewAll')} <ArrowRight className="h-3 w-3" />
+          </Link>
+        ) : null}
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {markets.map((market) => {
           const up = market.trend === 'up'
           return (
             <div
               key={market.id}
-              className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2.5"
+              className="flex items-center justify-between rounded-lg bg-muted/40 px-2.5 py-2 sm:px-3 sm:py-2.5"
             >
-              <div className="flex items-center gap-2.5">
-                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-white text-xs font-bold text-gray-700 shadow-sm">
+              <div className="flex items-center gap-2">
+                <span className="flex h-6 w-6 items-center justify-center rounded-md bg-card text-[10px] font-bold text-foreground shadow-sm sm:h-7 sm:w-7 sm:text-xs">
                   {market.icon}
                 </span>
                 <div>
-                  <p className="text-xs font-semibold text-gray-900">{market.symbol}</p>
-                  <p className="text-[10px] text-gray-500">{market.price}</p>
+                  <p className="text-xs font-semibold text-foreground">{market.symbol}</p>
+                  <p className="text-[10px] text-muted-foreground">{market.price}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">

@@ -1,8 +1,8 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { skeletonCardSurfaceClass } from '@/lib/layout/surfaces'
 
-const SKELETON_CARD =
-  'rounded-xl border border-gray-200/90 bg-white p-5 shadow-sm'
+const SKELETON_CARD = skeletonCardSurfaceClass
 
 function staggerDelay(index: number, step = 70) {
   return index * step

@@ -6,32 +6,67 @@ import {
   processInvestmentCapitalWithdrawal,
 } from '@/lib/invest/capital-withdrawal'
 import { runWeeklyReferralDistribution } from '@/lib/referral/commission-service'
-import {
-  completeTransaction,
-  releaseWalletHold,
-} from '@/lib/payments/wallet-ledger'
-import {
-  listDueWithdrawalRequests,
-  markWithdrawalRequestStatus,
-} from '@/lib/wallet/withdrawals'
+import { processDueWithdrawalRow } from '@/lib/payments/withdrawal-payout'
+import { listDueWithdrawalRequests } from '@/lib/wallet/withdrawals'
 import { syncAllOpenDeposits } from '@/lib/payments/deposit-sync'
+import { withCronJobLock } from '@/lib/cron/lock'
 
 export async function processDueWalletWithdrawals() {
   const due = await listDueWithdrawalRequests()
   let processed = 0
+  let payoutInitiated = 0
+  let readyForManual = 0
+  let skipped = 0
+  let failed = 0
+  const results: Array<Record<string, unknown>> = []
 
   for (const row of due) {
-    const gross = Number(row.amount_usd)
-    const referenceId = row.reference_id as string
+    try {
+      const result = await processDueWithdrawalRow(row as Record<string, unknown>)
+      results.push(result as Record<string, unknown>)
 
-    await releaseWalletHold(row.user_id as string, gross)
-    await completeTransaction(referenceId, 'Completed')
-    await markWithdrawalRequestStatus(row.id as string, 'completed')
+      if (result.status === 'skipped') {
+        skipped += 1
+        continue
+      }
 
-    processed += 1
+      if (result.status === 'payout_initiated') {
+        payoutInitiated += 1
+        processed += 1
+        continue
+      }
+
+      if (result.status === 'ready_for_manual_payout') {
+        readyForManual += 1
+        processed += 1
+        continue
+      }
+
+      if (result.status === 'deferred') {
+        skipped += 1
+        continue
+      }
+
+      processed += 1
+    } catch (err) {
+      failed += 1
+      results.push({
+        status: 'failed',
+        referenceId: row.reference_id,
+        error: err instanceof Error ? err.message : 'Processing failed',
+      })
+    }
   }
 
-  return { processed, totalDue: due.length }
+  return {
+    processed,
+    payoutInitiated,
+    readyForManual,
+    skipped,
+    failed,
+    totalDue: due.length,
+    results,
+  }
 }
 
 export async function processDueCapitalWithdrawals() {
@@ -62,6 +97,8 @@ export async function processDueFinancialJobs() {
 export type DailyCronResult = {
   ranAt: string
   utcDay: number
+  lockSkipped?: boolean
+  lockReason?: string
   withdrawals: Awaited<ReturnType<typeof processDueWalletWithdrawals>>
   depositSync: Awaited<ReturnType<typeof syncAllOpenDeposits>>
   profits: Awaited<ReturnType<typeof runDailyInvestmentProfits>> | { skipped: true; reason: string }
@@ -69,8 +106,7 @@ export type DailyCronResult = {
   capitalWithdrawals: Awaited<ReturnType<typeof processDueCapitalWithdrawals>>
 }
 
-/** Single daily cron for Vercel Hobby (one job / 24h). */
-export async function runDailyCron(): Promise<DailyCronResult> {
+async function executeDailyCron(): Promise<DailyCronResult> {
   const now = new Date()
   const utcDay = now.getUTCDay()
 
@@ -90,7 +126,6 @@ export async function runDailyCron(): Promise<DailyCronResult> {
     weekly = await runWeeklyReferralDistribution()
   }
 
-  // Process due capital returns every day once the notice period ends (not only Fridays).
   const capitalWithdrawals = await processDueCapitalWithdrawals()
 
   return {
@@ -102,4 +137,34 @@ export async function runDailyCron(): Promise<DailyCronResult> {
     weekly,
     capitalWithdrawals,
   }
+}
+
+/** Single daily cron for Vercel Hobby (one job / 24h). */
+export async function runDailyCron(): Promise<DailyCronResult> {
+  const locked = await withCronJobLock('daily_cron', executeDailyCron, 3600)
+
+  if (locked.skipped) {
+    const now = new Date()
+    return {
+      ranAt: now.toISOString(),
+      utcDay: now.getUTCDay(),
+      lockSkipped: true,
+      lockReason: locked.reason,
+      withdrawals: {
+        processed: 0,
+        payoutInitiated: 0,
+        readyForManual: 0,
+        skipped: 0,
+        failed: 0,
+        totalDue: 0,
+        results: [],
+      },
+      depositSync: { checked: 0, completed: 0, failed: 0, results: [] },
+      profits: { skipped: true, reason: locked.reason },
+      weekly: null,
+      capitalWithdrawals: { processed: 0, totalDue: 0 },
+    }
+  }
+
+  return locked.result
 }

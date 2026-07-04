@@ -4,8 +4,8 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { Bell, Gift, Menu, Search } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
+import dynamic from 'next/dynamic'
 import {
-  DashboardCommandMenu,
   useDashboardCommandMenu,
 } from '@/components/shared/DashboardCommandMenu'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
@@ -15,6 +15,14 @@ import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { fetchNotifications } from '@/lib/data/queries'
 import { cn } from '@/lib/utils'
 import { SIDEBAR_OFFSET_CLASS } from '@/lib/layout/sidebar'
+
+const DashboardCommandMenu = dynamic(
+  () =>
+    import('@/components/shared/DashboardCommandMenu').then((mod) => ({
+      default: mod.DashboardCommandMenu,
+    })),
+  { ssr: false }
+)
 
 function usePlatformShortcut() {
   const [shortcut, setShortcut] = useState('Ctrl+K')
@@ -60,7 +68,9 @@ export default function Navbar() {
   const { open, setOpen } = useDashboardCommandMenu()
   const { toggle: toggleMobileNav } = useMobileNav()
   const shortcut = usePlatformShortcut()
-  const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [])
+  const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [], undefined, {
+    cacheKey: 'user-notifications',
+  })
   const unreadCount = notifications.filter((item) => !item.read).length
 
   return (
@@ -117,6 +127,7 @@ export default function Navbar() {
 
             <Link
               href="/profile"
+              aria-label={`${user.name}, ${user.tier}`}
               className="flex min-w-0 items-center gap-2 border-l border-gray-200 pl-2 sm:gap-2.5 sm:pl-3 md:pl-4"
               title={`${user.name} · ${user.tier}`}
             >
@@ -128,7 +139,11 @@ export default function Navbar() {
               </div>
               <img
                 src={user.avatar}
-                alt={user.name}
+                alt=""
+                width={36}
+                height={36}
+                loading="lazy"
+                decoding="async"
                 className="size-9 shrink-0 rounded-full border-2 border-gray-200 bg-gray-100 object-cover"
               />
             </Link>

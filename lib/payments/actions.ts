@@ -2,12 +2,16 @@
 
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { requireServerMfaEnabled } from '@/lib/auth/mfa-server'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
-import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { fetchPaymentProviderOptionsServer } from '@/lib/payments/options-server'
 import { syncUserPendingDeposits } from '@/lib/payments/deposit-sync'
 import { createDepositPayment, createWithdrawalPayment } from '@/lib/payments/service'
+import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
+import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
+import {
+  assertTransactionAuthorized,
+  type TransactionStepUpCredentials,
+} from '@/lib/security/transaction-protection'
 import type { CreateDepositResult, CreateWithdrawalResult, PaymentProviderId } from '@/lib/payments/types'
 
 async function requireUser() {
@@ -34,6 +38,20 @@ export async function initiateDeposit(input: {
 }): Promise<CreateDepositResult> {
   const user = await requireUser()
 
+  try {
+    await enforceUserRateLimit('deposit', user.id)
+  } catch (err) {
+    if (err instanceof RateLimitExceededError) {
+      return { success: false, error: err.message }
+    }
+    throw err
+  }
+
+  const account = await requireActiveAccountForFinancialAction(user.id, 'deposit')
+  if (!account.allowed) {
+    return { success: false, error: account.error }
+  }
+
   const kyc = await requireVerifiedKyc(user.id, 'deposit')
   if (!kyc.allowed) {
     return { success: false, error: kyc.error }
@@ -58,18 +76,35 @@ export async function initiateDeposit(input: {
   return result
 }
 
-export async function initiateWithdrawal(input: {
-  amountUsd: number
-  currency: string
-  address: string
-}): Promise<CreateWithdrawalResult> {
+export async function initiateWithdrawal(
+  input: {
+    amountUsd: number
+    currency: string
+    address: string
+  } & TransactionStepUpCredentials
+): Promise<CreateWithdrawalResult> {
   const user = await requireUser()
 
-  if (INVESTOR_RULES.security.twoFactorRequiredForWithdrawal) {
-    const mfa = await requireServerMfaEnabled(user.id)
-    if (!mfa.allowed) {
-      return { success: false, error: mfa.error }
+  try {
+    await enforceUserRateLimit('withdrawal', user.id)
+  } catch (err) {
+    if (err instanceof RateLimitExceededError) {
+      return { success: false, error: err.message }
     }
+    throw err
+  }
+
+  const account = await requireActiveAccountForFinancialAction(user.id, 'withdrawal')
+  if (!account.allowed) {
+    return { success: false, error: account.error }
+  }
+
+  const auth = await assertTransactionAuthorized(user.id, 'withdrawal', {
+    totpCode: input.totpCode,
+    transactionPin: input.transactionPin,
+  })
+  if (!auth.allowed) {
+    return { success: false, error: auth.error }
   }
 
   const kyc = await requireVerifiedKyc(user.id, 'withdrawal')

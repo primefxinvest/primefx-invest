@@ -1,5 +1,13 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
+import { statusCardSurfaceClass } from '@/lib/layout/surfaces'
+
+export {
+  cardSurfaceClass,
+  statusCardSurfaceClass,
+  statusCardAdminSurfaceClass,
+  skeletonCardSurfaceClass,
+} from '@/lib/layout/surfaces'
 
 type StatusCardGridProps = {
   children: ReactNode
@@ -22,12 +30,6 @@ export function StatusCardGrid({ children, columns = 4, className }: StatusCardG
     </div>
   )
 }
-
-export const statusCardSurfaceClass =
-  'rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4 xl:p-5'
-
-export const statusCardAdminSurfaceClass =
-  'rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4 xl:p-5'
 
 type StatusMetricCardProps = {
   label: string

@@ -1,6 +1,8 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
+import { getLocaleFromPathname, localizePath } from '@/lib/i18n/pathname'
+import type { AppLocale } from '@/i18n/routing'
 
 function clearAppSessionState() {
   if (typeof window === 'undefined') return
@@ -32,7 +34,8 @@ export async function logout(): Promise<{ success: boolean; error?: string }> {
     }
 
     clearAppSessionState()
-    window.location.href = '/login'
+    const locale = getLocaleFromPathname(window.location.pathname) as AppLocale
+    window.location.href = localizePath('/login', locale)
     return { success: true }
   } catch (err) {
     return {

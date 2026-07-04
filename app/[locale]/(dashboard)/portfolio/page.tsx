@@ -3,8 +3,6 @@
 import { Link } from '@/i18n/navigation'
 import { useCallback, useMemo, useState } from 'react'
 import {
-  Calendar,
-  Download,
   DollarSign,
   TrendingUp,
   BarChart2,
@@ -20,15 +18,16 @@ import { StatusCardGrid } from '@/components/shared/status-cards'
 import { ScrollTable } from '@/components/shared/ScrollTable'
 import { ErrorState } from '@/components/shared/data-state'
 import { MetricCardsSkeleton, TableSkeleton } from '@/components/shared/skeletons'
-import PerformanceChart from '@/components/portfolio/PerformanceChart'
-import AllocationDonut from '@/components/portfolio/AllocationDonut'
-import PrimeAIAnalysisCard from '@/components/portfolio/PrimeAIAnalysisCard'
-import MonthlyReturnsChart from '@/components/portfolio/MonthlyReturnsChart'
-import DistributionMap from '@/components/portfolio/DistributionMap'
+import {
+  PerformanceChart,
+  AllocationDonut,
+  MonthlyReturnsChart,
+} from '@/components/portfolio/Charts.lazy'
 import { CapitalWithdrawButton } from '@/components/portfolio/CapitalWithdrawButton'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { useCapitalWithdrawalRequestsRealtime } from '@/lib/hooks/useCapitalWithdrawalRealtime'
+import { pageStackClass } from '@/lib/layout/spacing'
 import {
   fetchAssetAllocation,
   fetchCapitalWithdrawalRequests,
@@ -99,13 +98,6 @@ export default function PortfolioPage() {
     maxDrawdown: performanceStats?.maxDrawdown ?? '0%',
   }
 
-  const portfolioAIAnalysis = {
-    riskLevel: 'Moderate',
-    diversification: allocation.length > 2 ? 'Excellent' : 'Growing',
-    longTermPotential: 'High',
-    confidenceScore: 85,
-  }
-
   const bestPerformingAsset = portfolioActiveInvestments[0]
     ? {
         name: portfolioActiveInvestments[0].plan,
@@ -123,14 +115,27 @@ export default function PortfolioPage() {
     activePlans: 0,
   }
 
+  const profitLossValue = portfolioOverview.profitLoss
+  const isProfitNegative =
+    profitLossValue.includes('-') ||
+    profitLossValue.includes('(') ||
+    profitLossValue.startsWith('−')
+
   if (overviewLoading && !overview) {
     return (
-      <div className="space-y-5">
-        <MetricCardsSkeleton />
+      <div className={pageStackClass}>
+        <div>
+          <div className="h-8 w-48 animate-pulse rounded-lg bg-gray-200/80" />
+          <div className="mt-2 h-4 w-72 animate-pulse rounded bg-gray-100" />
+        </div>
+        <MetricCardsSkeleton count={4} />
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-          <div className="xl:col-span-5"><TableSkeleton rows={1} cols={1} showHeader={false} /></div>
-          <div className="xl:col-span-3"><TableSkeleton rows={1} cols={1} showHeader={false} /></div>
-          <div className="xl:col-span-4"><TableSkeleton rows={1} cols={1} showHeader={false} /></div>
+          <div className="xl:col-span-7">
+            <TableSkeleton rows={1} cols={1} showHeader={false} />
+          </div>
+          <div className="xl:col-span-5">
+            <TableSkeleton rows={1} cols={1} showHeader={false} />
+          </div>
         </div>
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           <TableSkeleton rows={4} cols={5} />
@@ -151,70 +156,55 @@ export default function PortfolioPage() {
   }
 
   return (
-    <div className="min-w-0 space-y-5">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Portfolio Overview</h1>
-          <p className="mt-1 text-[13px] text-slate-500">
-            Track your investments, performance, and growth in real-time.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-          >
-            <Calendar className="h-4 w-4 text-slate-400" />
-            May 10, 2024
-          </button>
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-[13px] font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-          >
-            <Download className="h-4 w-4 text-slate-400" />
-            Download Report
-          </button>
-        </div>
-      </div>
+    <div className={cn('min-w-0', pageStackClass)}>
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Portfolio Overview</h1>
+        <p className="mt-1 text-[13px] text-slate-500">
+          Track your investments, performance, and growth in real-time.
+        </p>
+      </header>
 
-      {/* Summary cards */}
-      <StatusCardGrid columns={4}>
-        <SummaryCard
-          label="Total Invested"
-          value={portfolioOverview.totalInvested}
-          subtext={`Across ${portfolioOverview.activePlans} active plans`}
-          icon={<DollarSign className="h-5 w-5" />}
-          iconClass="bg-blue-50 text-[#0052ff]"
-        />
-        <SummaryCard
-          label="Current Value"
-          value={portfolioOverview.currentValue}
-          subtext="Updated in real-time"
-          icon={<TrendingUp className="h-5 w-5" />}
-          iconClass="bg-emerald-50 text-emerald-600"
-        />
-        <SummaryCard
-          label="Profit / Loss"
-          value={portfolioOverview.profitLoss}
-          subtext="Total Profit"
-          icon={<BarChart2 className="h-5 w-5" />}
-          iconClass="bg-violet-50 text-violet-600"
-          valueClass="text-emerald-600"
-        />
-        <SummaryCard
-          label="ROI %"
-          value={portfolioOverview.roi}
-          subtext="Overall Return"
-          icon={<Percent className="h-5 w-5" />}
-          iconClass="bg-orange-50 text-orange-500"
-          valueClass="text-emerald-600"
-        />
-      </StatusCardGrid>
+      <section aria-label="Portfolio summary">
+        <div className="space-y-3">
+          <StatusCardGrid columns={2}>
+            <SummaryCard
+              label="Current Value"
+              value={portfolioOverview.currentValue}
+              subtext="Updated in real-time"
+              icon={<TrendingUp className="h-5 w-5" />}
+              iconClass="bg-emerald-50 text-emerald-600"
+            />
+            <SummaryCard
+              label="Profit / Loss"
+              value={portfolioOverview.profitLoss}
+              subtext="Total profit or loss"
+              icon={<BarChart2 className="h-5 w-5" />}
+              iconClass="bg-violet-50 text-violet-600"
+              valueClass={isProfitNegative ? 'text-red-600' : 'text-emerald-600'}
+            />
+          </StatusCardGrid>
+          <StatusCardGrid columns={2} className="max-w-2xl">
+            <SummaryCard
+              label="Total Invested"
+              value={portfolioOverview.totalInvested}
+              subtext={`Across ${portfolioOverview.activePlans} active plans`}
+              icon={<DollarSign className="h-5 w-5" />}
+              iconClass="bg-blue-50 text-[#0052ff]"
+            />
+            <SummaryCard
+              label="ROI %"
+              value={portfolioOverview.roi}
+              subtext="Overall return"
+              icon={<Percent className="h-5 w-5" />}
+              iconClass="bg-orange-50 text-orange-500"
+              valueClass={isProfitNegative ? 'text-red-600' : 'text-emerald-600'}
+            />
+          </StatusCardGrid>
+        </div>
+      </section>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-5">
+      <section aria-label="Performance charts" className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 xl:col-span-7">
           <PerformanceChart
             data={chartData}
             stats={portfolioPerformanceStats}
@@ -222,16 +212,12 @@ export default function PortfolioPage() {
             onPeriodChange={setChartPeriod}
           />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm xl:col-span-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 xl:col-span-5">
           <AllocationDonut data={allocation} totalValue={portfolioOverview.currentValue} />
         </div>
-        <div className="xl:col-span-4">
-          <PrimeAIAnalysisCard analysis={portfolioAIAnalysis} />
-        </div>
-      </div>
+      </section>
 
-      {/* Tables */}
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+      <section aria-label="Investments" className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {/* Active investments */}
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 px-5 py-4">
@@ -401,18 +387,22 @@ export default function PortfolioPage() {
             </Link>
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* Footer widgets */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section aria-label="Returns and highlights" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <MonthlyReturnsChart data={monthlyReturns} />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <DistributionMap />
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
           <h2 className="mb-4 text-[15px] font-semibold text-slate-900">Best Performing Asset</h2>
+          {portfolioActiveInvestments.length === 0 ? (
+            <div className="flex min-h-[140px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500">
+              No active investments yet.{' '}
+              <Link href="/invest" className="ml-1 font-medium text-[#0052ff] hover:underline">
+                Start investing
+              </Link>
+            </div>
+          ) : (
           <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 to-white p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100">
@@ -420,7 +410,7 @@ export default function PortfolioPage() {
               </div>
               <div>
                 <p className="font-semibold text-slate-900">{bestPerformingAsset.name}</p>
-                <p className="text-[12px] text-slate-500">Top ROI this quarter</p>
+                <p className="text-[12px] text-slate-500">Top ROI among active plans</p>
               </div>
             </div>
             <p className="mt-4 text-3xl font-bold text-emerald-600">{bestPerformingAsset.roi}</p>
@@ -435,8 +425,9 @@ export default function PortfolioPage() {
               </div>
             </div>
           </div>
+          )}
         </div>
-      </div>
+      </section>
     </div>
   )
 }

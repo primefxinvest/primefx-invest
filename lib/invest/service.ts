@@ -2,6 +2,7 @@ import 'server-only'
 
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { getKycBlockReason } from '@/lib/investor/kyc'
+import { isAccountStatusFinanciallyBlocked } from '@/lib/security/account-access'
 import { generatePaymentReference } from '@/lib/payments/reference'
 import { notifyInvestmentCreated } from '@/lib/notifications/service'
 import { markReferralActiveOnFirstActivity } from '@/lib/referral/commission-service'
@@ -58,7 +59,7 @@ export async function executeInvestment(
   }
 
   const accountStatus = String(profile.account_status ?? 'active').toLowerCase()
-  if (accountStatus !== 'active') {
+  if (isAccountStatusFinanciallyBlocked(accountStatus)) {
     return { success: false, error: 'Your account cannot make new investments right now.' }
   }
 

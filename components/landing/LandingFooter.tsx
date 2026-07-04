@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
 import Logo from '@/components/shared/Logo'
+import { LandingFooterProtectedLinks } from '@/components/landing/LandingFooterProtectedLinks'
 
 export default async function LandingFooter() {
   const t = await getTranslations('landing.footer')
@@ -23,14 +24,14 @@ export default async function LandingFooter() {
             </h4>
             <ul className="space-y-2 text-xs text-gray-500 sm:text-sm">
               <li>
-                <Link href="#features" className="transition-colors hover:text-gray-900">
+                <a href="/#features" className="transition-colors hover:text-gray-900">
                   {t('features')}
-                </Link>
+                </a>
               </li>
               <li>
-                <Link href="#pricing" className="transition-colors hover:text-gray-900">
+                <a href="/#pricing" className="transition-colors hover:text-gray-900">
                   {t('pricing')}
-                </Link>
+                </a>
               </li>
               <li>
                 <Link href="/legal#compliance" className="transition-colors hover:text-gray-900">
@@ -54,16 +55,11 @@ export default async function LandingFooter() {
                   {t('contact')}
                 </Link>
               </li>
-              <li>
-                <Link href="/academy" className="transition-colors hover:text-gray-900">
-                  {tNav('academy')}
-                </Link>
-              </li>
-              <li>
-                <Link href="/community" className="transition-colors hover:text-gray-900">
-                  {tNav('community')}
-                </Link>
-              </li>
+              <LandingFooterProtectedLinks
+                academyLabel={tNav('academy')}
+                communityLabel={tNav('community')}
+                className="transition-colors hover:text-gray-900"
+              />
             </ul>
           </div>
           <div>

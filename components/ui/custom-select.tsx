@@ -48,6 +48,11 @@ interface CustomSelectProps {
   error?: boolean
   /** Portal dropdown to document.body to avoid clipping in modals. Default: true */
   usePortal?: boolean
+  id?: string
+  /** Accessible name when no visible label is associated. */
+  ariaLabel?: string
+  /** ID of an element that labels this control. */
+  ariaLabelledBy?: string
 }
 
 function CustomSelectInner(
@@ -68,6 +73,9 @@ function CustomSelectInner(
     isLoading = false,
     error = false,
     usePortal = true,
+    id,
+    ariaLabel,
+    ariaLabelledBy,
   }: CustomSelectProps,
   ref: ForwardedRef<CustomSelectRef>
 ) {
@@ -282,6 +290,7 @@ function CustomSelectInner(
               onChange={(e) => setSearchTerm(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={searchPlaceholder}
+              aria-label="Search options"
               className={cn(
                 'h-9 w-full rounded-md border border-border bg-background pl-8 pr-2 text-xs font-medium text-foreground',
                 'placeholder:text-muted-foreground',
@@ -347,12 +356,15 @@ function CustomSelectInner(
     <div className={cn('relative w-full', className)} ref={containerRef}>
       <button
         ref={buttonRef}
+        id={id}
         type="button"
         onClick={toggleDropdown}
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
         aria-disabled={disabled}
+        aria-label={ariaLabel}
+        aria-labelledby={ariaLabelledBy}
         disabled={disabled || isLoading}
         className={cn(
           'relative flex w-full items-center justify-between rounded-lg border border-border bg-card text-left font-medium text-foreground outline-none transition-all duration-150',
@@ -384,6 +396,7 @@ function CustomSelectInner(
                 <span
                   role="button"
                   tabIndex={0}
+                  aria-label="Clear selection"
                   onClick={handleClear}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {

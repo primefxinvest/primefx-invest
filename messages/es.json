@@ -150,6 +150,9 @@
     "notFoundAuthDescription": "Esta página no existe. Vuelve a iniciar sesión o crea una cuenta.",
     "notFoundAdminHome": "Volver al admin",
     "notFoundAdminDescription": "Esta página de administración no existe. Comprueba la URL o vuelve al panel de admin.",
+    "comingSoonBadge": "Próximamente",
+    "comingSoonDescription": "Estamos desarrollando esta sección. Vuelve pronto para ver las novedades.",
+    "comingSoonHome": "Volver al inicio",
     "loadErrorDescription": "No pudimos cargar estos datos. Por favor, inténtalo de nuevo.",
     "noDataYet": "Aún no hay datos"
   },

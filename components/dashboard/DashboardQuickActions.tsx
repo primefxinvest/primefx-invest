@@ -10,11 +10,19 @@ import {
   Upload,
   Zap,
 } from 'lucide-react'
+import { dashboardCardClass, dashboardSectionTitleClass } from '@/lib/layout/surfaces'
 
-const actionHrefs = ['/invest', '/wallet', '/wallet', '/wallet', '/primeai', '/academy']
+const actionHrefs = [
+  '/invest',
+  '/wallet/deposit',
+  '/wallet/withdraw',
+  '/wallet/transfer',
+  '/primeai',
+  '/academy',
+]
 const actionIcons = [TrendingUp, Download, Upload, Send, Zap, BookOpen]
 const actionColors = [
-  'bg-[#0052ff]',
+  'bg-primary',
   'bg-emerald-500',
   'bg-orange-500',
   'bg-purple-500',
@@ -27,9 +35,9 @@ export default function DashboardQuickActions() {
   const items = t.raw('quickActionItems') as Array<{ label: string; description: string }>
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="mb-4 text-sm font-bold text-gray-900">{t('quickActions')}</h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+    <div className={dashboardCardClass}>
+      <h2 className={dashboardSectionTitleClass}>{t('quickActions')}</h2>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-2.5 lg:grid-cols-6">
         {items.map(({ label, description }, index) => {
           const Icon = actionIcons[index]
           const href = actionHrefs[index]
@@ -37,15 +45,15 @@ export default function DashboardQuickActions() {
             <Link
               key={label}
               href={href}
-              className="flex flex-col items-center rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-4 text-center transition-colors hover:border-gray-200 hover:bg-white"
+              className="flex flex-col items-center rounded-lg border border-border bg-muted/30 px-2 py-3 text-center transition-colors hover:border-border hover:bg-card sm:rounded-xl sm:px-3 sm:py-3.5"
             >
               <div
-                className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${actionColors[index]} text-white shadow-sm`}
+                className={`mb-2 flex h-9 w-9 items-center justify-center rounded-lg text-white shadow-sm sm:h-10 sm:w-10 sm:rounded-xl ${actionColors[index]}`}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" />
               </div>
-              <p className="text-xs font-semibold text-gray-900">{label}</p>
-              <p className="mt-0.5 text-[10px] text-gray-500">{description}</p>
+              <p className="text-[11px] font-semibold text-foreground sm:text-xs">{label}</p>
+              <p className="mt-0.5 hidden text-[10px] text-muted-foreground sm:block">{description}</p>
             </Link>
           )
         })}

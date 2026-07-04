@@ -150,6 +150,9 @@
     "notFoundAuthDescription": "This page doesn't exist. Return to sign in or create an account.",
     "notFoundAdminHome": "Back to admin",
     "notFoundAdminDescription": "This admin page doesn't exist. Check the URL or return to the admin dashboard.",
+    "comingSoonBadge": "Coming soon",
+    "comingSoonDescription": "We're building this section. Check back soon for updates.",
+    "comingSoonHome": "Return home",
     "loadErrorDescription": "We could not load this data. Please try again.",
     "noDataYet": "No data yet"
   },

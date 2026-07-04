@@ -52,26 +52,6 @@ export default function AIRecommendationBanner({
                 </span>
               </div>
             </div>
-            <div className="text-center">
-              <div className="relative mx-auto flex h-14 w-14 items-center justify-center">
-                <svg className="absolute inset-0 -rotate-90" viewBox="0 0 56 56">
-                  <circle cx="28" cy="28" r="24" fill="none" stroke="#e9d5ff" strokeWidth="4" />
-                  <circle
-                    cx="28"
-                    cy="28"
-                    r="24"
-                    fill="none"
-                    stroke="#9333ea"
-                    strokeWidth="4"
-                    strokeDasharray={`${2 * Math.PI * 24}`}
-                    strokeDashoffset={`${2 * Math.PI * 24 * (1 - 0.92)}`}
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <span className="text-sm font-bold text-purple-600">92%</span>
-              </div>
-              <p className="mt-1 text-[10px] text-gray-400">Match Score</p>
-            </div>
           </div>
 
           <ul className="mt-4 space-y-2">

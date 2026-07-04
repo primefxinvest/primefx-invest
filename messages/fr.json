@@ -150,6 +150,9 @@
     "notFoundAuthDescription": "Cette page n'existe pas. Retournez à la connexion ou créez un compte.",
     "notFoundAdminHome": "Retour à l'admin",
     "notFoundAdminDescription": "Cette page d'administration n'existe pas. Vérifiez l'URL ou retournez au tableau de bord admin.",
+    "comingSoonBadge": "Bientôt disponible",
+    "comingSoonDescription": "Cette section est en cours de développement. Revenez bientôt pour les mises à jour.",
+    "comingSoonHome": "Retour à l'accueil",
     "loadErrorDescription": "Impossible de charger ces données. Veuillez réessayer.",
     "noDataYet": "Pas encore de données"
   },

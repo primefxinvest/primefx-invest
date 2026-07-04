@@ -19,6 +19,9 @@ import {
 import { upsertVerificationSession } from '@/lib/didit/verification-sessions'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { assertDiditSessionOwnedByUser } from '@/lib/security/kyc-session-guard'
+import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
+import { logSecurityAudit } from '@/lib/security/security-audit'
 
 export const runtime = 'nodejs'
 
@@ -31,6 +34,15 @@ export async function GET(request: Request) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  try {
+    await enforceUserRateLimit('kyc:status', user.id)
+  } catch (err) {
+    if (err instanceof RateLimitExceededError) {
+      return NextResponse.json({ error: err.message, code: 'RATE_LIMIT_EXCEEDED' }, { status: 429 })
+    }
+    throw err
   }
 
   const sessionId = getVerificationSessionIdFromSearchParams(new URL(request.url).searchParams)
@@ -49,18 +61,32 @@ export async function GET(request: Request) {
     .eq('id', user.id)
     .maybeSingle()
 
-  if (profile?.didit_session_id && profile.didit_session_id !== sessionId) {
-    return NextResponse.json({ error: 'Session does not belong to this user.' }, { status: 403 })
-  }
-
   try {
     const apiResponse = await fetchDiditSessionDecision(sessionId)
+    const ownership = await assertDiditSessionOwnedByUser({
+      sessionId,
+      userId: user.id,
+      adminDb,
+      diditApiResponse: apiResponse as Record<string, unknown>,
+    })
+
+    if (!ownership.ok) {
+      await logSecurityAudit({
+        eventType: 'kyc.session_ownership_denied',
+        userId: user.id,
+        resourceId: sessionId,
+        metadata: { reason: ownership.reason },
+      })
+      return NextResponse.json({ error: ownership.reason }, { status: 403 })
+    }
+
+    const vendorData = resolveDiditVendorData(apiResponse)
     const diditStatus = resolveDiditSessionStatus(apiResponse)
     const decisionPayload = resolveDiditDecisionPayload(apiResponse)
 
     await upsertVerificationSession({
       sessionId,
-      vendorData: resolveDiditVendorData(apiResponse) ?? user.id,
+      vendorData: vendorData ?? user.id,
       status: diditStatus,
       decision: decisionPayload,
       workflowId: resolveDiditWorkflowId(apiResponse),
@@ -96,6 +122,17 @@ export async function GET(request: Request) {
         sessionId,
         diditStatus,
         decision: decisionPayload,
+      })
+
+      await logSecurityAudit({
+        eventType: 'kyc.verification_synced',
+        userId: user.id,
+        resourceId: sessionId,
+        metadata: {
+          diditStatus,
+          verificationStatus: synced.verificationStatus,
+          isVerified: synced.isVerified,
+        },
       })
 
       return NextResponse.json({

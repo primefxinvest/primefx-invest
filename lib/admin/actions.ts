@@ -16,6 +16,7 @@ import {
   type AdminMutationResult,
 } from './auth'
 import { logAdminAction } from './audit'
+import { logSecurityAudit } from '@/lib/security/security-audit'
 import { DUAL_APPROVAL_THRESHOLD } from './permissions'
 import type { AccountStatus, AdminPlanRow } from './types'
 
@@ -242,6 +243,19 @@ export async function updateUserKycStatus(
     reasonCode: reasonCode ?? undefined,
   })
 
+  if (before?.kyc_status !== status) {
+    await logSecurityAudit({
+      eventType: 'kyc.admin_override',
+      userId,
+      actorId: context.userId,
+      metadata: {
+        previousStatus: before?.kyc_status ?? null,
+        newStatus: status,
+        reasonCode: reasonCode ?? null,
+      },
+    })
+  }
+
   if ((status === 'Verified' || status === 'Rejected') && before?.kyc_status !== status) {
     await notifyKycStatusChange(userId, status)
   }
@@ -349,6 +363,17 @@ export async function updateUserInvestorTier(
     targetUserId: userId,
     beforeState: before as Record<string, unknown>,
     afterState: { investor_tier: tier },
+  })
+
+  await logSecurityAudit({
+    eventType: 'admin.permission_changed',
+    userId,
+    actorId: context.userId,
+    metadata: {
+      field: 'investor_tier',
+      previousValue: before?.investor_tier ?? null,
+      newValue: tier,
+    },
   })
 
   revalidatePath('/admin/users')

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { executeInvestment } from '@/lib/invest/service'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
 
 interface ProcessInvestmentInput {
   planId: string
@@ -25,6 +26,11 @@ export async function processInvestment(
 
   if (!user) {
     return { success: false, error: 'You must be logged in to invest.' }
+  }
+
+  const account = await requireActiveAccountForFinancialAction(user.id, 'investment')
+  if (!account.allowed) {
+    return { success: false, error: account.error }
   }
 
   const result = await executeInvestment({

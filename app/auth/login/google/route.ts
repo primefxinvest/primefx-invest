@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { sanitizeRedirectPath } from '@/lib/auth/session'
+import { enforceIpRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
 import {
   createRouteHandlerSupabaseClient,
   getRequestOrigin,
@@ -15,6 +16,15 @@ function loginErrorRedirect(request: NextRequest, message?: string) {
 }
 
 export async function GET(request: NextRequest) {
+  try {
+    await enforceIpRateLimit('auth:login')
+  } catch (err) {
+    if (err instanceof RateLimitExceededError) {
+      return loginErrorRedirect(request, err.message)
+    }
+    throw err
+  }
+
   const redirect = sanitizeRedirectPath(request.nextUrl.searchParams.get('redirect'))
   const origin = getRequestOrigin(request)
   const callbackUrl = new URL('/auth/callback', origin)

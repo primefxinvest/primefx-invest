@@ -2,6 +2,7 @@ import { generateObject } from 'ai'
 import { getAiConfigError, getVisionModel } from '@/lib/ai/provider'
 import { AI_DOCUMENT_SCAN_UNAVAILABLE_USER_MESSAGE } from '@/lib/ai/user-errors'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
 import {
   kycExtractedFieldsSchema,
   type KycDocumentScanKind,
@@ -51,6 +52,15 @@ export async function POST(req: Request) {
 
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    try {
+      await enforceUserRateLimit('kyc:extract', user.id)
+    } catch (err) {
+      if (err instanceof RateLimitExceededError) {
+        return Response.json({ error: err.message, code: 'RATE_LIMIT_EXCEEDED' }, { status: 429 })
+      }
+      throw err
     }
 
     const body = (await req.json()) as {

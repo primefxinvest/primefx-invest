@@ -1,6 +1,6 @@
 'use client'
 
-import { toast } from 'sonner'
+import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { Bitcoin, Building2, CreditCard, Wallet } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
@@ -22,12 +22,6 @@ export default function PaymentMethodsCard() {
     []
   )
 
-  const handleManage = () => {
-    toast.info(t('toastTitle'), {
-      description: t('toastDescription'),
-    })
-  }
-
   const badgeLabel = (badge: string) => {
     if (badge === 'Primary') return t('badgePrimary')
     if (badge === 'Active') return t('badgeActive')
@@ -38,13 +32,7 @@ export default function PaymentMethodsCard() {
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-900">{t('title')}</h2>
-        <button
-          type="button"
-          onClick={handleManage}
-          className="text-xs font-semibold text-[#0052ff] hover:underline"
-        >
-          {t('manage')}
-        </button>
+        <span className="text-xs font-semibold text-gray-400">Coming Soon</span>
       </div>
 
       <AsyncState

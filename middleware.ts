@@ -3,6 +3,10 @@ import { NextResponse, NextRequest } from 'next/server'
 import { routing, type AppLocale } from '@/i18n/routing'
 import { localizePath, shouldSkipLocalePrefix, stripLocalePrefix } from '@/lib/i18n/pathname'
 import { updateSession } from '@/lib/supabase/middleware'
+import {
+  applyContentSecurityPolicyHeaders,
+  generateCspNonce,
+} from '@/lib/security/content-security-policy'
 
 const intlMiddleware = createIntlMiddleware(routing)
 
@@ -51,44 +55,49 @@ function fixDoubleLocaleRedirect(request: NextRequest) {
   return NextResponse.redirect(url)
 }
 
-function withPathnameHeader(request: NextRequest) {
+function withSecurityHeaders(request: NextRequest, nonce: string) {
   const headers = new Headers(request.headers)
   headers.set('x-pathname', request.nextUrl.pathname)
+  headers.set('x-nonce', nonce)
   return new NextRequest(request.url, { headers })
 }
 
+function finalizeResponse(response: NextResponse, nonce: string) {
+  return applyContentSecurityPolicyHeaders(response, nonce)
+}
+
 export async function middleware(request: NextRequest) {
+  const nonce = generateCspNonce()
+  const requestWithPath = withSecurityHeaders(request, nonce)
   const { pathname } = request.nextUrl
-  const requestWithPath = withPathnameHeader(request)
 
   if (shouldSkipSession(pathname)) {
-    return NextResponse.next()
+    return finalizeResponse(NextResponse.next({ request: requestWithPath }), nonce)
   }
 
   const doubleLocaleRedirect = fixDoubleLocaleRedirect(request)
   if (doubleLocaleRedirect) {
-    return doubleLocaleRedirect
+    return finalizeResponse(doubleLocaleRedirect, nonce)
   }
 
   const excludedPathRedirect = fixLocalePrefixedExcludedPathRedirect(request)
   if (excludedPathRedirect) {
-    return excludedPathRedirect
+    return finalizeResponse(excludedPathRedirect, nonce)
   }
 
   if (shouldSkipI18n(pathname)) {
-    return updateSession(requestWithPath)
+    return finalizeResponse(await updateSession(requestWithPath), nonce)
   }
 
   const intlResponse = intlMiddleware(requestWithPath)
 
   if (intlResponse.headers.get('location')) {
-    return intlResponse
+    return finalizeResponse(intlResponse, nonce)
   }
 
-  return updateSession(requestWithPath, intlResponse)
+  return finalizeResponse(await updateSession(requestWithPath, intlResponse), nonce)
 }
 
 export const config = {
   matcher: ['/((?!_next|_vercel|.*\\..*).*)'],
 }
-

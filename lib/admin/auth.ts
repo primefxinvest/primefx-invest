@@ -8,7 +8,7 @@ import type { AdminContext, AdminModule, AdminProfile, AdminTier } from './types
 import { canAccessModule } from './permissions'
 
 function getBootstrapSuperEmails(): string[] {
-  const raw = process.env.ADMIN_SUPER_EMAILS ?? process.env.NEXT_PUBLIC_ADMIN_EMAIL ?? ''
+  const raw = process.env.ADMIN_SUPER_EMAILS ?? ''
   return raw
     .split(',')
     .map((email) => email.trim().toLowerCase())

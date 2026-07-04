@@ -13,6 +13,7 @@ import {
   toUserWithdrawalError,
 } from './user-errors'
 import {
+  claimDepositCompletion,
   completeTransaction,
   creditInvestorWallet,
   getPaymentByOrderId,
@@ -20,6 +21,7 @@ import {
   reverseFailedWithdrawalPayout,
   updatePaymentStatus,
 } from './wallet-ledger'
+import { logFinancialAudit } from '@/lib/payments/financial-audit'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/referral/program-config'
@@ -217,18 +219,32 @@ export async function createWithdrawalPayment(input: {
 }
 
 export async function completeDepositFromWebhook(orderId: string) {
-  const payment = await getPaymentByOrderId(orderId)
-  if (!payment || payment.status === 'completed') return
+  const claimed = await claimDepositCompletion(orderId)
+  if (!claimed) {
+    await logFinancialAudit({
+      eventType: 'deposit.duplicate_blocked',
+      referenceId: orderId,
+    })
+    return { credited: false, reason: 'already_completed' as const }
+  }
 
-  const amount = Number(payment.amount_usd)
-  const userId = String(payment.investor_id)
+  const amount = Number(claimed.amount_usd)
+  const userId = String(claimed.investor_id)
 
   await creditInvestorWallet(userId, amount)
   await completeTransaction(orderId, 'Completed')
-  await updatePaymentStatus(orderId, 'completed')
   await notifyDepositCompleted(userId, amount, orderId)
-
   await markReferralActiveOnFirstActivity(userId)
+
+  await logFinancialAudit({
+    eventType: 'deposit.credited',
+    userId,
+    referenceId: orderId,
+    amountUsd: amount,
+    metadata: { provider: claimed.provider },
+  })
+
+  return { credited: true as const }
 }
 
 export async function failWithdrawalFromWebhook(
@@ -281,11 +297,56 @@ export async function failDepositFromWebhook(
 }
 
 export async function completeWithdrawalFromWebhook(orderId: string) {
+  const db = createAdminSupabaseClient()
+  if (!db) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for withdrawal operations.')
+  }
+
   const payment = await getPaymentByOrderId(orderId)
-  await updatePaymentStatus(orderId, 'completed')
-  await completeTransaction(orderId, 'Completed')
+
+  if (payment && payment.status === 'completed') {
+    return { completed: false, reason: 'already_completed' as const }
+  }
 
   if (payment) {
+    await updatePaymentStatus(orderId, 'completed')
+  }
+
+  await completeTransaction(orderId, 'Completed')
+
+  const { data: request } = await db
+    .from('withdrawal_requests')
+    .select('id, user_id, amount_usd, status')
+    .eq('reference_id', orderId)
+    .maybeSingle()
+
+  if (request && String(request.status) !== 'completed') {
+    await db
+      .from('withdrawal_requests')
+      .update({
+        status: 'completed',
+        processed_at: new Date().toISOString(),
+      })
+      .eq('id', request.id)
+
+    await logFinancialAudit({
+      eventType: 'withdrawal.completed',
+      userId: String(request.user_id),
+      referenceId: orderId,
+      amountUsd: Number(request.amount_usd),
+      metadata: { source: 'payout_webhook' },
+    })
+
+    if (payment) {
+      await notifyWithdrawalCompleted(
+        String(request.user_id),
+        Number(request.amount_usd),
+        orderId
+      )
+    }
+  } else if (payment) {
     await notifyWithdrawalCompleted(String(payment.investor_id), Number(payment.amount_usd), orderId)
   }
+
+  return { completed: true as const }
 }

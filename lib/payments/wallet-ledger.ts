@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
+import { logFinancialAudit } from '@/lib/payments/financial-audit'
 import type { PaymentStatus } from './types'
 
 function getDb() {
@@ -11,150 +12,45 @@ function getDb() {
   return db
 }
 
-export async function creditInvestorWallet(userId: string, amountUsd: number) {
+async function rpcWalletOp(
+  fn: 'atomic_credit_wallet' | 'atomic_debit_wallet' | 'atomic_hold_wallet_funds' | 'atomic_release_wallet_hold' | 'atomic_restore_wallet_hold',
+  userId: string,
+  amountUsd: number,
+  auditEvent: Parameters<typeof logFinancialAudit>[0]['eventType']
+) {
   const db = getDb()
-  const { data: wallet, error: walletError } = await db
-    .from('wallet_balances')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
+  const { error } = await db.rpc(fn, {
+    p_user_id: userId,
+    p_amount: amountUsd,
+  })
 
-  if (walletError || !wallet) {
-    throw new Error(walletError?.message ?? 'Wallet not found.')
-  }
+  if (error) throw new Error(error.message)
 
-  const available = Number(wallet.available_balance ?? 0) + amountUsd
-  const total = Number(wallet.total_balance ?? 0) + amountUsd
+  await logFinancialAudit({
+    eventType: auditEvent,
+    userId,
+    amountUsd,
+  })
+}
 
-  const { error: updateError } = await db
-    .from('wallet_balances')
-    .update({
-      available_balance: available,
-      total_balance: total,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId)
-
-  if (updateError) throw new Error(updateError.message)
+export async function creditInvestorWallet(userId: string, amountUsd: number) {
+  await rpcWalletOp('atomic_credit_wallet', userId, amountUsd, 'wallet.credit')
 }
 
 export async function debitInvestorWallet(userId: string, amountUsd: number) {
-  const db = getDb()
-  const { data: wallet, error: walletError } = await db
-    .from('wallet_balances')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
-
-  if (walletError || !wallet) {
-    throw new Error(walletError?.message ?? 'Wallet not found.')
-  }
-
-  const available = Number(wallet.available_balance ?? 0)
-  if (available < amountUsd) {
-    throw new Error('Insufficient available balance.')
-  }
-
-  const nextAvailable = available - amountUsd
-  const total = Math.max(0, Number(wallet.total_balance ?? 0) - amountUsd)
-
-  const { error: updateError } = await db
-    .from('wallet_balances')
-    .update({
-      available_balance: nextAvailable,
-      total_balance: total,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId)
-
-  if (updateError) throw new Error(updateError.message)
+  await rpcWalletOp('atomic_debit_wallet', userId, amountUsd, 'wallet.debit')
 }
 
 export async function holdWalletFunds(userId: string, amountUsd: number) {
-  const db = getDb()
-  const { data: wallet, error: walletError } = await db
-    .from('wallet_balances')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
-
-  if (walletError || !wallet) {
-    throw new Error(walletError?.message ?? 'Wallet not found.')
-  }
-
-  const available = Number(wallet.available_balance ?? 0)
-  if (available < amountUsd) {
-    throw new Error('Insufficient available balance.')
-  }
-
-  const { error: updateError } = await db
-    .from('wallet_balances')
-    .update({
-      available_balance: available - amountUsd,
-      pending_balance: Number(wallet.pending_balance ?? 0) + amountUsd,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId)
-
-  if (updateError) throw new Error(updateError.message)
+  await rpcWalletOp('atomic_hold_wallet_funds', userId, amountUsd, 'wallet.hold')
 }
 
 export async function releaseWalletHold(userId: string, amountUsd: number) {
-  const db = getDb()
-  const { data: wallet, error: walletError } = await db
-    .from('wallet_balances')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
-
-  if (walletError || !wallet) {
-    throw new Error(walletError?.message ?? 'Wallet not found.')
-  }
-
-  const pending = Number(wallet.pending_balance ?? 0)
-  if (pending < amountUsd) {
-    throw new Error('Insufficient pending balance.')
-  }
-
-  const { error: updateError } = await db
-    .from('wallet_balances')
-    .update({
-      pending_balance: pending - amountUsd,
-      total_balance: Math.max(0, Number(wallet.total_balance ?? 0) - amountUsd),
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId)
-
-  if (updateError) throw new Error(updateError.message)
+  await rpcWalletOp('atomic_release_wallet_hold', userId, amountUsd, 'wallet.release_hold')
 }
 
 export async function restoreWalletHold(userId: string, amountUsd: number) {
-  const db = getDb()
-  const { data: wallet, error: walletError } = await db
-    .from('wallet_balances')
-    .select('*')
-    .eq('user_id', userId)
-    .single()
-
-  if (walletError || !wallet) {
-    throw new Error(walletError?.message ?? 'Wallet not found.')
-  }
-
-  const pending = Number(wallet.pending_balance ?? 0)
-  if (pending < amountUsd) {
-    throw new Error('Insufficient pending balance.')
-  }
-
-  const { error: updateError } = await db
-    .from('wallet_balances')
-    .update({
-      available_balance: Number(wallet.available_balance ?? 0) + amountUsd,
-      pending_balance: pending - amountUsd,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('user_id', userId)
-
-  if (updateError) throw new Error(updateError.message)
+  await rpcWalletOp('atomic_restore_wallet_hold', userId, amountUsd, 'wallet.restore_hold')
 }
 
 export async function recordDepositPayment(input: {
@@ -341,6 +237,17 @@ export async function getPaymentByOrderId(orderId: string) {
   return data
 }
 
+/** Atomically claim deposit completion — returns payment row only on first claim. */
+export async function claimDepositCompletion(orderId: string) {
+  const db = getDb()
+  const { data, error } = await db.rpc('claim_deposit_completion', {
+    p_order_id: orderId,
+  })
+
+  if (error) throw new Error(error.message)
+  return data as Record<string, unknown> | null
+}
+
 function normalizeTxType(type: string | null | undefined) {
   return String(type ?? '').toLowerCase()
 }
@@ -349,7 +256,7 @@ function transactionAmount(tx: { amount?: unknown }) {
   return Math.abs(Number(tx.amount ?? 0))
 }
 
-const ACTIVE_WITHDRAWAL_REQUEST_STATUSES = ['pending_notice', 'ready'] as const
+const ACTIVE_WITHDRAWAL_REQUEST_STATUSES = ['pending_notice', 'ready', 'processing'] as const
 
 async function getWalletPendingBalance(userId: string) {
   const db = getDb()
@@ -535,6 +442,33 @@ export async function settleApprovedTransaction(tx: {
 
   if (type === 'withdrawal') {
     if (tx.reference_id) {
+      const db = getDb()
+      const { data: request } = await db
+        .from('withdrawal_requests')
+        .select('id, status, amount_usd')
+        .eq('reference_id', tx.reference_id)
+        .maybeSingle()
+
+      if (request && ['ready', 'pending_notice'].includes(String(request.status))) {
+        const requestAmount = Number(request.amount_usd ?? amount)
+        await releaseWalletHold(userId, requestAmount)
+        await db
+          .from('withdrawal_requests')
+          .update({
+            status: 'completed',
+            processed_at: new Date().toISOString(),
+          })
+          .eq('id', request.id)
+        await logFinancialAudit({
+          eventType: 'withdrawal.completed',
+          userId,
+          referenceId: tx.reference_id,
+          amountUsd: requestAmount,
+          metadata: { source: 'admin_approval' },
+        })
+        return
+      }
+
       const payment = await getPaymentByOrderId(tx.reference_id)
       if (payment) {
         await updatePaymentStatus(tx.reference_id, 'completed')

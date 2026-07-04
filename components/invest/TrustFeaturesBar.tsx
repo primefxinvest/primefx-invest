@@ -9,7 +9,7 @@ const icons = {
 
 export default function TrustFeaturesBar() {
   return (
-    <div className="grid grid-cols-2 gap-4 rounded-2xl border border-gray-200 bg-white px-6 py-5 shadow-sm sm:grid-cols-4">
+    <div className="grid grid-cols-1 gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-4 shadow-sm sm:grid-cols-2 sm:gap-4 sm:px-6 sm:py-5 lg:grid-cols-4">
       {[
         { label: 'No Hidden Fees', icon: icons.fees },
         { label: 'Withdraw Anytime', icon: icons.withdraw },

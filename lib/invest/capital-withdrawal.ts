@@ -5,6 +5,7 @@ import { getWithdrawalAvailableDate } from '@/lib/fees/constants'
 import { generatePaymentReference } from '@/lib/payments/reference'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
+import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -19,6 +20,11 @@ export async function requestInvestmentCapitalWithdrawal(input: {
   investmentId: string
   supportNote?: string
 }) {
+  const account = await requireActiveAccountForFinancialAction(input.userId, 'payout')
+  if (!account.allowed) {
+    throw new Error(account.error)
+  }
+
   const kyc = await requireVerifiedKyc(input.userId, 'withdrawal')
   if (!kyc.allowed) {
     throw new Error(kyc.error)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link, usePathname } from '@/i18n/navigation'
 import { logout } from '@/lib/auth/logout'
@@ -44,6 +44,16 @@ import {
 import { useReferralProgramEnabled } from '@/lib/hooks/useReferralProgramEnabled'
 import { fetchNotifications } from '@/lib/data/queries'
 import { SIDEBAR_WIDTH_DESKTOP_CLASS, SIDEBAR_WIDTH_MOBILE_CLASS } from '@/lib/layout/sidebar'
+import {
+  NAV_ICON_SLOT,
+  NAV_ITEM_ACTIVE,
+  NAV_ITEM_BASE,
+  NAV_ITEM_INACTIVE,
+  NAV_SECTION_DIVIDER,
+  NAV_SUB_ITEM_ACTIVE,
+  NAV_SUB_ITEM_BASE,
+  NAV_SUB_ITEM_INACTIVE,
+} from '@/lib/layout/nav-styles'
 
 const navIconMap = {
   '/dashboard': Home,
@@ -90,15 +100,26 @@ const WALLET_SUB_LABEL_KEYS: Record<string, string> = {
   '/transactions': 'transactions',
 }
 
+function navItemClass(active: boolean, extra?: string) {
+  return cn(NAV_ITEM_BASE, active ? NAV_ITEM_ACTIVE : NAV_ITEM_INACTIVE, extra)
+}
+
+function subNavItemClass(active: boolean) {
+  return cn(NAV_SUB_ITEM_BASE, active ? NAV_SUB_ITEM_ACTIVE : NAV_SUB_ITEM_INACTIVE)
+}
+
 export default function Sidebar() {
   const t = useTranslations('sidebar')
   const pathname = usePathname()
   const { open, close } = useMobileNav()
+  const asideRef = useRef<HTMLElement>(null)
   const [loggingOut, setLoggingOut] = useState(false)
   const [walletOpen, setWalletOpen] = useState(() => isWalletSectionActive(pathname))
   const { tierKey } = useInvestorTier()
   const { canAccess, loading: referralProgramLoading } = useReferralProgramEnabled()
-  const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [])
+  const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [], undefined, {
+    cacheKey: 'user-notifications',
+  })
   const unreadCount = (notifications ?? []).filter((n) => !n.read).length
 
   useEffect(() => {
@@ -110,6 +131,46 @@ export default function Sidebar() {
       setWalletOpen(true)
     }
   }, [pathname])
+
+  useEffect(() => {
+    if (!open) return
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        close()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [open, close])
+
+  useEffect(() => {
+    if (!open || !asideRef.current) return
+
+    const focusable = asideRef.current.querySelectorAll<HTMLElement>(
+      'a[href], button:not([disabled])'
+    )
+    if (focusable.length === 0) return
+
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    first.focus()
+
+    const trapFocus = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab') return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', trapFocus)
+    return () => document.removeEventListener('keydown', trapFocus)
+  }, [open])
 
   const handleLogout = async () => {
     if (loggingOut) return
@@ -133,6 +194,9 @@ export default function Sidebar() {
       ) : null}
 
       <aside
+        ref={asideRef}
+        aria-label="Main navigation"
+        aria-modal={open ? true : undefined}
         className={cn(
           'fixed left-0 top-0 z-50 flex h-[100dvh] flex-col border-r border-gray-200 bg-white pt-[env(safe-area-inset-top,0px)] shadow-xl transition-transform duration-300 ease-out lg:shadow-none',
           SIDEBAR_WIDTH_MOBILE_CLASS,
@@ -152,166 +216,179 @@ export default function Sidebar() {
           </button>
         </div>
 
-      <nav className="primefx-scrollbar min-h-0 flex-1 overflow-y-auto px-2 py-3">
-        <div className="space-y-0.5">
-          {INVESTOR_NAV_ITEMS.map((item) => {
-            const Icon = navIconMap[item.href as keyof typeof navIconMap] ?? Home
-            const tierLocked = item.requiredTier ? !canAccessRoute(tierKey, item.href) : false
-            const referralLocked =
-              item.href === '/referral' && !referralProgramLoading && !canAccess
+        <nav className="primefx-scrollbar min-h-0 flex-1 overflow-y-auto px-2 py-4" aria-label="Dashboard pages">
+          <div className="space-y-1">
+            {INVESTOR_NAV_ITEMS.map((item) => {
+              const Icon = navIconMap[item.href as keyof typeof navIconMap] ?? Home
+              const tierLocked = item.requiredTier ? !canAccessRoute(tierKey, item.href) : false
+              const referralLocked =
+                item.href === '/referral' && !referralProgramLoading && !canAccess
 
-            if (tierLocked) {
-              return (
-                <div
-                  key={item.href}
-                  title={`Requires ${item.requiredTier} tier`}
-                  className="flex cursor-not-allowed items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium text-gray-400"
-                >
-                  <Icon className="h-4 w-4 shrink-0 opacity-50" />
-                  <span className="flex-1">{t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}</span>
-                  <Lock className="h-3.5 w-3.5 shrink-0" />
-                </div>
-              )
-            }
-
-            if (referralLocked) {
-              const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
-              return (
-                <Link key={item.href} href={item.href}>
+              if (tierLocked) {
+                return (
                   <div
-                    title="Referral program is locked by admin"
-                    className={cn(
-                      'flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
-                      active
-                        ? 'bg-violet-50 text-violet-700'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                    )}
+                    key={item.href}
+                    title={`Requires ${item.requiredTier} tier`}
+                    aria-disabled="true"
+                    className={cn(NAV_ITEM_BASE, 'cursor-not-allowed text-gray-400')}
                   >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    <span className="flex-1">{t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}</span>
-                    <Lock className="h-3.5 w-3.5 shrink-0 text-violet-500" />
+                    <span className={cn(NAV_ICON_SLOT, 'opacity-50')}>
+                      <Icon />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}
+                    </span>
+                    <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   </div>
+                )
+              }
+
+              if (referralLocked) {
+                const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={navItemClass(
+                      active,
+                      active ? 'bg-violet-50 text-violet-700 shadow-none hover:bg-violet-100' : undefined
+                    )}
+                    title="Referral program is locked by admin"
+                  >
+                    <span className={NAV_ICON_SLOT}>
+                      <Icon />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">
+                      {t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}
+                    </span>
+                    <Lock className="h-3.5 w-3.5 shrink-0 text-violet-500" aria-hidden />
+                  </Link>
+                )
+              }
+
+              if (item.href === '/wallet') {
+                const walletActive = isWalletSectionActive(pathname)
+
+                return (
+                  <div key={item.href} className="space-y-1">
+                    <button
+                      type="button"
+                      id="sidebar-wallet-toggle"
+                      aria-expanded={walletOpen}
+                      aria-controls="sidebar-wallet-submenu"
+                      onClick={() => setWalletOpen((current) => !current)}
+                      className={navItemClass(walletActive)}
+                    >
+                      <span className={NAV_ICON_SLOT}>
+                        <Wallet />
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-left">{t('wallet')}</span>
+                      {walletOpen ? (
+                        <ChevronDown className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      )}
+                    </button>
+
+                    {walletOpen ? (
+                      <div
+                        id="sidebar-wallet-submenu"
+                        role="group"
+                        aria-labelledby="sidebar-wallet-toggle"
+                        className="ml-3 space-y-1 border-l border-gray-200 pl-2"
+                      >
+                        {WALLET_NAV_ITEMS.map((subItem) => {
+                          const subActive = isWalletNavActive(pathname, subItem.href)
+                          return (
+                            <Link
+                              key={subItem.href}
+                              href={subItem.href}
+                              aria-current={subActive ? 'page' : undefined}
+                              className={subNavItemClass(subActive)}
+                            >
+                              <span
+                                className={cn(
+                                  'h-1.5 w-1.5 shrink-0 rounded-full',
+                                  subActive ? 'bg-[#0052ff]' : 'bg-transparent'
+                                )}
+                                aria-hidden
+                              />
+                              <span className="min-w-0 flex-1 truncate">
+                                {t(WALLET_SUB_LABEL_KEYS[subItem.href] as 'overview')}
+                              </span>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              }
+
+              const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={navItemClass(isActive)}
+                >
+                  <span className={NAV_ICON_SLOT}>
+                    <Icon />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}
+                  </span>
                 </Link>
               )
-            }
+            })}
+          </div>
 
-            if (item.href === '/wallet') {
-              const walletActive = isWalletSectionActive(pathname)
+          <div className={NAV_SECTION_DIVIDER}>
+            {bottomNavItems.map((item) => {
+              const Icon = item.icon
+              const isActive = pathname.startsWith(item.href)
 
               return (
-                <div key={item.href} className="space-y-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setWalletOpen((current) => !current)}
-                    className={cn(
-                      'flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
-                      walletActive
-                        ? 'bg-[#0052ff] text-white shadow-sm'
-                        : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                    )}
-                  >
-                    <Wallet className="h-4 w-4 shrink-0" />
-                    <span className="flex-1 text-left">{t('wallet')}</span>
-                    {walletOpen ? (
-                      <ChevronDown className="h-4 w-4 shrink-0 opacity-80" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 shrink-0 opacity-80" />
-                    )}
-                  </button>
-
-                  {walletOpen ? (
-                    <div className="ml-3 space-y-0.5 border-l border-gray-200 pl-1.5">
-                      {WALLET_NAV_ITEMS.map((subItem) => {
-                        const subActive = isWalletNavActive(pathname, subItem.href)
-                        return (
-                          <Link key={subItem.href} href={subItem.href}>
-                            <div
-                              className={cn(
-                                'flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors',
-                                subActive
-                                  ? 'bg-blue-50 text-[#0052ff]'
-                                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                              )}
-                            >
-                              {subActive ? (
-                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#0052ff]" />
-                              ) : (
-                                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-transparent" />
-                              )}
-                              {t(WALLET_SUB_LABEL_KEYS[subItem.href] as 'overview')}
-                            </div>
-                          </Link>
-                        )
-                      })}
-                    </div>
-                  ) : null}
-                </div>
-              )
-            }
-
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-
-            return (
-              <Link key={item.href} href={item.href}>
-                <div
-                  className={cn(
-                    'flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
-                    isActive
-                      ? 'bg-[#0052ff] text-white shadow-sm'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  )}
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive ? 'page' : undefined}
+                  className={navItemClass(isActive)}
                 >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span>{t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}</span>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
-
-        <div className="mt-3 space-y-0.5 border-t border-gray-200 pt-3">
-          {bottomNavItems.map((item) => {
-            const Icon = item.icon
-            const isActive = pathname.startsWith(item.href)
-
-            return (
-              <Link key={item.href} href={item.href}>
-                <div
-                  className={cn(
-                    'flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors',
-                    isActive
-                      ? 'bg-[#0052ff] text-white'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  <span className="flex-1">{t(item.labelKey)}</span>
-                  {item.href === '/notifications' && unreadCount > 0 && (
-                    <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  <span className={NAV_ICON_SLOT}>
+                    <Icon />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{t(item.labelKey)}</span>
+                  {item.href === '/notifications' && unreadCount > 0 ? (
+                    <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                       {unreadCount > 9 ? '9+' : unreadCount}
                     </span>
-                  )}
-                </div>
-              </Link>
-            )
-          })}
+                  ) : null}
+                </Link>
+              )
+            })}
+          </div>
+        </nav>
+
+        <SidebarUpgradeCard />
+
+        <div className="shrink-0 border-t border-gray-200 px-2 py-3">
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            className={cn(NAV_ITEM_BASE, NAV_ITEM_INACTIVE, 'disabled:opacity-60')}
+          >
+            <span className={NAV_ICON_SLOT}>
+              <LogOut />
+            </span>
+            <span>{loggingOut ? t('loggingOut') : t('logout')}</span>
+          </button>
         </div>
-      </nav>
-
-      <SidebarUpgradeCard />
-
-      <div className="shrink-0 border-t border-gray-200 px-2 py-2">
-        <button
-          type="button"
-          onClick={handleLogout}
-          disabled={loggingOut}
-          className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-[13px] font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 disabled:opacity-60"
-        >
-          <LogOut className="h-4 w-4" />
-          <span>{loggingOut ? t('loggingOut') : t('logout')}</span>
-        </button>
-      </div>
-    </aside>
+      </aside>
     </>
   )
 }

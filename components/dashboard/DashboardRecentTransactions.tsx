@@ -8,6 +8,7 @@ import { ListSkeleton } from '@/components/shared/skeletons'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { useLiveTransactions } from '@/lib/hooks/useLiveTransactions'
 import { fetchRecentTransactions } from '@/lib/data/queries'
+import { dashboardCardClass, dashboardSectionTitleClass } from '@/lib/layout/surfaces'
 import { cn } from '@/lib/utils'
 
 const typeKeys: Record<string, 'txDeposit' | 'txProfit' | 'txWithdraw' | 'txTransfer' | 'txBonus'> = {
@@ -58,12 +59,12 @@ export default function DashboardRecentTransactions() {
   )
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-bold text-gray-900">{t('recentTransactions')}</h2>
+    <div className={dashboardCardClass}>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className={dashboardSectionTitleClass}>{t('recentTransactions')}</h2>
         <Link
           href="/transactions"
-          className="flex items-center gap-0.5 text-xs font-semibold text-[#0052ff] hover:underline"
+          className="flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline"
         >
           {t('viewAll')}
           <ChevronRight className="h-3.5 w-3.5" />
@@ -78,7 +79,7 @@ export default function DashboardRecentTransactions() {
         emptyTitle={t('noTransactionsTitle')}
         emptyDescription={t('noTransactionsDesc')}
         emptyAction={
-          <Link href="/wallet" className="text-sm font-semibold text-[#0052ff] hover:underline">
+          <Link href="/wallet" className="text-sm font-semibold text-primary hover:underline">
             {t('goToWallet')}
           </Link>
         }
@@ -95,20 +96,20 @@ export default function DashboardRecentTransactions() {
             return (
               <div
                 key={tx.id}
-                className="flex items-center justify-between rounded-xl border border-gray-100 bg-gray-50/50 px-3 py-3"
+                className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2.5"
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <div
                     className={cn(
-                      'flex h-9 w-9 items-center justify-center rounded-full',
+                      'flex h-8 w-8 items-center justify-center rounded-full',
                       style.iconBg
                     )}
                   >
-                    <Icon className={cn('h-4 w-4', style.iconColor)} />
+                    <Icon className={cn('h-3.5 w-3.5', style.iconColor)} />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-gray-900">{t(labelKey)}</p>
-                    <p className="text-[10px] text-gray-500">{tx.date}</p>
+                    <p className="text-xs font-semibold text-foreground">{t(labelKey)}</p>
+                    <p className="text-[10px] text-muted-foreground">{tx.date}</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -120,7 +121,7 @@ export default function DashboardRecentTransactions() {
                   >
                     {tx.amount}
                   </p>
-                  <p className="text-[10px] text-gray-400">{tx.status}</p>
+                  <p className="text-[10px] text-muted-foreground">{tx.status}</p>
                 </div>
               </div>
             )

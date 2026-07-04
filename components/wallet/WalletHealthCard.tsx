@@ -4,6 +4,7 @@ import { Shield } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchWalletHealth } from '@/lib/data/queries'
+import { ErrorState } from '@/components/shared/data-state'
 
 const statusColors = {
   excellent: { stroke: '#10b981', text: 'text-emerald-600', bg: 'bg-emerald-100 text-emerald-700' },
@@ -14,7 +15,30 @@ const statusColors = {
 
 export default function WalletHealthCard() {
   const t = useTranslations('wallet.health')
-  const { data: health } = useAsyncData(() => fetchWalletHealth(), [])
+  const { data: health, loading, error, reload } = useAsyncData(() => fetchWalletHealth(), [], undefined, {
+    timeoutMs: 20_000,
+  })
+
+  if (loading) {
+    return (
+      <div className="flex h-full flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="h-4 w-32 animate-pulse rounded bg-gray-100" />
+        <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3">
+          <div className="h-28 w-28 animate-pulse rounded-full bg-gray-100" />
+          <div className="h-4 w-24 animate-pulse rounded bg-gray-100" />
+          <div className="h-3 w-40 animate-pulse rounded bg-gray-100" />
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="h-full rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <ErrorState compact title={t('title')} description={error} onRetry={reload} />
+      </div>
+    )
+  }
 
   const score = (health?.score ?? 0) / 100
   const statusKey = health?.statusKey ?? 'actionRequired'

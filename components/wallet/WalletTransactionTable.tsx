@@ -5,13 +5,11 @@ import { Link } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import {
-  Calendar,
   ChevronDown,
   Copy,
   Download,
   Gift,
   Send,
-  SlidersHorizontal,
   Upload,
 } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
@@ -52,6 +50,8 @@ function getTransactionColor(type: string) {
   return typeColors[type as KnownTxType] ?? 'bg-gray-100 text-gray-600'
 }
 
+const PREVIEW_LIMIT = 5
+
 export default function WalletTransactionTable() {
   const t = useTranslations('wallet.transactions')
   const tWallet = useTranslations('wallet')
@@ -75,6 +75,9 @@ export default function WalletTransactionTable() {
     return walletTransactions.filter((tx) => tx.type === activeTab)
   }, [activeTab, walletTransactions])
 
+  const previewRows = useMemo(() => filtered.slice(0, PREVIEW_LIMIT), [filtered])
+  const hasMoreRows = filtered.length > PREVIEW_LIMIT
+
   const copyReference = async (referenceId: string) => {
     try {
       await navigator.clipboard.writeText(referenceId)
@@ -84,49 +87,22 @@ export default function WalletTransactionTable() {
     }
   }
 
-  const handleExport = () => {
-    toast.success(t('exportStarted'), {
-      description: t('exportStartedDesc'),
-    })
-  }
-
-  const handleFilter = () => {
-    toast.info(t('filtersToast'), { description: t('filtersToastDesc') })
-  }
-
   const isTrulyEmpty = walletTransactions.length === 0
   const hasFilter = activeTab !== 'All'
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-3 border-b border-gray-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-sm font-bold text-gray-900">{t('tableTitle')}</h2>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-gray-600">
-            <Calendar className="h-3.5 w-3.5" />
-            May 10, 2024 – Jun 10, 2024
-          </div>
-          <button
-            type="button"
-            onClick={handleFilter}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            {t('filter')}
-          </button>
-          <button
-            type="button"
-            onClick={handleExport}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
-          >
-            <Download className="h-3.5 w-3.5" />
-            {t('export')}
-          </button>
-        </div>
+        <Link
+          href="/transactions"
+          className="inline-flex shrink-0 items-center justify-center rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-[#0052ff] transition-colors hover:bg-gray-50"
+        >
+          {t('viewAll')}
+        </Link>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2 border-b border-gray-100 pb-4">
+      <div className="mt-4 flex flex-wrap gap-2">
         {tabs.map((tab) => (
           <button
             key={tab}
@@ -148,7 +124,7 @@ export default function WalletTransactionTable() {
         loading={loading && walletTransactions.length === 0}
         error={error}
         onRetry={reload}
-        isEmpty={filtered.length === 0}
+        isEmpty={previewRows.length === 0}
         emptyTitle={isTrulyEmpty ? t('noTransactionsTitle') : t('noMatchingTitle')}
         emptyDescription={
           isTrulyEmpty
@@ -182,7 +158,7 @@ export default function WalletTransactionTable() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((tx) => {
+              {previewRows.map((tx) => {
                 const Icon = getTransactionIcon(tx.type)
                 const isPositive = tx.amount.startsWith('+')
 
@@ -245,13 +221,15 @@ export default function WalletTransactionTable() {
         </ScrollTable>
       </AsyncState>
 
-      <Link
-        href="/transactions"
-        className="mt-4 flex items-center justify-center gap-1 text-xs font-semibold text-[#0052ff] hover:underline"
-      >
-        {t('viewAll')}
-        <ChevronDown className="h-4 w-4" />
-      </Link>
+      {hasMoreRows ? (
+        <Link
+          href="/transactions"
+          className="mt-4 flex items-center justify-center gap-1 text-xs font-semibold text-[#0052ff] hover:underline"
+        >
+          {t('viewAll')} ({filtered.length})
+          <ChevronDown className="h-4 w-4" />
+        </Link>
+      ) : null}
     </div>
   )
 }

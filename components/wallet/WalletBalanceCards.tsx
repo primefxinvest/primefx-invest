@@ -10,7 +10,9 @@ import { fetchWalletData } from '@/lib/data/queries'
 
 export default function WalletBalanceCards() {
   const t = useTranslations('wallet.balances')
-  const { data: wallet, loading, error, reload } = useAsyncData(() => fetchWalletData(), [])
+  const { data: wallet, loading, error, reload } = useAsyncData(() => fetchWalletData(), [], undefined, {
+    cacheKey: 'wallet-data',
+  })
 
   const balanceCards = [
     {

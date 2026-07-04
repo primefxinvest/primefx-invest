@@ -23,6 +23,7 @@ import {
 } from '@/lib/data/queries'
 import { replyToSupportTicket, submitSupportTicket } from '@/lib/support/actions'
 import type { SupportTicketItem } from '@/lib/data/types'
+import { pageStackClass } from '@/lib/layout/spacing'
 import { cn } from '@/lib/utils'
 
 const FAQ_KEYS = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6'] as const
@@ -299,7 +300,7 @@ export default function SupportPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className={pageStackClass}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className="text-3xl font-bold text-foreground">{t('title')}</h1>
@@ -430,9 +431,10 @@ export default function SupportPage() {
             <p className="mt-2 text-sm text-muted-foreground">{t('liveChatDesc')}</p>
             <button
               type="button"
-              className="mt-3 rounded-lg bg-primary px-4 py-2 font-semibold text-white transition-colors hover:bg-blue-700"
+              disabled
+              className="mt-3 rounded-lg bg-primary px-4 py-2 font-semibold text-white opacity-60"
             >
-              {t('startChat')}
+              {t('startChat')} (Coming Soon)
             </button>
           </div>
           <div className="rounded-lg border border-border p-4 text-center">
@@ -441,9 +443,10 @@ export default function SupportPage() {
             <p className="mt-2 text-sm text-muted-foreground">support@primefx.com</p>
             <button
               type="button"
-              className="mt-3 rounded-lg border border-border px-4 py-2 font-semibold transition-colors hover:bg-secondary"
+              disabled
+              className="mt-3 rounded-lg border border-border px-4 py-2 font-semibold opacity-60"
             >
-              {t('sendEmail')}
+              {t('sendEmail')} (Coming Soon)
             </button>
           </div>
           <div className="rounded-lg border border-border p-4 text-center">
@@ -452,9 +455,10 @@ export default function SupportPage() {
             <p className="mt-2 text-sm text-muted-foreground">{t('supportHoursDesc')}</p>
             <button
               type="button"
-              className="mt-3 rounded-lg border border-border px-4 py-2 font-semibold transition-colors hover:bg-secondary"
+              disabled
+              className="mt-3 rounded-lg border border-border px-4 py-2 font-semibold opacity-60"
             >
-              {t('scheduleCall')}
+              {t('scheduleCall')} (Coming Soon)
             </button>
           </div>
         </div>

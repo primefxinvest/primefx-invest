@@ -10,6 +10,7 @@ import { calculateP2pTransferFee, recordPlatformFee } from '@/lib/payments/fees'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
+import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
 import { notifyTransferCompleted } from '@/lib/notifications/service'
 
 const MIN_TRANSFER = 5
@@ -61,6 +62,11 @@ export async function executeWalletTransfer(input: {
   }
   if (amount > MAX_TRANSFER) {
     return { success: false, error: `Maximum transfer per transaction is $${MAX_TRANSFER.toLocaleString()}.` }
+  }
+
+  const account = await requireActiveAccountForFinancialAction(input.senderId, 'transfer')
+  if (!account.allowed) {
+    return { success: false, error: account.error }
   }
 
   const { recipientAmount, fee, senderTotal } = calculateP2pTransferFee(amount)

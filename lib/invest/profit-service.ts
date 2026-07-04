@@ -10,6 +10,7 @@ import { accrueReferralCommissionsForProfit } from '@/lib/referral/commission-se
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { creditInvestorWallet } from '@/lib/payments/wallet-ledger'
 import { generatePaymentReference } from '@/lib/payments/reference'
+import { logFinancialAudit } from '@/lib/payments/financial-audit'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -35,16 +36,28 @@ async function runInvestmentProfits(input: InvestmentProfitRunInput) {
   const { periodStart, periodEnd, tradingDays, profitDescription, calculateProfit } = input
   const db = getDb()
 
-  const { data: existing } = await db
-    .from('investment_profit_runs')
-    .select('id')
-    .eq('period_start', periodStart)
-    .eq('period_end', periodEnd)
-    .maybeSingle()
+  const { data: claimedRun, error: claimError } = await db.rpc('claim_profit_run_period', {
+    p_period_start: periodStart,
+    p_period_end: periodEnd,
+    p_trading_days: tradingDays,
+  })
 
-  if (existing) {
+  if (claimError) throw new Error(claimError.message)
+
+  if (!claimedRun) {
+    await logFinancialAudit({
+      eventType: 'profit.run_skipped',
+      referenceId: `${periodStart}:${periodEnd}`,
+      metadata: { reason: 'period_already_claimed' },
+    })
     return { skipped: true, reason: 'Period already processed', periodStart, periodEnd }
   }
+
+  await logFinancialAudit({
+    eventType: 'profit.run_claimed',
+    referenceId: `${periodStart}:${periodEnd}`,
+    metadata: { tradingDays },
+  })
 
   const { data: investments, error } = await db
     .from('investments')
@@ -122,12 +135,21 @@ async function runInvestmentProfits(input: InvestmentProfitRunInput) {
     processed += 1
   }
 
-  await db.from('investment_profit_runs').insert({
-    period_start: periodStart,
-    period_end: periodEnd,
-    trading_days: tradingDays,
-    total_profit_usd: Math.round(totalProfitUsd * 100) / 100,
-    status: 'completed',
+  const roundedTotal = Math.round(totalProfitUsd * 100) / 100
+
+  const { error: finalizeError } = await db.rpc('finalize_profit_run_period', {
+    p_period_start: periodStart,
+    p_period_end: periodEnd,
+    p_total_profit_usd: roundedTotal,
+  })
+
+  if (finalizeError) throw new Error(finalizeError.message)
+
+  await logFinancialAudit({
+    eventType: 'profit.run_completed',
+    referenceId: `${periodStart}:${periodEnd}`,
+    amountUsd: roundedTotal,
+    metadata: { processed, tradingDays },
   })
 
   return {
@@ -136,7 +158,7 @@ async function runInvestmentProfits(input: InvestmentProfitRunInput) {
     periodEnd,
     tradingDays,
     processed,
-    totalProfitUsd: Math.round(totalProfitUsd * 100) / 100,
+    totalProfitUsd: roundedTotal,
   }
 }
 
