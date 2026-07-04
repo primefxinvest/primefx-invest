@@ -1,6 +1,7 @@
 import { getUserTransactions } from '@/lib/db/supabase'
+import type { TransactionDbRow } from '@/lib/data/db-rows'
 
-type TransactionRow = Record<string, unknown>
+type TransactionRow = TransactionDbRow
 
 const CACHE_TTL_MS = 30_000
 const cache = new Map<string, { data: TransactionRow[]; fetchedAt: number }>()

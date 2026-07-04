@@ -22,8 +22,8 @@ import { useInvestmentPlans } from '@/lib/hooks/useInvestmentPlans'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 import type { InvestmentPlan } from '@/lib/invest/plan-config'
 import { cn } from '@/lib/utils'
-import { pageStackClass, gridGapClass } from '@/lib/layout/spacing'
-import { dashboardCardClass } from '@/lib/layout/surfaces'
+import { pageStackClass, gridGapClass, pageHeaderGapClass } from '@/lib/layout/spacing'
+import { dashboardCardClass, dashboardMutedTextClass } from '@/lib/layout/surfaces'
 
 type ViewMode = 'table' | 'grid' | 'compare'
 
@@ -120,11 +120,11 @@ export default function InvestPage() {
         onSuccess={handleInvestSuccess}
       />
 
-      <div className={pageStackClass}>
-        <header className="space-y-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Invest</h1>
-            <p className="mt-1 max-w-2xl text-sm text-gray-500">
+      <div className={cn('min-w-0', pageStackClass)}>
+        <header className={cn('flex flex-col', pageHeaderGapClass)}>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Invest</h1>
+            <p className={cn('mt-1 max-w-2xl', dashboardMutedTextClass)}>
               Compare plans, pick one that matches your goals, and invest from your wallet.
             </p>
           </div>

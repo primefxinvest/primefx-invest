@@ -15,6 +15,8 @@ import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { fetchNotifications } from '@/lib/data/queries'
 import { cn } from '@/lib/utils'
 import { SIDEBAR_OFFSET_CLASS, SIDEBAR_OFFSET_TABLET_CLASS } from '@/lib/layout/sidebar'
+import { pagePaddingXClass } from '@/lib/layout/spacing'
+import { CACHE_KEYS } from '@/lib/data/cache-keys'
 
 const DashboardCommandMenu = dynamic(
   () =>
@@ -69,14 +71,14 @@ export default function Navbar() {
   const { toggle: toggleMobileNav } = useMobileNav()
   const shortcut = usePlatformShortcut()
   const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [], undefined, {
-    cacheKey: 'user-notifications',
+    cacheKey: CACHE_KEYS.userNotifications,
   })
   const unreadCount = notifications.filter((item) => !item.read).length
 
   return (
     <>
       <header className={cn('fixed left-0 right-0 top-0 z-30 border-b border-gray-200 bg-white/95 pt-[env(safe-area-inset-top,0px)] backdrop-blur-md', SIDEBAR_OFFSET_TABLET_CLASS, SIDEBAR_OFFSET_CLASS)}>
-        <div className="flex h-14 items-center gap-2 px-3 sm:gap-3 sm:px-6">
+        <div className={cn('flex h-14 items-center gap-2 sm:gap-3', pagePaddingXClass)}>
           <button
             type="button"
             onClick={toggleMobileNav}

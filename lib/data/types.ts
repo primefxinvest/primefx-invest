@@ -1,3 +1,5 @@
+import type { InvestmentDbRow, TransactionDbRow } from '@/lib/data/db-rows'
+
 export interface InvestmentPlan {
   id: string
   name: string
@@ -29,9 +31,9 @@ export interface DashboardCoreData {
   metrics: PortfolioMetrics
   wallet: WalletData
   allocation: AssetAllocationItem[]
-  investments: Array<Record<string, unknown>>
+  investments: InvestmentDbRow[]
   portfolioCurrentValue: number
-  transactions: Array<Record<string, unknown>>
+  transactions: TransactionDbRow[]
 }
 
 export interface ChartPoint {

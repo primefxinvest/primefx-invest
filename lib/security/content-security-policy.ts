@@ -103,5 +103,11 @@ export function applyContentSecurityPolicyHeaders(response: NextResponse, nonce:
   response.headers.set('X-DNS-Prefetch-Control', 'on')
   response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
   response.headers.set('Cross-Origin-Resource-Policy', 'same-site')
+  if (process.env.NODE_ENV === 'production') {
+    response.headers.set(
+      'Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains; preload'
+    )
+  }
   return response
 }

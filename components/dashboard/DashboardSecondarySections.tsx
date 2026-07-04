@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import DashboardStatusCards from '@/components/dashboard/DashboardStatusCards'
 import { MetricCardsSkeleton } from '@/components/shared/skeletons'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { CACHE_KEYS } from '@/lib/data/cache-keys'
 import {
   fetchLearningProgress,
   fetchReferralData,
@@ -15,7 +16,7 @@ const CACHE_OPTS = { cacheTtlMs: 30_000 } as const
 export default function DashboardSecondarySections() {
   const { data: rewards } = useAsyncData(() => fetchRewardsData(), [], undefined, {
     ...CACHE_OPTS,
-    cacheKey: 'dashboard-rewards-data',
+    cacheKey: CACHE_KEYS.rewardsData,
   })
   const { data: referral } = useAsyncData(() => fetchReferralData(), [], undefined, {
     ...CACHE_OPTS,

@@ -1,16 +1,8 @@
 import { formatCurrency, formatDate, formatDateTime, toNumber } from '@/lib/data/format'
+import type { TransactionDbRow } from '@/lib/data/db-rows'
 import type { TransactionItem } from '@/lib/data/types'
 
-export type TransactionDbRow = {
-  id: string
-  user_id?: string | null
-  type?: string | null
-  amount?: unknown
-  status?: string | null
-  description?: string | null
-  reference_id?: string | null
-  created_at: string
-}
+export type { TransactionDbRow } from '@/lib/data/db-rows'
 
 export type TransactionMapVariant = 'recent' | 'wallet'
 

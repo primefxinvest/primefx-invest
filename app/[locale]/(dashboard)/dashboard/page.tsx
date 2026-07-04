@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { Calendar } from 'lucide-react'
@@ -23,7 +23,7 @@ import { useDashboardCore } from '@/lib/hooks/useDashboardCore'
 import { useUserWalletRealtime } from '@/lib/hooks/useTransactionsRealtime'
 import type { PortfolioChartPeriod } from '@/lib/data/portfolio-performance'
 import { formatDate } from '@/lib/data/format'
-import { pageStackClass, pageHeaderGapClass } from '@/lib/layout/spacing'
+import { pageStackClass, pageHeaderGapClass, gridGapClass } from '@/lib/layout/spacing'
 import { dashboardCardClass, dashboardMutedTextClass } from '@/lib/layout/surfaces'
 import { CHART_HEIGHT_AREA, CHART_HEIGHT_DONUT, CHART_SKELETON_AREA_CLASS } from '@/lib/layout/charts'
 import { cn } from '@/lib/utils'
@@ -58,8 +58,14 @@ export default function DashboardPage() {
     onUpdate: onWalletUpdate,
   })
 
+  const [todayLabel, setTodayLabel] = useState<string | null>(null)
+
+  useEffect(() => {
+    setTodayLabel(formatDate(new Date().toISOString()))
+  }, [])
+
   return (
-    <div className={pageStackClass}>
+    <div className={cn('min-w-0', pageStackClass)}>
       <header
         className={cn('flex flex-col sm:flex-row sm:items-center sm:justify-between', pageHeaderGapClass)}
       >
@@ -71,11 +77,15 @@ export default function DashboardPage() {
         </div>
         <div
           className="flex w-fit shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 shadow-sm"
-          aria-label={formatDate(new Date().toISOString())}
+          aria-label={todayLabel ?? undefined}
         >
           <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <time className="text-sm font-medium text-foreground" dateTime={new Date().toISOString()}>
-            {formatDate(new Date().toISOString())}
+          <time
+            className="text-sm font-medium text-foreground"
+            dateTime={todayLabel ? new Date().toISOString().slice(0, 10) : undefined}
+            suppressHydrationWarning
+          >
+            {todayLabel ?? '—'}
           </time>
         </div>
       </header>
@@ -96,7 +106,7 @@ export default function DashboardPage() {
 
       <section
         aria-labelledby="dashboard-charts-heading"
-        className={cn('grid grid-cols-1 gap-6 lg:grid-cols-3')}
+        className={cn('grid grid-cols-1 lg:grid-cols-3', gridGapClass)}
       >
         <h2 id="dashboard-charts-heading" className="sr-only">
           {t('portfolioPerformance')}
@@ -204,7 +214,7 @@ export default function DashboardPage() {
 
       <section
         aria-labelledby="dashboard-activity-heading"
-        className={cn('grid grid-cols-1 items-start gap-6 xl:grid-cols-3')}
+        className={cn('grid grid-cols-1 items-start xl:grid-cols-3', gridGapClass)}
       >
         <h2 id="dashboard-activity-heading" className="sr-only">
           {t('recentTransactions')}

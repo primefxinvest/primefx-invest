@@ -1,94 +1,98 @@
-# PrimeFx Invest — Responsiveness Report (Final)
+# Responsiveness Report
 
-**Date:** July 4, 2026
-
----
-
-## Breakpoints
-
-| Token | Width | Usage |
-|-------|-------|-------|
-| default | < 640px | Mobile |
-| `sm` | ≥ 640px | Large phone |
-| `md` | ≥ 768px | Tablet |
-| `lg` | ≥ 1024px | Desktop |
-| `xl` | ≥ 1280px | Referral sidebar split |
+**Date:** July 5, 2026  
+**Breakpoints tested:** 320 · 375 · 390 · 414 · 768 · 1024 · 1280 · 1440 · 1920
 
 ---
 
-## Dashboard
+## Fixes Applied
 
-| Section | Mobile | Desktop |
-|---------|--------|---------|
-| KPIs (5) | 2×2 + ROI full width | 1×5 row |
-| Charts | Stacked | 2/3 + 1/3 |
-| Plans + transactions | Stacked | 2/3 width |
-| Market widget | Below fold | Sidebar column |
+### Horizontal overflow prevention
 
----
+Added `min-w-0` to page roots on Dashboard, Invest, and Wallet. Portfolio already had this pattern.
 
-## Wallet
+Prevents flex/grid children from forcing horizontal scroll inside the fixed `main` container.
 
-| Section | Mobile | Desktop |
-|---------|--------|---------|
-| KPIs (4) | 2×2 | 1×4 |
-| Actions | Stacked → 3-col at 480px+ | 1×3 row |
+### Invest plans table
 
----
+Wrapped desktop table in `ScrollTable` with `min-w-[720px]`.
 
-## Referral
+| Breakpoint | Behavior |
+|------------|----------|
+| < 768px | Mobile card list (unchanged) |
+| 768–1024px | Horizontal scroll table (new) |
+| ≥ 1024px | Full table visible |
 
-| Section | Mobile | Desktop |
-|---------|--------|---------|
-| Link center | Top (compact) | Sticky sidebar |
-| Stats | 2-col grid | Multi-col + health gauge |
-| Share buttons | Horizontal scroll | Same |
+### Navbar ↔ content alignment
 
----
+`pagePaddingXClass` ensures consistent horizontal inset at all breakpoints:
 
-## Rewards
+```
+px-4 (320–639) → sm:px-5 (640–1023) → lg:px-6 (1024+)
+```
 
-| Section | Mobile | Desktop |
-|---------|--------|---------|
-| Summary KPIs | 2×2 | 1×4 |
-| Achievements | 1 col | 3 col |
-| Tier benefits | Stacked list | Stacked list |
+### Chart axis clipping
+
+`MonthlyReturnsChart` left margin changed from `-20` to `0`. Y-axis labels no longer clip on 320–414px widths.
+
+### Portfolio tables
+
+Header padding unified to `px-5` — column headers align with body cells at all widths.
 
 ---
 
-## Navigation
+## Sidebar Responsiveness
 
-| Mode | Behavior |
-|------|----------|
-| Mobile drawer | 18rem, labels visible, wallet submenu |
-| Tablet rail | 4.5rem icons only |
-| Desktop sidebar | Full labels + wallet expand |
-| Bottom nav | 5 tabs, 64px height, safe-area |
+| Breakpoint | Width | Logo |
+|------------|-------|------|
+| < md | `min(18rem, 88vw)` | Full PrimeFx INVEST wordmark |
+| md–lg | `4.5rem` icon rail | Icon only |
+| ≥ lg | `13rem (w-52)` | Full wordmark |
 
----
-
-## Overflow Prevention
-
-- `min-w-0` on grids and flex children
-- `truncate` / `line-clamp` on KPI labels
-- `100dvh` sidebar height
-- Body scroll lock when drawer open
-- Chart containers: `overflow-hidden`
+Mobile drawer: full branding, 36px mark, vertically centered in 60px header.
 
 ---
 
-## QA Matrix
+## Grid Behavior
 
-| Route | Mobile | Tablet | Desktop |
-|-------|--------|--------|---------|
-| `/dashboard` | ✅ | ✅ | ✅ |
-| `/wallet` | ✅ | ✅ | ✅ |
-| `/referral` | ✅ Link above fold | ✅ | ✅ Sidebar |
-| `/rewards` | ✅ | ✅ | ✅ |
-| Auth | ✅ Compact hero | ✅ Split | ✅ Split |
+| Page | Grid | Gap Token |
+|------|------|-----------|
+| Dashboard | 1 → 3 cols | `gridGapClass` |
+| Wallet balances | 1 → 2 → 3 cols | `gridGapClass` |
+| Wallet activity | 1 → xl:2 cols | `gridGapClass` |
+| Invest plans | 1 → 2 → 4 cols | `gap-4` (inner) |
 
 ---
 
-## Build
+## Touch Targets
 
-`npm run build` — **passed** (exit 0).
+| Element | Size | Compliant |
+|---------|------|-----------|
+| Mobile menu button | `min-h-11 min-w-11` (44px) | ✅ |
+| Nav icon buttons | `h-9 w-9` (36px) | ⚠️ Acceptable for secondary actions |
+| Invest mobile CTA | `py-2.5` full width | ✅ |
+| Sidebar nav items | `min-h-11` | ✅ |
+
+---
+
+## Known Patterns
+
+- Market Insights carousel uses `-mx-4` bleed — intentional, matches page padding
+- Deposit flow: stacked cards on mobile, side-by-side on lg+ (prior pass)
+- Auth pages: mobile hero + form stack below `lg` breakpoint
+
+---
+
+## Breakpoint Checklist
+
+| Width | Status |
+|-------|--------|
+| 320px | ✅ No horizontal scroll on core pages |
+| 375px | ✅ Mobile drawer + form layouts intact |
+| 390px | ✅ Same |
+| 414px | ✅ Same |
+| 768px | ✅ Invest table scrolls; sidebar icon rail |
+| 1024px | ✅ Full sidebar wordmark; 3-col grids |
+| 1280px | ✅ Dashboard xl layout |
+| 1440px | ✅ Content max-width respected |
+| 1920px | ✅ Sidebar offset correct; no stretch |

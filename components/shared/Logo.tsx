@@ -10,9 +10,7 @@ interface LogoProps {
   href?: string
   showText?: boolean
   tagline?: string
-  /** Explicit pixel size for the mark */
   size?: number
-  /** Preset size from design system */
   sizeKey?: LogoSizeKey
   variant?: LogoVariant
   className?: string
@@ -21,12 +19,12 @@ interface LogoProps {
 
 function textScaleForMark(markSize: number) {
   if (markSize >= 44) {
-    return { brand: 'text-[15px]', tagline: 'text-[10px]' }
+    return { brand: 'text-[15px]', tagline: 'text-[10px]', tracking: 'tracking-[0.14em]' }
   }
   if (markSize >= 36) {
-    return { brand: 'text-[13px]', tagline: 'text-[9px]' }
+    return { brand: 'text-[14px]', tagline: 'text-[9px]', tracking: 'tracking-[0.16em]' }
   }
-  return { brand: 'text-[12px]', tagline: 'text-[8px]' }
+  return { brand: 'text-[13px]', tagline: 'text-[8px]', tracking: 'tracking-[0.18em]' }
 }
 
 export default function Logo({
@@ -43,25 +41,27 @@ export default function Logo({
   const textScale = textScaleForMark(markSize)
   const gapClass = markSize >= 40 ? 'gap-3' : 'gap-2.5'
   const onDark = variant === 'onDark'
+  const retinaSize = markSize * 2
 
   const content = (
-    <div className={cn('flex items-center', gapClass, className)}>
+    <div className={cn('inline-flex items-center', gapClass, className)}>
       <Image
         src="/logo.png"
         alt="PrimeFx Invest"
-        width={markSize}
-        height={markSize}
+        width={retinaSize}
+        height={retinaSize}
         sizes={`${markSize}px`}
         className="shrink-0 object-contain"
-        style={{ width: markSize, height: markSize }}
+        style={{ width: markSize, height: markSize, maxWidth: markSize, maxHeight: markSize }}
         priority={priority}
         quality={100}
+        draggable={false}
       />
       {showText ? (
-        <div className="min-w-0 leading-tight">
+        <div className="flex min-w-0 flex-col justify-center gap-0.5 leading-none">
           <span
             className={cn(
-              'block truncate font-bold tracking-tight',
+              'block truncate font-bold tracking-tight antialiased',
               textScale.brand,
               onDark ? 'text-white' : 'text-gray-900'
             )}
@@ -70,8 +70,9 @@ export default function Logo({
           </span>
           <span
             className={cn(
-              'block font-semibold tracking-widest',
+              'block font-semibold uppercase antialiased',
               textScale.tagline,
+              textScale.tracking,
               onDark ? 'text-[#60a5fa]' : 'text-[#0052ff]'
             )}
           >

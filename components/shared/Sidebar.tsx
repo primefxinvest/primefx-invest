@@ -43,6 +43,7 @@ import {
 } from '@/lib/wallet/navigation'
 import { useReferralProgramEnabled } from '@/lib/hooks/useReferralProgramEnabled'
 import { fetchNotifications } from '@/lib/data/queries'
+import { CACHE_KEYS } from '@/lib/data/cache-keys'
 import { SIDEBAR_WIDTH_DESKTOP_CLASS, SIDEBAR_WIDTH_MOBILE_CLASS, SIDEBAR_WIDTH_TABLET_CLASS } from '@/lib/layout/sidebar'
 import {
   NAV_ICON_SLOT,
@@ -125,7 +126,7 @@ export default function Sidebar() {
   const { tierKey } = useInvestorTier()
   const { canAccess, loading: referralProgramLoading } = useReferralProgramEnabled()
   const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [], undefined, {
-    cacheKey: 'user-notifications',
+    cacheKey: CACHE_KEYS.userNotifications,
   })
   const unreadCount = (notifications ?? []).filter((n) => !n.read).length
 
@@ -212,14 +213,33 @@ export default function Sidebar() {
           open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-3.5">
-          <Logo href="/dashboard" sizeKey="sidebarIcon" showText={false} className="md:flex lg:hidden" priority />
-          <Logo href="/dashboard" sizeKey="sidebarFull" showText className="hidden lg:flex" priority />
+        <div className="flex h-[3.75rem] shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-4">
+          <Logo
+            href="/dashboard"
+            sizeKey="mobileDrawer"
+            showText
+            className="min-w-0 flex-1 md:hidden"
+            priority
+          />
+          <Logo
+            href="/dashboard"
+            sizeKey="sidebarIcon"
+            showText={false}
+            className="hidden shrink-0 md:flex lg:hidden"
+            priority
+          />
+          <Logo
+            href="/dashboard"
+            sizeKey="sidebarFull"
+            showText
+            className="hidden min-w-0 flex-1 lg:flex"
+            priority
+          />
           <button
             type="button"
             onClick={close}
             aria-label={t('closeNavMenu')}
-            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 lg:hidden"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
           >
             <X className="h-5 w-5" />
           </button>

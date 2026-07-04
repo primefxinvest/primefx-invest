@@ -1,4 +1,5 @@
 import { toNumber } from '@/lib/data/format'
+import type { InvestmentDbRow, TransactionDbRow } from '@/lib/data/db-rows'
 import type { ChartPoint } from '@/lib/data/types'
 
 export type PortfolioChartPeriod =
@@ -13,22 +14,8 @@ export type PortfolioChartPeriod =
 
 type PortfolioEvent = { at: Date; delta: number }
 
-type TransactionRow = {
-  type?: string | null
-  amount?: unknown
-  status?: string | null
-  description?: string | null
-  created_at: string
-}
-
-type InvestmentRow = {
-  amount?: unknown
-  current_value?: unknown
-  status?: string | null
-  created_at: string
-  end_date?: string | null
-  updated_at?: string | null
-}
+type TransactionRow = TransactionDbRow
+type InvestmentRow = InvestmentDbRow
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 

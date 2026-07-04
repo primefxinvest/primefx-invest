@@ -39,7 +39,9 @@ import { ReferralHeroSection } from '@/components/referral/ReferralHeroSection'
 import { ReferralLinkCenter } from '@/components/referral/ReferralLinkCenter'
 import { ReferralPrimeAiInsights } from '@/components/referral/ReferralPrimeAiInsights'
 import { ReferralStatsGrid } from '@/components/referral/ReferralStatsGrid'
-import { ReferralTransparencySection } from '@/components/referral/ReferralTransparencySection'
+import { ReferralRankProgressCard, ReferralTrustSection } from '@/components/referral/ReferralRankProgressCard'
+import { ReferralNetworkTimeline } from '@/components/referral/ReferralNetworkTimeline'
+import { ReferralEarningsCalculator } from '@/components/referral/ReferralEarningsCalculator'
 import { pageStackClass, sectionStackClass } from '@/lib/layout/spacing'
 import { MetricCardsSkeleton, PageHeaderSkeleton } from '@/components/shared/skeletons'
 import {
@@ -901,11 +903,19 @@ export function ReferralProgramView({
 
   return (
     <div className={cn('min-w-0', pageStackClass)}>
-      <ReferralHeroSection overview={overview} />
+      <ReferralHeroSection referralData={referralData} />
+
+      <ReferralStatsGrid overview={overview} />
+
+      <ReferralRankProgressCard rank={overview.rank} />
 
       <ReferralCommissionSection />
 
-      <ReferralStatsGrid overview={overview} />
+      <ReferralNetworkTimeline />
+
+      <ReferralEarningsCalculator />
+
+      <ReferralTrustSection />
 
       <div className="xl:hidden">
         <ReferralLinkCenter
@@ -919,11 +929,6 @@ export function ReferralProgramView({
 
       <div className="grid grid-cols-1 gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="space-y-8">
-          <section aria-label="Rank progression" className={sectionStackClass}>
-            <SectionHeading>Rank progression</SectionHeading>
-          <ReferralRankProgressPanel rank={overview.rank} />
-          </section>
-
           <section aria-label="Earnings analytics" className="space-y-3">
             <SectionHeading>Earnings analytics</SectionHeading>
           <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
@@ -1163,8 +1168,6 @@ export function ReferralProgramView({
       </div>
 
       <ReferralPrimeAiInsights overview={overview} />
-
-      <ReferralTransparencySection />
 
       <section aria-label="Rank levels" className={sectionStackClass}>
         <SectionHeading>All rank levels</SectionHeading>

@@ -381,7 +381,7 @@ export function AdminTransactionsView({
             ? patchAdminTransactionRow(tx, {
                 id: row.id,
                 type: row.type,
-                amount: row.amount,
+                amount: row.amount as string | number | null | undefined,
                 status: row.status,
                 description: row.description,
                 reference_id: row.reference_id,

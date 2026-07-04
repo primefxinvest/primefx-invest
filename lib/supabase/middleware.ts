@@ -151,7 +151,7 @@ export async function updateSession(request: NextRequest, intlResponse?: NextRes
 
 
 
-  let activeUser = user
+  let activeUser: { id: string } | null = user ? { id: user.id } : null
 
   if (userError) {
 

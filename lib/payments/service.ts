@@ -6,7 +6,7 @@ import { resolveDepositProvider, PAYMENT_PROVIDERS } from './config'
 import { isCurrencySupportedByProvider } from './currency-options'
 import { isProviderConfigured } from './env'
 import { createNowPaymentsInvoice } from './nowpayments'
-import type { CreateDepositResult, CreateWithdrawalResult } from './types'
+import type { CreateDepositResult, CreateWithdrawalResult, PaymentProviderId } from './types'
 import {
   providerUnavailableUserMessage,
   toUserDepositError,

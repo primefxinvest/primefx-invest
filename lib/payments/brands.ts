@@ -9,13 +9,13 @@ export const PAYMENT_METHOD_LOGOS: Record<PaymentProviderId, string> = {
 
 export const DEPOSIT_METHOD_OPTIONS = [
   {
-    id: 'nowpayments' as const,
+    "id": "nowpayments" as const,
     provider: 'now_payments' as const,
     logoSrc: PAYMENT_METHOD_LOGOS.now_payments,
     fallbackIcon: Bitcoin as LucideIcon,
     etaKey: 'etaCrypto',
     badgeKey: 'badgeCrypto',
-    labelKey: 'methodNowPayments',
+    labelKey: 'methodCryptoPayment',
   },
   {
     id: 'binancepay' as const,

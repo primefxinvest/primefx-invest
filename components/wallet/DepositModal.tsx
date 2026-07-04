@@ -1,19 +1,24 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
-import { ExternalLink, Loader2, QrCode } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { Check, ExternalLink, Loader2, QrCode } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { CustomSelect } from '@/components/ui/custom-select'
+import { PaymentMethodBrand } from '@/components/wallet/PaymentMethodBrand'
+import { QUICK_DEPOSIT_AMOUNTS } from '@/components/wallet/deposit/DepositAmountCard'
 import { initiateDeposit } from '@/lib/payments/actions'
 import {
   buildDepositCurrencyOptions,
   DEFAULT_DEPOSIT_CURRENCY,
 } from '@/lib/payments/currency-options'
+import { DEPOSIT_METHOD_OPTIONS, type DepositMethodId } from '@/lib/payments/brands'
 import type { PaymentProviderId, PaymentProviderOptions } from '@/lib/payments/types'
+import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { kycBlockReason, kycFallbackMessage } from '@/lib/investor/kyc-i18n'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
+import { cn } from '@/lib/utils'
 
 type DepositCurrencyOption = {
   value: string
@@ -47,28 +52,25 @@ interface DepositModalProps {
   onOpenChange: (open: boolean) => void
 }
 
-type DepositStep = 'form' | 'ready'
+type DepositStep = 'form' | 'ready' | 'redirecting'
+
 export default function DepositModal({ open, onOpenChange }: DepositModalProps) {
   const t = useTranslations('wallet.modals.deposit')
+  const tDeposit = useTranslations('wallet.deposit')
   const tCommon = useTranslations('common')
   const tCompliance = useTranslations('compliance')
   const kyc = useFinancialKycAccess()
+  const submitLockRef = useRef(false)
+
+  const [method, setMethod] = useState<DepositMethodId>('nowpayments')
   const [amount, setAmount] = useState('100')
   const [currency, setCurrency] = useState(DEFAULT_DEPOSIT_CURRENCY)
   const [depositOptions, setDepositOptions] = useState<DepositCurrencyOption[]>(() =>
     toDepositSelectOptions(buildDepositCurrencyOptions())
   )
-  const [currencies, setCurrencies] = useState(() =>
-    toDepositSelectOptions(buildDepositCurrencyOptions()).map((item) => ({
-      value: item.value,
-      label: item.label,
-    }))
-  )
   const [step, setStep] = useState<DepositStep>('form')
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null)
-  const [checkoutProvider, setCheckoutProvider] = useState<'binance_pay' | 'now_payments' | null>(
-    null
-  )
+  const [checkoutProvider, setCheckoutProvider] = useState<'binance_pay' | 'now_payments' | null>(null)
   const [payAddress, setPayAddress] = useState<string | null>(null)
   const [payAmount, setPayAmount] = useState<number | null>(null)
   const [payCurrency, setPayCurrency] = useState<string | null>(null)
@@ -76,17 +78,18 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
   const [paymentOpened, setPaymentOpened] = useState(false)
   const [pending, startTransition] = useTransition()
 
-  const openPaymentTab = (url: string) => {
-    const tab = window.open(url, '_blank', 'noopener,noreferrer')
-    if (!tab) {
-      toast.error(t('popupBlocked'), {
-        description: t('popupBlockedHint'),
-      })
-      return false
-    }
-    tab.focus()
-    return true
-  }
+  const filteredOptions = useMemo(
+    () =>
+      depositOptions.filter((item) =>
+        method === 'binancepay' ? item.provider === 'binance_pay' : item.provider === 'now_payments'
+      ),
+    [depositOptions, method]
+  )
+
+  const currencies = useMemo(
+    () => filteredOptions.map((item) => ({ value: item.value, label: item.label })),
+    [filteredOptions]
+  )
 
   useEffect(() => {
     if (!open) return
@@ -103,22 +106,25 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
 
         const nextOptions = toDepositSelectOptions(options.depositCurrencies)
         setDepositOptions(nextOptions)
-        setCurrencies(nextOptions.map((item) => ({ value: item.value, label: item.label })))
-        setCurrency((current) =>
-          nextOptions.some((item) => item.value === current)
-            ? current
-            : nextOptions[0]?.value ?? DEFAULT_DEPOSIT_CURRENCY
-        )
-      })
-      .catch((err) => {
-        if (controller.signal.aborted) return
-        toast.error(t('refreshCurrenciesError'), {
-          description: t('refreshCurrenciesHint'),
+        setCurrency((current) => {
+          const match = nextOptions.find((item) => item.value === current)
+          return match?.value ?? nextOptions[0]?.value ?? DEFAULT_DEPOSIT_CURRENCY
         })
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return
+        toast.error(t('refreshCurrenciesError'), { description: t('refreshCurrenciesHint') })
       })
 
     return () => controller.abort()
   }, [open, t])
+
+  useEffect(() => {
+    const preferred = filteredOptions[0]?.value
+    if (preferred && !filteredOptions.some((item) => item.value === currency)) {
+      setCurrency(preferred)
+    }
+  }, [filteredOptions, currency])
 
   const resetState = () => {
     setStep('form')
@@ -137,6 +143,8 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
   }
 
   const handleCreatePayment = () => {
+    if (submitLockRef.current || pending) return
+
     if (!kyc.loading && !kyc.verified) {
       showKycRequiredToast({
         status: kyc.status,
@@ -151,113 +159,158 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
     }
 
     const value = Number(amount)
-    if (!Number.isFinite(value) || value <= 0) {
-      toast.error(t('invalidAmount'))
+    if (!Number.isFinite(value) || value < INVESTOR_RULES.financial.minimumDeposit) {
+      toast.error(tDeposit('minDepositError'))
       return
     }
 
+    submitLockRef.current = true
+
     startTransition(async () => {
-      const selected =
-        depositOptions.find((item) => item.value === currency) ??
-        depositOptions.find((item) => item.currency === currency)
+      try {
+        const selected =
+          filteredOptions.find((item) => item.value === currency) ??
+          depositOptions.find((item) => item.value === currency)
 
-      const result = await initiateDeposit({
-        amountUsd: value,
-        currency: selected?.currency ?? currency,
-        provider: selected?.provider,
-      })
+        const provider: PaymentProviderId | undefined =
+          method === 'binancepay' ? 'binance_pay' : 'now_payments'
 
-      if (!result.success) {
-        toast.error(t('failed'), { description: result.error })
-        return
-      }
-
-      const url = result.checkoutUrl ?? null
-      setCheckoutUrl(url)
-      setCheckoutProvider(result.provider ?? null)
-      setQrCodeLink(result.qrCodeLink ?? null)
-      setPayAddress(result.payAddress ?? null)
-      setPayAmount(result.payAmount ?? null)
-      setPayCurrency(result.payCurrency ?? null)
-
-      if (url) {
-        setStep('ready')
-        toast.success(t('paymentCreated'), {
-          description: t('paymentCreatedDesc'),
+        const result = await initiateDeposit({
+          amountUsd: value,
+          currency: selected?.currency ?? currency,
+          provider: selected?.provider ?? provider,
         })
-        return
-      }
 
-      if (result.payAddress) {
-        setStep('ready')
-        toast.success(t('addressReady'), {
-          description: t('addressReadyDesc'),
-        })
-        return
-      }
+        if (!result.success) {
+          toast.error(t('failed'), { description: result.error })
+          return
+        }
 
-      toast.success(t('depositInitiated'))
+        const url = result.checkoutUrl ?? null
+        setCheckoutUrl(url)
+        setCheckoutProvider(result.provider ?? null)
+        setQrCodeLink(result.qrCodeLink ?? null)
+        setPayAddress(result.payAddress ?? null)
+        setPayAmount(result.payAmount ?? null)
+        setPayCurrency(result.payCurrency ?? null)
+
+        if (url) {
+          toast.success(t('paymentCreated'), { description: t('paymentCreatedDesc') })
+          setStep('redirecting')
+          window.location.href = url
+          return
+        }
+
+        if (result.payAddress) {
+          setStep('ready')
+          toast.success(t('addressReady'), { description: t('addressReadyDesc') })
+          return
+        }
+
+        toast.success(t('depositInitiated'))
+      } catch {
+        toast.error(tDeposit('networkError'), { description: tDeposit('networkErrorHint') })
+      } finally {
+        submitLockRef.current = false
+      }
     })
   }
 
   const handleConfirmAndOpen = () => {
     if (!checkoutUrl) return
-    const opened = openPaymentTab(checkoutUrl)
-    if (opened) {
-      setPaymentOpened(true)
-      toast.success(t('paymentPageOpened'), {
-        description: t('paymentPageOpenedDesc'),
-      })
-    }
+    window.location.href = checkoutUrl
+    setPaymentOpened(true)
   }
 
-  const providerLabel =
-    checkoutProvider === 'binance_pay' ? 'Binance Pay' : 'NOWPayments'
-
+  const providerLabel = checkoutProvider === 'binance_pay' ? 'Binance Pay' : 'NOWPayments'
   const openButtonLabel =
     checkoutProvider === 'binance_pay' ? t('openBinanceCheckout') : t('openPaymentCheckout')
 
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-6 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <div className="max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-card p-5 shadow-xl sm:max-w-lg sm:rounded-xl sm:p-6">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{t('title')}</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              {step === 'form' ? t('subtitleForm') : t('subtitleReady')}
+            <h2 className="text-xl font-bold text-foreground">{t('title')}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {step === 'form' ? tDeposit('methodSectionSubtitle') : t('subtitleReady')}
             </p>
           </div>
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-lg px-2 py-1 text-sm text-gray-500 hover:bg-gray-100"
+            className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted"
           >
             {tCommon('close')}
           </button>
         </div>
 
         <div className="space-y-4">
-          {step === 'form' ? (
+          {step === 'form' || step === 'redirecting' ? (
             <>
+              <div className="grid grid-cols-2 gap-2">
+                {DEPOSIT_METHOD_OPTIONS.map((item) => {
+                  const selected = method === item.id
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => setMethod(item.id)}
+                      className={cn(
+                        'relative rounded-xl border p-3 text-left transition-all',
+                        selected ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-border'
+                      )}
+                    >
+                      {selected ? (
+                        <Check className="absolute right-2 top-2 h-4 w-4 text-primary" />
+                      ) : null}
+                      <PaymentMethodBrand
+                        src={item.logoSrc}
+                        alt={tDeposit(item.labelKey)}
+                        fallbackIcon={item.fallbackIcon}
+                        className="h-8 w-[6.5rem]"
+                      />
+                      <p className="mt-2 text-xs font-semibold text-foreground">
+                        {item.id === 'nowpayments'
+                          ? tDeposit('methodCryptoPayment')
+                          : tDeposit('methodBinancePay')}
+                      </p>
+                    </button>
+                  )
+                })}
+              </div>
+
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
+                <label className="mb-2 block text-sm font-medium text-foreground">
                   {t('amountUsd')}
                 </label>
                 <input
                   type="number"
-                  min="10"
+                  min={INVESTOR_RULES.financial.minimumDeposit}
                   step="0.01"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-[#0052ff] focus:outline-none"
+                  className="min-h-11 w-full rounded-xl border border-border px-4 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   disabled={pending}
                 />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {QUICK_DEPOSIT_AMOUNTS.slice(0, 4).map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setAmount(String(preset))}
+                      className="min-h-11 rounded-lg border border-border px-3 text-xs font-semibold hover:border-primary/40"
+                    >
+                      ${preset}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">{t('currency')}</label>
+                <label className="mb-2 block text-sm font-medium text-foreground">{t('currency')}</label>
                 <CustomSelect
                   value={currency}
                   onValueChange={setCurrency}
@@ -265,19 +318,18 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
                   placeholder={t('selectCurrency')}
                   disabled={pending || currencies.length === 0}
                 />
-                <p className="mt-1.5 text-xs text-gray-500">{t('currencyHint')}</p>
               </div>
 
               <button
                 type="button"
                 onClick={handleCreatePayment}
                 disabled={pending}
-                className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0052ff] py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+                className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
-                {pending ? (
+                {pending || step === 'redirecting' ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    {t('creatingPayment')}
+                    {step === 'redirecting' ? tDeposit('redirecting') : t('creatingPayment')}
                   </>
                 ) : (
                   t('continueToPayment')
@@ -287,13 +339,13 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
           ) : (
             <>
               {checkoutUrl ? (
-                <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
-                  <p className="font-semibold">
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
+                  <p className="font-semibold text-foreground">
                     {checkoutProvider === 'binance_pay'
                       ? t('binanceCheckoutReady')
                       : t('cryptoInvoiceReady')}
                   </p>
-                  <p className="mt-1 text-xs text-blue-800">
+                  <p className="mt-1 text-xs text-muted-foreground">
                     {paymentOpened
                       ? t('completeInTab', { provider: providerLabel })
                       : checkoutProvider === 'binance_pay'
@@ -301,7 +353,7 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
                         : t('confirmNowPayments')}
                   </p>
                   {qrCodeLink ? (
-                    <div className="mt-3 flex items-center gap-2 text-xs text-blue-800">
+                    <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
                       <QrCode className="h-4 w-4" />
                       {t('qrAvailable')}
                     </div>
@@ -310,14 +362,13 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
               ) : null}
 
               {payAddress ? (
-                <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-900">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
                   <p className="font-semibold">{t('sendCryptoTo')}</p>
                   <p className="mt-2 break-all font-mono text-xs">{payAddress}</p>
                   {payAmount != null && payCurrency ? (
                     <p className="mt-2 text-xs">
                       {t('amountLabel')}{' '}
-                      <span className="font-semibold">{payAmount}</span>{' '}
-                      {payCurrency.toUpperCase()}
+                      <span className="font-semibold">{payAmount}</span> {payCurrency.toUpperCase()}
                     </p>
                   ) : null}
                 </div>
@@ -327,12 +378,10 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
                 <button
                   type="button"
                   onClick={handleConfirmAndOpen}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#0052ff] py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                  className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground"
                 >
                   <ExternalLink className="h-4 w-4" />
-                  {paymentOpened
-                    ? t('openAgain', { provider: providerLabel })
-                    : t('confirmOpen', { action: openButtonLabel })}
+                  {paymentOpened ? t('openAgain', { provider: providerLabel }) : openButtonLabel}
                 </button>
               ) : null}
 
@@ -340,14 +389,14 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
                 <button
                   type="button"
                   onClick={resetState}
-                  className="flex-1 rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="min-h-11 flex-1 rounded-lg border border-border py-2.5 text-sm font-medium hover:bg-muted"
                 >
                   {t('newDeposit')}
                 </button>
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 rounded-lg border border-gray-200 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  className="min-h-11 flex-1 rounded-lg border border-border py-2.5 text-sm font-medium hover:bg-muted"
                 >
                   {tCommon('done')}
                 </button>

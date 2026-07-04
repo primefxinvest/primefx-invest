@@ -6,8 +6,9 @@ import { ChartCardSkeleton } from '@/components/shared/skeletons'
 import MarketOverviewWidget from '@/components/dashboard/MarketOverviewWidget'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchMarketOverview } from '@/lib/data/queries'
+import { CACHE_KEYS } from '@/lib/data/cache-keys'
 
-const CACHE_OPTS = { cacheKey: 'dashboard-market-overview', cacheTtlMs: 30_000 } as const
+const CACHE_OPTS = { cacheKey: CACHE_KEYS.marketOverview, cacheTtlMs: 30_000 } as const
 
 export default function DashboardMarketSection() {
   const t = useTranslations('dashboard')

@@ -11,14 +11,15 @@ import {
 
 interface MonthlyReturnsProps {
   data: Array<{ month: string; value: number }>
+  title?: string
 }
 
-export default function MonthlyReturnsChart({ data }: MonthlyReturnsProps) {
+export default function MonthlyReturnsChart({ data, title = 'Monthly Returns' }: MonthlyReturnsProps) {
   return (
     <div>
-      <h2 className="mb-4 text-[15px] font-semibold text-slate-900">Monthly Returns</h2>
+      <h2 className="mb-4 text-[15px] font-semibold text-slate-900 sr-only">{title}</h2>
       <ResponsiveContainer width="100%" height={160}>
-        <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+        <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
           <CartesianGrid {...chartGridStyle} vertical={false} />
           <XAxis dataKey="month" {...chartAxisStyle} />
           <YAxis

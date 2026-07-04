@@ -18,9 +18,9 @@ const countGridClass: Record<KpiGridCount, string> = {
   ),
   5: cn(
     'grid-cols-2',
-    'md:grid-cols-3',
+    'md:grid-cols-2',
     'lg:grid-cols-5',
-    '[&>:nth-child(5)]:col-span-2 md:[&>:nth-child(5)]:col-span-1'
+    '[&>:nth-child(5)]:col-span-2 md:[&>:nth-child(5)]:col-span-1 lg:[&>:nth-child(5)]:col-span-1'
   ),
 }
 

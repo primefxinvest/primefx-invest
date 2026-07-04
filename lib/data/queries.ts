@@ -35,6 +35,7 @@ import {
   type PortfolioChartPeriod,
 } from '@/lib/data/portfolio-performance'
 import { mapDbTransactionToItem } from '@/lib/data/transaction-map'
+import type { InvestmentDbRow, TransactionDbRow } from '@/lib/data/db-rows'
 import { formatCurrency, formatDate, formatDateTime, formatPercent, formatRelativeTime, toNumber } from '@/lib/data/format'
 import type {
   AcademyCourseDetail,
@@ -262,10 +263,10 @@ function buildPortfolioMetricsFromRows(
 ): PortfolioMetrics {
   const windowStart = metricsTransactionWindowStart()
   const txs = transactions.filter((tx) => new Date(tx.created_at) >= windowStart)
-  const totalInvested = toNumber(portfolio?.total_invested)
-  const currentValue = toNumber(portfolio?.current_value)
-  const profit = toNumber(portfolio?.profit_loss)
-  const roi = toNumber(portfolio?.roi_percentage)
+  const totalInvested = toNumber(portfolio?.total_invested as string | number | null | undefined)
+  const currentValue = toNumber(portfolio?.current_value as string | number | null | undefined)
+  const profit = toNumber(portfolio?.profit_loss as string | number | null | undefined)
+  const roi = toNumber(portfolio?.roi_percentage as string | number | null | undefined)
 
   const investedThis = sumTransactionsInMonth(txs, 0, (type) => type.includes('investment'))
   const investedLast = sumTransactionsInMonth(txs, -1, (type) => type.includes('investment'))
@@ -299,15 +300,14 @@ function buildPortfolioMetricsFromRows(
 }
 
 function buildAssetAllocationFromInvestments(
-  investments: Array<Record<string, unknown>>
+  investments: InvestmentDbRow[]
 ): AssetAllocationItem[] {
   if (!investments.length) return []
 
   const totals = new Map<string, { value: number; color: string }>()
 
   investments.forEach((investment) => {
-    const plan = investment.investment_plans as Record<string, unknown> | null | undefined
-    const planName = (plan?.name as string) ?? 'Mixed'
+    const planName = investment.investment_plans?.name ?? 'Mixed'
     const meta = PLAN_UI_META[planName]
     const className = meta?.assetClass ?? 'Mixed'
     const color = meta?.color ?? '#0052ff'
@@ -332,10 +332,11 @@ async function buildWalletDataFromRow(
   wallet: Record<string, unknown> | null | undefined
 ): Promise<WalletData> {
   const { formatPrimeFxId } = await import('@/lib/wallet/primefx-id')
-  const available = toNumber(wallet?.available_balance)
-  const pending = toNumber(wallet?.pending_balance)
-  const bonus = toNumber(wallet?.bonus_balance)
-  const total = toNumber(wallet?.total_balance) || available + pending + bonus
+  const available = toNumber(wallet?.available_balance as string | number | null | undefined)
+  const pending = toNumber(wallet?.pending_balance as string | number | null | undefined)
+  const bonus = toNumber(wallet?.bonus_balance as string | number | null | undefined)
+  const total =
+    toNumber(wallet?.total_balance as string | number | null | undefined) || available + pending + bonus
 
   const breakdown = [
     { label: 'Available Balance', value: available, color: '#10b981' },
@@ -379,8 +380,8 @@ export async function fetchDashboardCoreData(): Promise<DashboardCoreData> {
       getCachedUserTransactions(userId),
     ])
 
-  const investmentRows = (investments ?? []) as Array<Record<string, unknown>>
-  const txRows = transactions as Array<Record<string, unknown>>
+  const investmentRows = (investments ?? []) as InvestmentDbRow[]
+  const txRows = transactions as TransactionDbRow[]
 
   const [walletData, metrics, allocation] = await Promise.all([
     buildWalletDataFromRow(userId, wallet),

@@ -8,12 +8,14 @@ import { AsyncState } from '@/components/shared/data-state'
 import { DonutChartSkeleton } from '@/components/shared/skeletons'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchWalletData } from '@/lib/data/queries'
+import { CACHE_KEYS } from '@/lib/data/cache-keys'
 import { formatCurrency } from '@/lib/data/format'
+import { dashboardCardClass } from '@/lib/layout/surfaces'
 
 export default function WalletBalanceDonut() {
   const t = useTranslations('wallet.balanceDonut')
   const { data: wallet, loading, error, reload } = useAsyncData(() => fetchWalletData(), [], undefined, {
-    cacheKey: 'wallet-data',
+    cacheKey: CACHE_KEYS.walletData,
   })
 
   const chartData =
@@ -25,8 +27,8 @@ export default function WalletBalanceDonut() {
     })) ?? []
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <h2 className="text-sm font-bold text-gray-900">{t('title')}</h2>
+    <div className={dashboardCardClass}>
+      <h2 className="text-sm font-bold text-foreground">{t('title')}</h2>
 
       <AsyncState
         loading={loading}

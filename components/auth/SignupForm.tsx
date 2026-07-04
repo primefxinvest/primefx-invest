@@ -14,7 +14,6 @@ import { AuthInput } from '@/components/auth/AuthInput'
 import { AuthDivider } from '@/components/auth/AuthDivider'
 import { AuthSecurityNotice } from '@/components/auth/AuthSecurityNotice'
 import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter'
-import { RegistrationStepper } from '@/components/onboarding/RegistrationStepper'
 import { persistReferralCode, readReferralCodeFromCookie } from '@/lib/referral/client'
 import { useResetOnPageShow } from '@/lib/hooks/useResetOnPageShow'
 import { Button } from '@/components/ui/button'
@@ -176,8 +175,6 @@ function SignupForm() {
       }
       footer={<AuthSecurityNotice securityText={t('securityNotice')} />}
     >
-      <RegistrationStepper activeStep={1} className="mb-5 sm:mb-6" />
-
       {activeReferralCode ? (
         <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5 text-sm text-emerald-900">
           {t('referralInvited', { code: activeReferralCode })} {t('referralLinked')}

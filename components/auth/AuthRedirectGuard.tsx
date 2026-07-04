@@ -33,6 +33,7 @@ export default function AuthRedirectGuard({ children }: AuthRedirectGuardProps) 
   const locale = useLocale() as AppLocale
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const redirectParam = searchParams.get('redirect')
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -66,7 +67,7 @@ export default function AuthRedirectGuard({ children }: AuthRedirectGuardProps) 
           if (!active) return
 
           const destination = getAuthenticatedEntryPath(
-            searchParams.get('redirect'),
+            redirectParam,
             mfa.required
           )
           const [path, query] = destination.split('?')
@@ -104,7 +105,7 @@ export default function AuthRedirectGuard({ children }: AuthRedirectGuardProps) 
       window.clearTimeout(safetyTimer)
       window.removeEventListener('pageshow', onPageShow)
     }
-  }, [locale, pathname, searchParams])
+  }, [locale, pathname, redirectParam])
 
   if (!ready) {
     return (

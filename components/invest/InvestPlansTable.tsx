@@ -2,6 +2,7 @@
 
 import { memo } from 'react'
 import { ArrowRight, Star } from 'lucide-react'
+import { ScrollTable } from '@/components/shared/ScrollTable'
 import type { InvestmentPlan } from '@/lib/invest/plan-config'
 import { formatPlanDisplayName, formatPlanRiskLabel } from '@/lib/invest/plan-mapper'
 import { getPlanTheme } from '@/lib/invest/plan-config'
@@ -25,8 +26,8 @@ function InvestPlansTable({
   return (
     <>
       {/* Desktop / tablet table */}
-      <div className="hidden md:block">
-        <table className="w-full table-fixed text-sm">
+      <ScrollTable className="hidden md:block" ariaLabel="Investment plans table">
+        <table className="w-full min-w-[720px] table-fixed text-sm">
           <colgroup>
             <col style={{ width: '26%' }} />
             <col style={{ width: '12%' }} />
@@ -74,7 +75,7 @@ function InvestPlansTable({
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollTable>
 
       {/* Mobile list */}
       <div className="space-y-3 md:hidden">

@@ -1,87 +1,99 @@
-# PrimeFx Invest — Dashboard Performance Report (UI Pass)
+# Performance Report
 
-**Date:** July 4, 2026  
-**Complements:** `PERFORMANCE_EMERGENCY_REPORT.md`
-
----
-
-## Score: 92 / 100 (target 95)
+**Date:** July 5, 2026  
+**Targets:** TTI < 1s · Route transition < 200ms · ≤4 API calls/page · Lighthouse ≥ 95
 
 ---
 
-## Rendering Optimizations (This Pass)
+## Changes Applied
 
-| Optimization | Impact | Location |
-|--------------|--------|----------|
-| `memo(MetricCard)` | Prevents KPI re-renders on unrelated state | `MetricCard.tsx` |
-| `memo(MarketOverviewWidget)` | Stable market list rendering | `MarketOverviewWidget.tsx` |
-| `memo(DashboardQuickActions)` | Static grid, no parent churn | `DashboardQuickActions.tsx` |
-| Dynamic import — plans carousel | −~15KB initial JS | `Dashboard.lazy.tsx` |
-| Dynamic import — quick actions | Deferred until chunk loads | `Dashboard.lazy.tsx` |
-| Dynamic import — market section | Market fetch moved out of page mount | `DashboardMarketSection.tsx` |
-| Dynamic import — recent transactions | Deferred transaction list | `Dashboard.lazy.tsx` |
-| Charts already lazy | Recharts not in initial bundle | `Charts.lazy.tsx` |
-| Secondary sections idle-deferred | Rewards/referral/learning after idle | `DashboardSecondarySections.tsx` |
+### 1. Lazy-loaded wallet donut chart
 
----
+**File:** `components/wallet/WalletCharts.lazy.tsx`
 
-## Dashboard Initial Load Waterfall (After)
-
-| Phase | Time (est.) | Content |
-|-------|-------------|---------|
-| 0–300ms | Shell paint | Header, skeleton KPIs |
-| 300–800ms | Critical data | Metrics + wallet (cached 30s) |
-| 800–1200ms | Charts | Portfolio chart + allocation (lazy Recharts) |
-| 1200ms+ | Idle deferred | Plans, market, transactions, rewards |
-
-**Target:** &lt;2s to interactive on 4G — achievable with prior emergency fixes + this lazy split.
-
----
-
-## Re-render Reduction
-
-| Before | After |
-|--------|-------|
-| 9+ hooks firing on single page mount | 4 critical hooks on page; 4 lazy child mounts |
-| Market fetch in page + widget | Single fetch in `DashboardMarketSection` |
-| Inline loaders stable (prior fix) | `useAsyncData` ref pattern retained |
-| Unmemoized card components | 3 memoized dashboard widgets |
-
----
-
-## Bundle Impact (Estimated)
-
-| Chunk | Before | After |
-|-------|--------|-------|
-| Dashboard page initial | Plans + market + transactions + quick actions | Page shell + KPI + charts only |
-| Lazy chunks | 0 | 4 dynamic imports |
-
----
-
-## What Was Not Changed
-
-- Business logic and query functions
-- Cache TTLs (30s dashboard, 60s plans)
-- Realtime wallet subscription
-- Investment calculations
-
----
-
-## Remaining to Hit 95+
-
-| Item | Est. gain |
-|------|-----------|
-| Lazy-load `DashboardStatusCards` MFA check | Small |
-| `next/image` for avatars/logos | LCP improvement |
-| RSC prefetch for metrics on server | −1 round-trip |
-| Virtualize long transaction lists | N/A on dashboard (4 items) |
-
----
-
-## Validation
-
-```bash
-npm run build  # passed July 4, 2026
+```tsx
+export const WalletBalanceDonut = dynamic(
+  () => import('@/components/wallet/WalletBalanceDonut'),
+  { ssr: false, loading: () => <DonutChartSkeleton /> }
+)
 ```
 
-Manual: Chrome Performance → record dashboard load → confirm no long tasks &gt;200ms after initial paint.
+**Impact:** Removes `recharts` from wallet page initial JS bundle. Charts already lazy on Dashboard and Portfolio.
+
+### 2. Cache key unification
+
+**File:** `lib/data/cache-keys.ts`
+
+| Key | Consumers (now deduped) |
+|-----|-------------------------|
+| `CACHE_KEYS.rewardsData` | Dashboard secondary sections + Rewards page |
+| `CACHE_KEYS.marketOverview` | Dashboard market section + Market Insights |
+| `CACHE_KEYS.userNotifications` | Navbar + Sidebar + Notifications page |
+| `CACHE_KEYS.walletData` | WalletBalanceCards + WalletBalanceDonut |
+
+**Impact:** Navigation between dashboard ↔ rewards ↔ market insights reuses cached data (30s TTL). Fewer Supabase round-trips.
+
+### 3. Auth redirect guard optimization
+
+**File:** `components/auth/AuthRedirectGuard.tsx`
+
+Changed effect dependency from unstable `searchParams` object to `redirectParam = searchParams.get('redirect')`.
+
+**Impact:** Prevents unnecessary session re-verification on unrelated query param changes.
+
+### 4. Hydration-safe dashboard date
+
+**File:** `dashboard/page.tsx`
+
+Date badge renders client-side via `useEffect` + `suppressHydrationWarning`.
+
+**Impact:** Eliminates hydration mismatch re-render on dashboard load.
+
+---
+
+## Existing Optimizations (Preserved)
+
+- Dashboard charts: `Charts.lazy.tsx` with `ssr: false`
+- Portfolio charts: `portfolio/Charts.lazy.tsx`
+- Dashboard secondary sections: idle deferred load
+- Deposit flow: auto-redirect, duplicate-submit guard
+- `useAsyncData` with 30s TTL cache layer
+- Transaction cache: `getCachedUserTransactions()` with inflight dedup
+
+---
+
+## Recommended Follow-Ups
+
+| Priority | Item | Expected Gain |
+|----------|------|---------------|
+| High | `usePortfolioCore()` — bundle 5 portfolio hooks into 1 fetch | −3 API calls on /portfolio |
+| Medium | PrimeAI dynamic import | −~40KB initial JS on /primeai |
+| Medium | Referral chart extraction to lazy module | −recharts on /referral initial load |
+| Medium | `NotificationPushListener` through async cache | Less background polling overlap |
+| Low | Centralized `TransactionsRealtimeProvider` | One Supabase channel vs per-page |
+
+---
+
+## API Call Estimates (Post-Pass)
+
+| Page | Calls (typical) | Notes |
+|------|-----------------|-------|
+| Dashboard | 3–4 | Bundled `dashboard-core` + deferred sections |
+| Wallet | 2–3 | Shared `wallet-data` cache |
+| Invest | 1–2 | Plans + KYC gate |
+| Portfolio | 5 | **Needs bundling** (follow-up) |
+| Market Insights | 2 | Market overview cached from dashboard visit |
+| Rewards | 2–3 | Achievements + tiers (could bundle) |
+
+---
+
+## Lighthouse Projection
+
+| Metric | Estimate |
+|--------|----------|
+| Performance | 94–96 |
+| Accessibility | 92–95 |
+| Best Practices | 95–100 |
+| SEO | 95–100 |
+
+Wallet donut lazy-load and cache dedup are the primary wins in this pass.

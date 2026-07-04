@@ -5,7 +5,7 @@ import { Settings } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import WalletBalanceCards from '@/components/wallet/WalletBalanceCards'
 import WalletActionCards from '@/components/wallet/WalletActionCards'
-import WalletBalanceDonut from '@/components/wallet/WalletBalanceDonut'
+import { WalletBalanceDonut } from '@/components/wallet/WalletCharts.lazy'
 import WalletHealthCard from '@/components/wallet/WalletHealthCard'
 import WalletPrimeAIInsight from '@/components/wallet/WalletPrimeAIInsight'
 import WalletTransactionTable from '@/components/wallet/WalletTransactionTable'
@@ -13,14 +13,15 @@ import WalletActivitySummary from '@/components/wallet/WalletActivitySummary'
 import PaymentMethodsCard from '@/components/wallet/PaymentMethodsCard'
 import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
 import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
-import { pageStackClass } from '@/lib/layout/spacing'
+import { pageStackClass, gridGapClass } from '@/lib/layout/spacing'
+import { cn } from '@/lib/utils'
 
 export default function WalletPage() {
   const t = useTranslations('wallet.overview')
   const tTx = useTranslations('wallet.transactions')
 
   return (
-    <div className={pageStackClass}>
+    <div className={cn('min-w-0', pageStackClass)}>
       <WalletPageHeader
         title={t('title')}
         description={t('description')}
@@ -44,7 +45,7 @@ export default function WalletPage() {
 
       <section
         aria-label={t('title')}
-        className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+        className={cn('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3', gridGapClass)}
       >
         <WalletBalanceDonut />
         <WalletHealthCard />
@@ -57,7 +58,7 @@ export default function WalletPage() {
         <WalletTransactionTable />
       </section>
 
-      <section aria-label="Wallet activity and payment methods" className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_min(380px,100%)]">
+      <section aria-label="Wallet activity and payment methods" className={cn('grid grid-cols-1 xl:grid-cols-[1fr_min(380px,100%)]', gridGapClass)}>
         <WalletActivitySummary />
         <PaymentMethodsCard />
       </section>

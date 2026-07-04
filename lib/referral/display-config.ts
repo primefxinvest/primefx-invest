@@ -23,11 +23,71 @@ export const REFERRAL_EARNINGS_EXAMPLES = {
   investmentCommission: {
     deposit: 10_000,
     commission: 150,
-    label: 'On a $10,000 first investment',
+    label: '$10,000 deposit',
   },
   weeklyProfitShare: {
-    downlineProfit: 1_000,
-    level1Earning: 30,
-    label: 'If your L1 earns $1,000 profit this week',
+    downlineProfit: 10_000,
+    level1Earning: 300,
+    label: '$10,000 weekly profit generated',
   },
 } as const
+
+/** UI-only network level copy for timeline section. */
+export const REFERRAL_NETWORK_LEVELS = [
+  {
+    level: 1,
+    title: 'Direct Referrals',
+    description: 'People you personally invite.',
+    rate: '3%',
+    exampleProfit: 10_000,
+    exampleEarning: 300,
+    color: '#0052ff',
+  },
+  {
+    level: 2,
+    title: 'Second Level Referrals',
+    description: 'People invited by your Level 1 members.',
+    rate: '1%',
+    exampleProfit: 10_000,
+    exampleEarning: 100,
+    color: '#10b981',
+  },
+  {
+    level: 3,
+    title: 'Third Level Referrals',
+    description: 'People invited by Level 2 members.',
+    rate: '0.5%',
+    exampleProfit: 10_000,
+    exampleEarning: 50,
+    color: '#f97316',
+  },
+  {
+    level: 4,
+    title: 'Fourth Level Referrals',
+    description: 'People invited by Level 3 members.',
+    rate: '0.25%',
+    exampleProfit: 10_000,
+    exampleEarning: 25,
+    color: '#8b5cf6',
+  },
+] as const
+
+/** UI-only trust cards for transparency footer. */
+export const REFERRAL_TRUST_CARDS = [
+  {
+    title: 'Transparent System',
+    body: 'Every commission rate and payout is disclosed upfront in your dashboard.',
+  },
+  {
+    title: 'Secure & Verified',
+    body: 'Rewards require verified investment activity — never paid memberships.',
+  },
+  {
+    title: 'No Hidden Fees',
+    body: 'No recruitment fees, starter kits, or surprise deductions from earnings.',
+  },
+  {
+    title: 'Fair & Sustainable',
+    body: 'Built for long-term investor relationships, not unsustainable hype cycles.',
+  },
+] as const

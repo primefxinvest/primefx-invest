@@ -12,6 +12,7 @@ import {
   Layers,
   Crown,
   Gem,
+  Briefcase,
 } from 'lucide-react'
 import { KpiCard, KpiGrid } from '@/components/shared/kpi'
 import { ScrollTable } from '@/components/shared/ScrollTable'
@@ -23,10 +24,15 @@ import {
   MonthlyReturnsChart,
 } from '@/components/portfolio/Charts.lazy'
 import { CapitalWithdrawButton } from '@/components/portfolio/CapitalWithdrawButton'
+import PortfolioInvestmentTimeline from '@/components/portfolio/PortfolioInvestmentTimeline'
+import PortfolioRiskExposure from '@/components/portfolio/PortfolioRiskExposure'
+import PortfolioRecentActivity from '@/components/portfolio/PortfolioRecentActivity'
+import DistributionMap from '@/components/portfolio/DistributionMap'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { useCapitalWithdrawalRequestsRealtime } from '@/lib/hooks/useCapitalWithdrawalRealtime'
-import { pageStackClass } from '@/lib/layout/spacing'
+import { pageStackClass, gridGapClass } from '@/lib/layout/spacing'
+import { dashboardCardClass, dashboardSectionTitleClass } from '@/lib/layout/surfaces'
 import {
   fetchAssetAllocation,
   fetchCapitalWithdrawalRequests,
@@ -35,6 +41,8 @@ import {
   fetchPortfolioOverview,
 } from '@/lib/data/queries'
 import type { PortfolioChartPeriod } from '@/lib/data/portfolio-performance'
+import { cn } from '@/lib/utils'
+
 const planIcons: Record<string, typeof Sprout> = {
   'Starter Plan': Sprout,
   'Growth Plan': Layers,
@@ -43,6 +51,18 @@ const planIcons: Record<string, typeof Sprout> = {
 }
 
 const PORTFOLIO_CACHE_OPTS = { cacheTtlMs: 30_000 } as const
+
+const RISK_COLORS: Record<string, string> = {
+  Low: '#10b981',
+  Medium: '#0052ff',
+  High: '#f97316',
+}
+
+function parseRiskLevel(riskLabel: string): string {
+  if (riskLabel.toLowerCase().includes('low')) return 'Low'
+  if (riskLabel.toLowerCase().includes('high')) return 'High'
+  return 'Medium'
+}
 
 export default function PortfolioPage() {
   const user = useSessionUser()
@@ -136,6 +156,71 @@ export default function PortfolioPage() {
     profitLossValue.includes('(') ||
     profitLossValue.startsWith('−')
 
+  const timelineEvents = useMemo(() => {
+    const events: Array<{
+      id: string
+      title: string
+      subtitle: string
+      date: string
+      status: 'completed' | 'active' | 'pending'
+    }> = []
+
+    portfolioActiveInvestments.forEach((inv) => {
+      events.push({
+        id: `active-${inv.id}`,
+        title: inv.plan,
+        subtitle: `${inv.invested} invested · ${inv.roi} ROI`,
+        date: 'Active',
+        status: 'active',
+      })
+    })
+
+    portfolioCompletedInvestments.forEach((inv) => {
+      events.push({
+        id: `completed-${inv.id}`,
+        title: inv.plan,
+        subtitle: `Final value ${inv.finalValue} · Profit ${inv.profit}`,
+        date: inv.date,
+        status: 'completed',
+      })
+    })
+
+    capitalWithdrawals.forEach((req) => {
+      events.push({
+        id: `withdraw-${req.id}`,
+        title: 'Capital withdrawal request',
+        subtitle: `$${req.amountUsd.toFixed(2)} · ${req.status.replace('_', ' ')}`,
+        date: new Date(req.requestedAt).toLocaleDateString(),
+        status: req.status === 'ready' ? 'completed' : 'pending',
+      })
+    })
+
+    return events.slice(0, 8)
+  }, [portfolioActiveInvestments, portfolioCompletedInvestments, capitalWithdrawals])
+
+  const riskBuckets = useMemo(() => {
+    const counts = new Map<string, number>()
+    portfolioActiveInvestments.forEach((inv) => {
+      const level = parseRiskLevel(inv.risk)
+      counts.set(level, (counts.get(level) ?? 0) + 1)
+    })
+    const total = portfolioActiveInvestments.length || 1
+    return ['Low', 'Medium', 'High']
+      .filter((level) => (counts.get(level) ?? 0) > 0)
+      .map((level) => ({
+        label: `${level} Risk`,
+        count: counts.get(level) ?? 0,
+        percentage: Math.round(((counts.get(level) ?? 0) / total) * 100),
+        color: RISK_COLORS[level] ?? '#0052ff',
+      }))
+  }, [portfolioActiveInvestments])
+
+  const overallRiskLabel = useMemo(() => {
+    if (!riskBuckets.length) return 'No exposure'
+    const dominant = riskBuckets.reduce((a, b) => (a.percentage >= b.percentage ? a : b))
+    return `${dominant.label} weighted`
+  }, [riskBuckets])
+
   if (overviewLoading && !overview) {
     return (
       <div className={pageStackClass}>
@@ -143,8 +228,8 @@ export default function PortfolioPage() {
           <div className="h-8 w-48 animate-pulse rounded-lg bg-gray-200/80" />
           <div className="mt-2 h-4 w-72 animate-pulse rounded bg-gray-100" />
         </div>
-        <MetricCardsSkeleton count={4} />
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+        <MetricCardsSkeleton count={5} />
+        <div className={cn('grid grid-cols-1 xl:grid-cols-12', gridGapClass)}>
           <div className="xl:col-span-7">
             <TableSkeleton rows={1} cols={1} showHeader={false} />
           </div>
@@ -152,7 +237,7 @@ export default function PortfolioPage() {
             <TableSkeleton rows={1} cols={1} showHeader={false} />
           </div>
         </div>
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <div className={cn('grid grid-cols-1 xl:grid-cols-2', gridGapClass)}>
           <TableSkeleton rows={4} cols={5} />
           <TableSkeleton rows={4} cols={5} />
         </div>
@@ -173,49 +258,63 @@ export default function PortfolioPage() {
   return (
     <div className={cn('min-w-0', pageStackClass)}>
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Portfolio Overview</h1>
-        <p className="mt-1 text-[13px] text-slate-500">
+        <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+          Portfolio Overview
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Track your investments, performance, and growth in real-time.
         </p>
       </header>
 
+      {/* 1. Portfolio Summary KPI Row */}
       <section aria-label="Portfolio summary">
-        <KpiGrid count={4} aria-label="Portfolio summary">
+        <KpiGrid count={5} aria-label="Portfolio summary">
           <KpiCard
-            label="Current Value"
+            label="Total Portfolio Value"
             value={portfolioOverview.currentValue}
             caption="Updated in real-time"
             icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
             iconBg="bg-emerald-50 text-emerald-600"
           />
           <KpiCard
-            label="Profit / Loss"
+            label="Total Invested"
+            value={portfolioOverview.totalInvested}
+            caption="Capital deployed"
+            icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />}
+            iconBg="bg-blue-50 text-[#0052ff]"
+          />
+          <KpiCard
+            label="Total Profit"
             value={portfolioOverview.profitLoss}
-            caption="Total profit or loss"
+            caption="Net gain or loss"
             valueClassName={isProfitNegative ? 'text-red-600' : 'text-emerald-600'}
             icon={<BarChart2 className="h-4 w-4 sm:h-5 sm:w-5" />}
             iconBg="bg-violet-50 text-violet-600"
           />
           <KpiCard
-            label="Total Invested"
-            value={portfolioOverview.totalInvested}
-            caption={`Across ${portfolioOverview.activePlans} active plans`}
-            icon={<DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />}
-            iconBg="bg-blue-50 text-[#0052ff]"
-          />
-          <KpiCard
-            label="ROI %"
+            label="ROI"
             value={portfolioOverview.roi}
             caption="Overall return"
             valueClassName={isProfitNegative ? 'text-red-600' : 'text-emerald-600'}
             icon={<Percent className="h-4 w-4 sm:h-5 sm:w-5" />}
             iconBg="bg-orange-50 text-orange-500"
           />
+          <KpiCard
+            label="Active Plans"
+            value={String(portfolioOverview.activePlans)}
+            caption="Currently running"
+            icon={<Briefcase className="h-4 w-4 sm:h-5 sm:w-5" />}
+            iconBg="bg-slate-100 text-slate-600"
+          />
         </KpiGrid>
       </section>
 
-      <section aria-label="Performance charts" className="grid grid-cols-1 gap-4 xl:grid-cols-12">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 xl:col-span-7">
+      {/* 2 & 3. Performance + Allocation */}
+      <section
+        aria-label="Performance charts"
+        className={cn('grid grid-cols-1 xl:grid-cols-12', gridGapClass)}
+      >
+        <div className={cn(dashboardCardClass, 'flex min-h-[380px] flex-col xl:col-span-7')}>
           <PerformanceChart
             data={chartData}
             stats={portfolioPerformanceStats}
@@ -223,21 +322,21 @@ export default function PortfolioPage() {
             onPeriodChange={setChartPeriod}
           />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5 xl:col-span-5">
+        <div className={cn(dashboardCardClass, 'flex min-h-[380px] flex-col xl:col-span-5')}>
           <AllocationDonut data={allocation} totalValue={portfolioOverview.currentValue} />
         </div>
       </section>
 
-      <section aria-label="Investments" className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        {/* Active investments */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="text-[15px] font-semibold text-slate-900">Active Investments</h2>
+      {/* 4. Active Investments */}
+      <section aria-label="Active investments">
+        <div className={cn(dashboardCardClass, 'overflow-hidden p-0 sm:p-0')}>
+          <div className="border-b border-border px-5 py-3.5">
+            <h2 className={dashboardSectionTitleClass}>Active Investments</h2>
           </div>
           <ScrollTable>
             <table className="w-full min-w-[640px] text-[13px]">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                <tr className="border-b border-border bg-muted/50 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   <th className="px-5 py-3">Plan</th>
                   <th className="px-3 py-3">Invested</th>
                   <th className="px-3 py-3">Current Value</th>
@@ -246,7 +345,7 @@ export default function PortfolioPage() {
                   <th className="px-5 py-3">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {investmentsLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i}>
@@ -267,77 +366,94 @@ export default function PortfolioPage() {
                   </tr>
                 ) : portfolioActiveInvestments.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-[13px] text-slate-400">
+                    <td colSpan={6} className="px-5 py-8 text-center text-[13px] text-muted-foreground">
                       No active investments yet.{' '}
-                      <Link href="/invest" className="font-medium text-[#0052ff] hover:underline">
+                      <Link href="/invest" className="font-medium text-primary hover:underline">
                         Start investing
                       </Link>
                     </td>
                   </tr>
                 ) : (
-                portfolioActiveInvestments.map((inv) => {
-                  const Icon = planIcons[inv.plan] ?? Layers
-                  return (
-                    <tr key={inv.id} className="transition-colors hover:bg-slate-50/60">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${inv.iconBg}`}
-                          >
-                            <Icon className="h-3.5 w-3.5" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-slate-800">{inv.plan}</p>
-                            <span
-                              className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${inv.riskColor}`}
+                  portfolioActiveInvestments.map((inv) => {
+                    const Icon = planIcons[inv.plan] ?? Layers
+                    return (
+                      <tr key={inv.id} className="transition-colors hover:bg-muted/30">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${inv.iconBg}`}
                             >
-                              {inv.risk}
-                            </span>
+                              <Icon className="h-3.5 w-3.5" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">{inv.plan}</p>
+                              <span
+                                className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${inv.riskColor}`}
+                              >
+                                {inv.risk}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3.5 text-slate-600">{inv.invested}</td>
-                      <td className="px-3 py-3.5 font-medium text-slate-800">{inv.currentValue}</td>
-                      <td className="px-3 py-3.5 font-semibold text-emerald-600">{inv.roi}</td>
-                      <td className="px-5 py-3.5">
-                        <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <CapitalWithdrawButton
-                          investmentId={inv.id}
-                          planName={inv.plan}
-                          pendingRequest={capitalWithdrawalByInvestment.get(inv.id)}
-                          onRequested={reloadCapitalWithdrawalState}
-                        />
-                      </td>
-                    </tr>
-                  )
-                })
+                        </td>
+                        <td className="px-3 py-3.5 text-muted-foreground">{inv.invested}</td>
+                        <td className="px-3 py-3.5 font-medium text-foreground">{inv.currentValue}</td>
+                        <td className="px-3 py-3.5 font-semibold text-emerald-600">{inv.roi}</td>
+                        <td className="px-5 py-3.5">
+                          <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+                            {inv.status}
+                          </span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <CapitalWithdrawButton
+                            investmentId={inv.id}
+                            planName={inv.plan}
+                            pendingRequest={capitalWithdrawalByInvestment.get(inv.id)}
+                            onRequested={reloadCapitalWithdrawalState}
+                          />
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
           </ScrollTable>
-          <div className="border-t border-slate-100 px-5 py-3">
+          <div className="border-t border-border px-5 py-3">
             <Link
               href="/invest"
-              className="flex items-center gap-1 text-[13px] font-medium text-[#0052ff] hover:underline"
+              className="flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"
             >
               View All Active <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </div>
+      </section>
 
-        {/* Completed investments */}
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="text-[15px] font-semibold text-slate-900">Completed Investments</h2>
+      {/* 5, 6, 7. Timeline · Profit Distribution · Risk */}
+      <section
+        aria-label="Portfolio analytics"
+        className={cn('grid grid-cols-1 lg:grid-cols-3', gridGapClass)}
+      >
+        <PortfolioInvestmentTimeline events={timelineEvents} />
+        <div className={cn(dashboardCardClass, 'flex h-full min-h-[280px] flex-col')}>
+          <h2 className={dashboardSectionTitleClass}>Profit Distribution</h2>
+          <div className="mt-3 min-h-0 flex-1">
+            <MonthlyReturnsChart data={monthlyReturns} />
+          </div>
+        </div>
+        <PortfolioRiskExposure buckets={riskBuckets} overallLabel={overallRiskLabel} />
+      </section>
+
+      {/* Completed investments (retained feature) */}
+      <section aria-label="Completed investments">
+        <div className={cn(dashboardCardClass, 'overflow-hidden p-0 sm:p-0')}>
+          <div className="border-b border-border px-5 py-3.5">
+            <h2 className={dashboardSectionTitleClass}>Completed Investments</h2>
           </div>
           <ScrollTable>
             <table className="w-full min-w-[640px] text-[13px]">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/80 text-left text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                <tr className="border-b border-border bg-muted/50 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   <th className="px-5 py-3">Plan</th>
                   <th className="px-3 py-3">Invested</th>
                   <th className="px-3 py-3">Final Value</th>
@@ -345,7 +461,7 @@ export default function PortfolioPage() {
                   <th className="px-5 py-3">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-border">
                 {investmentsLoading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <tr key={i}>
@@ -356,43 +472,43 @@ export default function PortfolioPage() {
                   ))
                 ) : portfolioCompletedInvestments.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-8 text-center text-[13px] text-slate-400">
+                    <td colSpan={5} className="px-5 py-8 text-center text-[13px] text-muted-foreground">
                       No completed investments yet.
                     </td>
                   </tr>
                 ) : (
-                portfolioCompletedInvestments.map((inv) => {
-                  const Icon = planIcons[inv.plan] ?? Layers
-                  return (
-                    <tr key={inv.id} className="transition-colors hover:bg-slate-50/60">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                            <Icon className="h-3.5 w-3.5" />
+                  portfolioCompletedInvestments.map((inv) => {
+                    const Icon = planIcons[inv.plan] ?? Layers
+                    return (
+                      <tr key={inv.id} className="transition-colors hover:bg-muted/30">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                              <Icon className="h-3.5 w-3.5" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">{inv.plan}</p>
+                              <p className="text-[11px] text-muted-foreground">{inv.date}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-medium text-slate-800">{inv.plan}</p>
-                            <p className="text-[11px] text-slate-400">{inv.date}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-3 py-3.5 text-slate-600">{inv.invested}</td>
-                      <td className="px-3 py-3.5 font-medium text-slate-800">{inv.finalValue}</td>
-                      <td className="px-3 py-3.5 font-semibold text-emerald-600">{inv.profit}</td>
-                      <td className="px-5 py-3.5">
-                        <span className="text-[12px] font-semibold text-emerald-600">{inv.status}</span>
-                      </td>
-                    </tr>
-                  )
-                })
+                        </td>
+                        <td className="px-3 py-3.5 text-muted-foreground">{inv.invested}</td>
+                        <td className="px-3 py-3.5 font-medium text-foreground">{inv.finalValue}</td>
+                        <td className="px-3 py-3.5 font-semibold text-emerald-600">{inv.profit}</td>
+                        <td className="px-5 py-3.5">
+                          <span className="text-[12px] font-semibold text-emerald-600">{inv.status}</span>
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
               </tbody>
             </table>
           </ScrollTable>
-          <div className="border-t border-slate-100 px-5 py-3">
+          <div className="border-t border-border px-5 py-3">
             <Link
               href="/transactions"
-              className="flex items-center gap-1 text-[13px] font-medium text-[#0052ff] hover:underline"
+              className="flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"
             >
               View All Completed <ChevronRight className="h-3.5 w-3.5" />
             </Link>
@@ -400,42 +516,49 @@ export default function PortfolioPage() {
         </div>
       </section>
 
-      <section aria-label="Returns and highlights" className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <MonthlyReturnsChart data={monthlyReturns} />
+      {/* 8. Distribution + Recent Activity + Best Performer */}
+      <section
+        aria-label="Portfolio activity"
+        className={cn('grid grid-cols-1 lg:grid-cols-3', gridGapClass)}
+      >
+        <div className={cn(dashboardCardClass, 'lg:col-span-1')}>
+          <DistributionMap />
         </div>
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <h2 className="mb-4 text-[15px] font-semibold text-slate-900">Best Performing Asset</h2>
+        <div className="lg:col-span-1">
+          <PortfolioRecentActivity />
+        </div>
+        <div className={cn(dashboardCardClass, 'flex h-full min-h-[280px] flex-col lg:col-span-1')}>
+          <h2 className={dashboardSectionTitleClass}>Best Performing Asset</h2>
           {portfolioActiveInvestments.length === 0 ? (
-            <div className="flex min-h-[140px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 text-center text-sm text-slate-500">
+            <div className="mt-4 flex flex-1 items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 px-4 text-center text-sm text-muted-foreground">
               No active investments yet.{' '}
-              <Link href="/invest" className="ml-1 font-medium text-[#0052ff] hover:underline">
+              <Link href="/invest" className="ml-1 font-medium text-primary hover:underline">
                 Start investing
               </Link>
             </div>
           ) : (
-          <div className="rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 to-white p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100">
-                <Crown className="h-5 w-5 text-purple-600" />
+            <div className="mt-4 flex flex-1 flex-col rounded-xl border border-purple-100 bg-gradient-to-br from-purple-50 to-white p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-purple-100">
+                  <Crown className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">{bestPerformingAsset.name}</p>
+                  <p className="text-[12px] text-muted-foreground">Top ROI among active plans</p>
+                </div>
               </div>
-              <div>
-                <p className="font-semibold text-slate-900">{bestPerformingAsset.name}</p>
-                <p className="text-[12px] text-slate-500">Top ROI among active plans</p>
+              <p className="mt-4 text-3xl font-bold text-emerald-600">{bestPerformingAsset.roi}</p>
+              <div className="mt-auto flex justify-between border-t border-purple-100 pt-3 text-[12px]">
+                <div>
+                  <p className="text-muted-foreground">Invested</p>
+                  <p className="font-medium text-foreground">{bestPerformingAsset.invested}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-muted-foreground">Current</p>
+                  <p className="font-medium text-foreground">{bestPerformingAsset.currentValue}</p>
+                </div>
               </div>
             </div>
-            <p className="mt-4 text-3xl font-bold text-emerald-600">{bestPerformingAsset.roi}</p>
-            <div className="mt-3 flex justify-between border-t border-purple-100 pt-3 text-[12px]">
-              <div>
-                <p className="text-slate-400">Invested</p>
-                <p className="font-medium text-slate-700">{bestPerformingAsset.invested}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-slate-400">Current</p>
-                <p className="font-medium text-slate-700">{bestPerformingAsset.currentValue}</p>
-              </div>
-            </div>
-          </div>
           )}
         </div>
       </section>

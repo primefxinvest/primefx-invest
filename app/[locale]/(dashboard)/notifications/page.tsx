@@ -20,6 +20,7 @@ import {
   groupNotificationsByDate,
 } from '@/lib/notifications/routes'
 import { invalidateAsyncCache } from '@/lib/hooks/async-cache'
+import { CACHE_KEYS } from '@/lib/data/cache-keys'
 import type { NotificationItem } from '@/lib/data/types'
 import { cn } from '@/lib/utils'
 
@@ -37,7 +38,9 @@ export default function NotificationsPage() {
   const router = useRouter()
   const { data: fetched, loading, error, reload } = useAsyncData(
     () => fetchNotifications(),
-    []
+    [],
+    undefined,
+    { cacheKey: CACHE_KEYS.userNotifications, cacheTtlMs: 30_000 }
   )
   const [items, setItems] = useState<NotificationItem[]>([])
 
@@ -54,7 +57,7 @@ export default function NotificationsPage() {
     const result = await markAllNotificationsRead()
     if (result.success) {
       setItems((prev) => prev.map((n) => ({ ...n, read: true })))
-      invalidateAsyncCache('user-notifications')
+      invalidateAsyncCache(CACHE_KEYS.userNotifications)
       toast.success('All notifications marked as read')
       window.dispatchEvent(new CustomEvent('primefx:profile-updated'))
     }
@@ -65,7 +68,7 @@ export default function NotificationsPage() {
       const result = await markNotificationRead(item.id)
       if (result.success) {
         setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, read: true } : n)))
-        invalidateAsyncCache('user-notifications')
+        invalidateAsyncCache(CACHE_KEYS.userNotifications)
         window.dispatchEvent(new CustomEvent('primefx:profile-updated'))
       }
     }

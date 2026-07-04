@@ -18,11 +18,14 @@ export const sectionContentGapClass = 'space-y-4'
 /** Page header row gap. */
 export const pageHeaderGapClass = 'gap-3'
 
-/** Grid gap between cards (24px). */
-export const gridGapClass = 'gap-6'
+/** Grid gap between cards (24px desktop, 16px mobile). */
+export const gridGapClass = 'gap-4 lg:gap-6'
 
 /** Mobile page horizontal/vertical padding (16px). */
 export const pagePaddingClass = 'px-4 py-4 sm:px-5 sm:py-5 lg:px-6 lg:py-6'
+
+/** Horizontal padding only — align navbar with main content. */
+export const pagePaddingXClass = 'px-4 sm:px-5 lg:px-6'
 
 /** Section header bottom margin. */
 export const sectionHeaderMbClass = 'mb-4'

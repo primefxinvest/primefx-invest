@@ -36,12 +36,14 @@ const regions = [
 
 export default function DistributionMap() {
   return (
-    <div>
-      <h2 className="mb-4 text-[15px] font-semibold text-slate-900">Portfolio Distribution</h2>
+    <div className="flex h-full flex-col">
+      <h2 className="mb-4 text-sm font-semibold tracking-tight text-foreground sm:text-base">
+        Portfolio Distribution
+      </h2>
       <WorldMap dots={portfolioMapDots} lineColor="#0052ff" />
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5">
         {regions.map((region) => (
-          <span key={region} className="flex items-center gap-1.5 text-[11px] text-slate-500">
+          <span key={region} className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
             <span className="h-1.5 w-1.5 rounded-full bg-[#0052ff]" />
             {region}
           </span>

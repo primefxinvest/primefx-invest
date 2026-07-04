@@ -37,8 +37,11 @@ export function ReferralCommissionSection() {
           <div className="mt-4 rounded-xl border border-orange-100 bg-white/80 px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Example</p>
             <p className="mt-1 text-sm text-gray-700">{REFERRAL_EARNINGS_EXAMPLES.investmentCommission.label}</p>
-            <p className="mt-1 text-base font-bold text-emerald-600">
-              You earn {formatCurrency(REFERRAL_EARNINGS_EXAMPLES.investmentCommission.commission)}
+            <p className="mt-2 text-sm text-gray-600">
+              You earn:{' '}
+              <span className="text-base font-bold text-emerald-600">
+                {formatCurrency(REFERRAL_EARNINGS_EXAMPLES.investmentCommission.commission)}
+              </span>
             </p>
           </div>
         </article>
@@ -71,8 +74,11 @@ export function ReferralCommissionSection() {
           <div className="mt-4 rounded-xl border border-blue-100 bg-white/80 px-4 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Example</p>
             <p className="mt-1 text-sm text-gray-700">{REFERRAL_EARNINGS_EXAMPLES.weeklyProfitShare.label}</p>
-            <p className="mt-1 text-base font-bold text-emerald-600">
-              Your L1 share: {formatCurrency(REFERRAL_EARNINGS_EXAMPLES.weeklyProfitShare.level1Earning)}/week
+            <p className="mt-2 text-sm text-gray-600">
+              You earn:{' '}
+              <span className="text-base font-bold text-emerald-600">
+                {formatCurrency(REFERRAL_EARNINGS_EXAMPLES.weeklyProfitShare.level1Earning)}
+              </span>
             </p>
           </div>
         </article>
