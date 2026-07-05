@@ -1,7 +1,7 @@
-import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
-import { LocaleHtmlLang } from '@/components/i18n/LocaleHtmlLang'
+import { IntlLocaleProvider } from '@/components/i18n/IntlLocaleProvider'
+import { LocalePreferenceSync } from '@/components/i18n/LocalePreferenceSync'
 import { routing, type AppLocale } from '@/i18n/routing'
 
 export function generateStaticParams() {
@@ -25,9 +25,9 @@ export default async function LocaleLayout({
   const messages = await getMessages()
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
-      <LocaleHtmlLang locale={locale} />
+    <IntlLocaleProvider locale={locale as AppLocale} messages={messages}>
+      <LocalePreferenceSync />
       {children}
-    </NextIntlClientProvider>
+    </IntlLocaleProvider>
   )
 }

@@ -3,9 +3,8 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useChat } from '@ai-sdk/react'
-import { DefaultChatTransport } from 'ai'
 import {
   Loader2,
   Mic,
@@ -14,8 +13,9 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { PRIMEAI_CAPABILITIES, PRIMEAI_QUICK_ACTIONS } from '@/components/primeai/constants'
-import { getMessageText, PRIMEAI_WELCOME_MESSAGE } from '@/lib/ai/message-utils'
+import { createPrimeAIWelcomeMessage, getMessageText } from '@/lib/ai/message-utils'
 import { toPrimeAiClientError, PRIMEAI_UNAVAILABLE_USER_MESSAGE } from '@/lib/ai/user-errors'
+import { useLocaleChatTransport } from '@/lib/hooks/useLocaleChatTransport'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { cn } from '@/lib/utils'
 
@@ -93,6 +93,7 @@ function MessageBubble({
 }
 
 function PrimeAIChatInner() {
+  const locale = useLocale()
   const t = useTranslations('primeaiPage')
   const tErrors = useTranslations('primeaiChat')
   const searchParams = useSearchParams()
@@ -103,11 +104,21 @@ function PrimeAIChatInner() {
   const initialQuerySent = useRef(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const transport = useLocaleChatTransport()
+  const welcomeMessage = useMemo(
+    () => createPrimeAIWelcomeMessage(t('welcomeMessage')),
+    [t, locale]
+  )
 
-  const { messages, sendMessage, status, error, clearError } = useChat({
-    transport: new DefaultChatTransport({ api: '/api/chat' }),
-    messages: [PRIMEAI_WELCOME_MESSAGE],
+  const { messages, sendMessage, status, error, clearError, setMessages } = useChat({
+    transport,
+    messages: [welcomeMessage],
   })
+
+  useEffect(() => {
+    setMessages([welcomeMessage])
+    initialQuerySent.current = false
+  }, [locale, welcomeMessage, setMessages])
 
   const isLoading = status === 'submitted' || status === 'streaming'
   const userMessageCount = messages.filter((m) => m.role === 'user').length
@@ -250,8 +261,9 @@ function PrimeAIChatInner() {
         {showQuickActions ? (
           <div className="border-t border-border bg-muted/20 p-2 md:p-4 lg:p-5">
             <div className="grid grid-cols-3 gap-1.5 md:grid-cols-2 md:gap-3 lg:grid-cols-4">
-              {PRIMEAI_QUICK_ACTIONS.map(({ key, icon: Icon, query }) => {
+              {PRIMEAI_QUICK_ACTIONS.map(({ key, icon: Icon }) => {
                 const isPending = pendingAction === key && isLoading
+                const query = t(`actions.${key}.query`)
                 return (
                   <button
                     key={key}
@@ -362,10 +374,11 @@ function PrimeAIChatFallback() {
 }
 
 export function PrimeAIChatPage() {
+  const locale = useLocale()
   return (
     <div className="flex min-h-[calc(100dvh-8rem-env(safe-area-inset-top,0px))] w-full flex-col pb-[env(safe-area-inset-bottom,0px)]">
       <Suspense fallback={<PrimeAIChatFallback />}>
-        <PrimeAIChatInner />
+        <PrimeAIChatInner key={locale} />
       </Suspense>
     </div>
   )

@@ -184,15 +184,48 @@
       "strategyAssistant": "Assistant stratégie"
     },
     "actions": {
-      "analyzePortfolio": { "title": "Analyser mon portefeuille", "subtitle": "Obtenez une analyse détaillée de la performance de votre portefeuille." },
-      "bestPlan": { "title": "Meilleur plan d'investissement", "subtitle": "Trouvez le plan qui correspond le mieux à vos objectifs." },
-      "marketOpportunities": { "title": "Opportunités de marché", "subtitle": "Découvrez les opportunités tendance du jour." },
-      "riskAnalysis": { "title": "Analyse des risques", "subtitle": "Évaluez le risque et l'exposition de votre portefeuille." },
-      "diversification": { "title": "Conseil de diversification", "subtitle": "Obtenez des conseils pour diversifier et réduire le risque." },
-      "profitForecast": { "title": "Prévision de profit", "subtitle": "Voyez les rendements potentiels selon votre plan." },
-      "comparePlans": { "title": "Comparer les plans", "subtitle": "Comparez les plans côte à côte facilement." },
-      "investmentStrategy": { "title": "Stratégie d'investissement", "subtitle": "Obtenez des recommandations de stratégie par IA." }
-    }
+      "analyzePortfolio": {
+        "title": "Analyser mon portefeuille",
+        "subtitle": "Obtenez une analyse détaillée de la performance de votre portefeuille.",
+        "query": "Analyze my portfolio performance and give me actionable insights."
+      },
+      "bestPlan": {
+        "title": "Meilleur plan d'investissement",
+        "subtitle": "Trouvez le plan qui correspond le mieux à vos objectifs.",
+        "query": "What is the best investment plan for my goals and risk profile?"
+      },
+      "marketOpportunities": {
+        "title": "Opportunités de marché",
+        "subtitle": "Découvrez les opportunités tendance du jour.",
+        "query": "What market opportunities should I consider today?"
+      },
+      "riskAnalysis": {
+        "title": "Analyse des risques",
+        "subtitle": "Évaluez le risque et l'exposition de votre portefeuille.",
+        "query": "Evaluate my portfolio risk and exposure."
+      },
+      "diversification": {
+        "title": "Conseil de diversification",
+        "subtitle": "Obtenez des conseils pour diversifier et réduire le risque.",
+        "query": "How can I diversify my investments to reduce risk?"
+      },
+      "profitForecast": {
+        "title": "Prévision de profit",
+        "subtitle": "Voyez les rendements potentiels selon votre plan.",
+        "query": "Forecast potential returns based on my current investment plan."
+      },
+      "comparePlans": {
+        "title": "Comparer les plans",
+        "subtitle": "Comparez les plans côte à côte facilement.",
+        "query": "Compare available investment plans side by side."
+      },
+      "investmentStrategy": {
+        "title": "Stratégie d'investissement",
+        "subtitle": "Obtenez des recommandations de stratégie par IA.",
+        "query": "Recommend an investment strategy tailored to my profile."
+      }
+    },
+    "welcomeMessage": "Hello, I'm PrimeAI.\n\nI'm here to help you analyze portfolios, discover opportunities, understand risks, compare investment plans and make better financial decisions.\n\nHow can I help you today?"
   },
   "common": {
     "loading": "Chargement…",
@@ -472,7 +505,7 @@
         },
         {
           "question": "What returns can I realistically expect?",
-          "answer": "Returns vary by plan and market conditions. Our Starter Plan targets 8–15% monthly ROI, while Elite plans can reach 40–60%. Past performance does not guarantee future results."
+          "answer": "Returns vary by plan and market conditions. Weekly target returns range from 3% on the Starter Plan to 5% on the Elite Plan. Past performance does not guarantee future results."
         },
         {
           "question": "Do I need investment experience to get started?",
@@ -588,7 +621,7 @@
     "unlockWith": "Débloquer avec {tier}",
     "featureRequires": "Cette fonctionnalité nécessite {tier} ou plus. Améliorez votre niveau d'investisseur pour accéder à {feature}.",
     "thisModule": "ce module",
-    "minInvestment": "Investissement min. {amount} · ROI {range}",
+    "minInvestment": "Investissement min. {amount} · {range} de rendement hebdomadaire",
     "upgradeToTier": "Passer à {tier}",
     "viewPlans": "Voir les plans d'investissement"
   },
@@ -963,7 +996,7 @@
     "planMin": "Minimum",
     "planDuration": "Durée",
     "planPayout": "Versement",
-    "planRisk": "Niveau de risque",
+    "planCategory": "Catégorie",
     "primeAI": {
       "title": "Assistant PrimeAI",
       "subtitle": "Votre copilote d'investissement IA.",
@@ -992,7 +1025,13 @@
       },
       "inputPlaceholder": "Posez n'importe quelle question à PrimeAI…",
       "openFullChat": "Ouvrir le chat complet",
-      "sendMessage": "Envoyer le message"
+      "sendMessage": "Envoyer le message",
+      "actionQueries": {
+        "analyzePortfolio": "Analyze my portfolio",
+        "bestPlan": "What is the best investment plan for me?",
+        "marketOpportunities": "What market opportunities should I consider today?",
+        "riskScore": "What is my portfolio risk score?"
+      }
     },
     "riskLow": "Risque faible",
     "riskMedium": "Risque moyen",
@@ -1021,7 +1060,13 @@
     "securityStatus": "Statut de sécurité",
     "securityVeryStrong": "Très fort",
     "securityProtected": "Votre compte est bien protégé",
-    "marketOverview": "Aperçu du marché"
+    "marketOverview": "Aperçu du marché",
+    "portfolioHero": "Portfolio overview",
+    "portfolioHeroLabel": "Total Portfolio Value",
+    "insightsTitle": "Insights & Progress",
+    "deposit": "Deposit",
+    "activeInvestments": "Active Investments",
+    "weeklyEarnings": "Weekly Earnings"
   },
   "wallet": {
     "overview": {
@@ -1228,7 +1273,42 @@
       "networkError": "Erreur de connexion",
       "networkErrorHint": "Vérifiez votre connexion et réessayez.",
       "paymentCreated": "Paiement créé — redirection…",
-      "depositFailed": "Échec du dépôt"
+      "depositFailed": "Échec du dépôt",
+      "methodCryptoPayment": "Crypto Payment",
+      "poweredByNowPayments": "Powered by NOWPayments",
+      "poweredByBinancePay": "Powered by Binance Pay API",
+      "supportedAssets": "Supported",
+      "andMore": "+ more",
+      "binancePayDescription": "Instant payment using your Binance account.",
+      "heroEyebrow": "Secure funding",
+      "heroTitle": "Deposit to your PrimeFx wallet",
+      "heroSubtitle": "Fund your account with crypto or Binance Pay. Secure processing, instant confirmation, and 24/7 availability.",
+      "heroSecure": "Secure Deposit",
+      "heroInstant": "Instant Confirmation",
+      "hero247": "24/7 Processing",
+      "heroBankGrade": "Bank-grade security",
+      "heroCryptoCount": "{count}+ supported cryptocurrencies via NOWPayments",
+      "amountSectionTitle": "Enter deposit amount",
+      "amountSectionSubtitle": "Choose an amount and settlement currency for your deposit.",
+      "quickAmounts": "Quick amounts",
+      "amountLimitsDynamic": "Minimum: {min} · Maximum: {max}",
+      "formattedPreview": "Preview: {value}",
+      "methodSectionTitle": "Select payment method",
+      "methodSectionSubtitle": "PrimeFx supports crypto and Binance Pay only.",
+      "summaryTitle": "Deposit summary",
+      "summarySubtitle": "Review your deposit before continuing to payment.",
+      "summaryDepositAmount": "Deposit amount",
+      "summaryMethod": "Payment method",
+      "summaryCurrency": "Settlement currency",
+      "summaryNetworkFee": "Network fee estimate",
+      "summaryExpectedCredit": "Expected credit",
+      "summaryProcessingTime": "Processing time",
+      "securityTitle": "Security & protection",
+      "securityWebhook": "Secure payment processing",
+      "securityWallet": "Fraud protection active",
+      "securityProcessing": "Investor wallet protection enabled",
+      "limitsFeeValue": "0% – 0.5%",
+      "maxDepositError": "Maximum single deposit is {max}"
     },
     "withdraw": {
       "title": "Retrait",
@@ -1274,7 +1354,48 @@
       "cardProcessing": "Référence {reference}. Votre retrait est en cours de traitement.",
       "nowPaymentsProcessing": "Votre paiement est en cours de traitement via NOWPayments.",
       "failed": "Échec du retrait",
-      "loadWalletError": "Impossible de charger le portefeuille"
+      "loadWalletError": "Impossible de charger le portefeuille",
+      "processing": "Processing withdrawal…",
+      "withdrawalHistory": "Withdrawal History",
+      "formTitle": "Withdrawal Details",
+      "formSubtitle": "Complete each step to send funds to your external wallet.",
+      "stepSelectCrypto": "Select Cryptocurrency",
+      "stepSelectNetwork": "Select Network",
+      "stepWalletAddress": "Wallet Address",
+      "stepAmount": "Amount",
+      "cryptoUnavailable": "Crypto withdrawals are temporarily unavailable. Please try again later or contact support.",
+      "noNetworksAvailable": "No networks available for this asset. Choose another cryptocurrency.",
+      "estimatedNetworkFee": "Est. network fee",
+      "max": "Max",
+      "amountHelper": "Min {min} · Available {available}",
+      "estimatedReceive": "You will receive (estimated)",
+      "feeBreakdown": "Platform fee {platform} · Network fee {network}",
+      "addressHint": "Enter the address that matches your selected network.",
+      "addressValid": "Address matches selected network.",
+      "addressInvalid": "Address does not match the selected network.",
+      "pasteAddress": "Paste address",
+      "scanQr": "Scan QR code",
+      "scanQrSoon": "QR scanning coming soon",
+      "importantNotice": "Make sure the network and address are correct. Withdrawals cannot be reversed.",
+      "continueToReview": "Continue to Review",
+      "confirmWithdrawal": "Confirm Withdrawal",
+      "reviewTitle": "Review Withdrawal",
+      "reviewClose": "Close review",
+      "submittedShort": "Submitted",
+      "limitsProcessing": "Processing time",
+      "processingTimeRange": "5 – 30 minutes",
+      "submittedDesc": "Your payout is being processed securely. Track status in your transaction history.",
+      "summaryTitle": "Withdrawal Summary",
+      "summaryWithdrawalAmount": "Withdrawal Amount",
+      "summaryNetworkFee": "Network Fee",
+      "summaryPlatformFee": "Platform Fee",
+      "summaryProcessingTime": "Processing Time",
+      "trustAddressVerification": "Wallet address verification",
+      "trustSecureTransfer": "Secure blockchain transfer",
+      "trustEncrypted": "Encrypted transaction processing",
+      "trustAntiFraud": "Anti-fraud protection",
+      "trustConfirmation": "Blockchain confirmation tracking",
+      "irreversibleNotice": "Please verify your wallet address and network carefully. Blockchain withdrawals cannot be reversed."
     },
     "transfer": {
       "title": "Transférer des fonds",
@@ -1345,7 +1466,17 @@
       "featureInstant": "Instant Transfers",
       "featureFee": "1.2% Transfer Fee",
       "featureSecure": "Secure Transfers",
-      "featureSupport": "24/7 Support"
+      "featureSupport": "24/7 Support",
+      "processing": "Processing transfer…",
+      "transferUnavailable": "Transfer temporarily unavailable. Please try again in a few moments.",
+      "kycVerifiedBadge": "KYC Verified",
+      "selfTransferError": "You cannot transfer funds to your own account.",
+      "closeReview": "Close",
+      "transferAmount": "Transfer amount",
+      "transferFee": "Transfer fee",
+      "totalDebitLabel": "Total debit",
+      "messageLabel": "Message",
+      "comingSoonAction": "Coming soon"
     },
     "transactions": {
       "title": "Historique des transactions",
@@ -1473,6 +1604,116 @@
       "failed": "Échoué",
       "cancelled": "Annulé",
       "rejected": "Rejeté"
+    }
+  },
+  "invest": {
+    "title": "Investir",
+    "subtitle": "Comparez les plans, choisissez celui qui correspond à vos objectifs et investissez depuis votre portefeuille.",
+    "plansAvailable": "{count} PLANS DISPONIBLES",
+    "sectionTitle": "Plans d'investissement",
+    "sectionSubtitle": "Rendements hebdomadaires, minimums et calendrier de paiement — sélectionnez un plan puis investissez",
+    "viewModeLabel": "Mode d'affichage des plans",
+    "viewModes": {
+      "table": "Tableau",
+      "grid": "Cartes",
+      "compare": "Comparer"
+    },
+    "empty": {
+      "title": "Aucun plan d'investissement",
+      "description": "Les plans apparaîtront ici une fois configurés dans votre compte."
+    },
+    "toast": {
+      "confirmed": "Investissement confirmé",
+      "confirmedDescription": "Investissement de {amount} dans {plan} effectué avec succès."
+    },
+    "table": {
+      "plan": "Plan",
+      "weeklyReturn": "Rendement hebdomadaire",
+      "minimum": "Minimum",
+      "duration": "Durée",
+      "payout": "Paiement",
+      "category": "Catégorie",
+      "action": "Action",
+      "invest": "Investir",
+      "popular": "Populaire",
+      "investNow": "Investir maintenant"
+    },
+    "compare": {
+      "feature": "Feature",
+      "weeklyReturn": "Weekly Return",
+      "minimum": "Minimum",
+      "duration": "Duration",
+      "payout": "Payout",
+      "targetInvestor": "Target Investor",
+      "capitalAccess": "Capital Access",
+      "investors": "Investors",
+      "capitalProtection": "Capital Protection",
+      "aiStrategy": "AI Strategy",
+      "investNow": "Invest Now",
+      "popular": "POPULAR"
+    },
+    "card": {
+      "mostPopular": "MOST POPULAR",
+      "minimum": "Minimum",
+      "duration": "Duration",
+      "payout": "Payout",
+      "category": "Category",
+      "access": "Access",
+      "primeAiScore": "PrimeAI Score",
+      "investors": "investors",
+      "investNow": "Invest Now"
+    },
+    "modal": {
+      "title": "Invest in {plan}",
+      "summary": "{roi} {roiLabel} · Min {min} · {payout}",
+      "availableBalance": "Available Wallet Balance",
+      "loading": "Loading...",
+      "amountLabel": "Investment Amount (USD)",
+      "processing": "Processing...",
+      "confirm": "Confirm Investment",
+      "close": "Close modal",
+      "errors": {
+        "invalidAmount": "Enter a valid investment amount.",
+        "minAmount": "Minimum investment for {plan} is {min}.",
+        "insufficientBalance": "Insufficient wallet balance. Please deposit funds first.",
+        "failed": "Investment failed. Please try again."
+      }
+    },
+    "recommendation": {
+      "title": "Not sure which plan is right for you?",
+      "description": "Let PrimeAI analyze your profile and recommend the best investment plan for your goals.",
+      "cta": "Get AI Recommendation",
+      "badge": "PrimeAI Recommendation",
+      "bestMatch": "Best Match",
+      "bulletWeekly": "{roi} weekly return",
+      "bulletTarget": "Designed for {target}",
+      "bulletTrust": "{count} investors trust this plan",
+      "investIn": "Invest in {plan}"
+    },
+    "howItWorks": {
+      "eyebrow": "Simple process",
+      "title": "How investing works",
+      "description": "Pick a plan below, fund your wallet, and profits are distributed weekly. Capital can be withdrawn with a short notice period."
+    },
+    "trust": {
+      "noHiddenFees": "No Hidden Fees",
+      "withdrawAnytime": "Withdraw Anytime",
+      "smartDiversification": "Smart Diversification",
+      "aiRiskManagement": "AI Risk Management"
+    },
+    "primeAiWidget": {
+      "title": "PrimeAI Assistant",
+      "beta": "Beta",
+      "greeting": "How can I help you today?",
+      "placeholder": "Ask PrimeAI anything...",
+      "send": "Send message",
+      "openChat": "Open Full Chat →",
+      "suggestions": {
+        "analyzePortfolio": "Analyze my portfolio",
+        "bestInvestment": "Best investment for me",
+        "marketOutlook": "Market outlook today",
+        "explainTerms": "Explain investment terms"
+      }
     }
   }
 }

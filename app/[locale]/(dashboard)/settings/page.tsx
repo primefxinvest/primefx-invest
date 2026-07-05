@@ -6,6 +6,8 @@ import { Globe, DollarSign, Lock, Smartphone, ChevronRight, Loader2, AlertTriang
 import { toast } from 'sonner'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { type AppLocale, routing } from '@/i18n/routing'
+import { languageOptions as localeLanguageOptions } from '@/lib/i18n/locale-config'
+import { setStoredLocale } from '@/lib/i18n/locale-storage'
 import { getCurrentUser } from '@/lib/supabase'
 import { getMfaStatus, type MfaStatus } from '@/lib/auth/mfa'
 import TwoFactorModal from '@/components/settings/TwoFactorModal'
@@ -71,16 +73,9 @@ export default function SettingsPage() {
     toast.success(t('saved'))
   }, [t])
 
-  const languageOptions = routing.locales.map((value) => ({
-    value,
-    label:
-      value === 'en'
-        ? 'English'
-        : value === 'es'
-          ? 'Spanish'
-          : value === 'de'
-            ? 'German'
-            : 'French',
+  const languageOptions = localeLanguageOptions.map((item) => ({
+    value: item.value,
+    label: item.nativeName,
   }))
 
   const currencyOptions = [
@@ -121,6 +116,7 @@ export default function SettingsPage() {
 
   const handleLanguageChange = (nextLocale: string) => {
     if (nextLocale === locale) return
+    setStoredLocale(nextLocale as AppLocale)
     startTransition(() => {
       router.replace(pathname, { locale: nextLocale as AppLocale })
     })

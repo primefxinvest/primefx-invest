@@ -1,10 +1,11 @@
 'use client'
 
 import { memo } from 'react'
+import { useTranslations } from 'next-intl'
 import { ArrowRight, Star } from 'lucide-react'
 import { ScrollTable } from '@/components/shared/ScrollTable'
 import type { InvestmentPlan } from '@/lib/invest/plan-config'
-import { formatPlanDisplayName, formatPlanRiskLabel } from '@/lib/invest/plan-mapper'
+import { formatPlanDisplayName } from '@/lib/invest/plan-mapper'
 import { getPlanTheme } from '@/lib/invest/plan-config'
 import { cn } from '@/lib/utils'
 
@@ -21,44 +22,45 @@ function InvestPlansTable({
   onSelect,
   onInvest,
 }: InvestPlansTableProps) {
+  const t = useTranslations('invest.table')
   if (!plans.length) return null
 
   return (
     <>
       {/* Desktop / tablet table */}
       <ScrollTable className="hidden md:block" ariaLabel="Investment plans table">
-        <table className="w-full min-w-[720px] table-fixed text-sm">
+        <table className="w-full min-w-[680px] table-fixed text-sm">
           <colgroup>
             <col style={{ width: '26%' }} />
             <col style={{ width: '12%' }} />
             <col style={{ width: '12%' }} />
             <col style={{ width: '14%' }} />
             <col style={{ width: '14%' }} />
-            <col style={{ width: '10%' }} />
             <col style={{ width: '12%' }} />
+            <col style={{ width: '10%' }} />
           </colgroup>
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50/80">
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Plan
+                {t('plan')}
               </th>
               <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Weekly return
+                {t('weeklyReturn')}
               </th>
               <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Minimum
+                {t('minimum')}
               </th>
               <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Duration
+                {t('duration')}
               </th>
               <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Payout
+                {t('payout')}
               </th>
               <th className="px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Risk
+                {t('category')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
-                Action
+                {t('action')}
               </th>
             </tr>
           </thead>
@@ -71,6 +73,7 @@ function InvestPlansTable({
                 selected={selectedPlanId === plan.id}
                 onSelect={onSelect}
                 onInvest={onInvest}
+                labels={t}
               />
             ))}
           </tbody>
@@ -87,6 +90,7 @@ function InvestPlansTable({
             selected={selectedPlanId === plan.id}
             onSelect={onSelect}
             onInvest={onInvest}
+            labels={t}
           />
         ))}
       </div>
@@ -100,12 +104,14 @@ function PlanTableRow({
   selected,
   onSelect,
   onInvest,
+  labels,
 }: {
   plan: InvestmentPlan
   index: number
   selected: boolean
   onSelect: (plan: InvestmentPlan) => void
   onInvest: (plan: InvestmentPlan) => void
+  labels: ReturnType<typeof useTranslations<'invest.table'>>
 }) {
   const theme = getPlanTheme(plan, index)
   const Icon = theme.icon
@@ -136,26 +142,32 @@ function PlanTableRow({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="truncate font-semibold text-gray-900">{plan.name}</span>
-              {plan.popular ? (
+                  {plan.popular ? (
                 <span className="inline-flex items-center gap-0.5 rounded-full bg-purple-600 px-2 py-0.5 text-[9px] font-bold text-white">
                   <Star className="h-2.5 w-2.5 fill-white" />
-                  Popular
+                  {labels('popular')}
                 </span>
               ) : null}
             </div>
-            <p className="mt-0.5 truncate text-xs text-gray-500">{plan.badge}</p>
           </div>
         </div>
       </td>
       <td className="px-3 py-3.5">
         <span className={cn('text-base font-bold tabular-nums', theme.roiColor)}>{plan.weeklyRoi}</span>
-        <p className="text-[11px] text-gray-500">{plan.roiRange}</p>
+        <p className="text-[11px] text-gray-500">{plan.weeklyRoiLabel}</p>
       </td>
       <td className="px-3 py-3.5 font-semibold text-gray-900">{plan.minInvestment}</td>
       <td className="px-3 py-3.5 text-gray-700">{plan.duration}</td>
       <td className="px-3 py-3.5 text-gray-700">{plan.payout}</td>
-      <td className={cn('px-3 py-3.5 font-medium', theme.riskColor)}>
-        {formatPlanRiskLabel(plan.riskLevel)}
+      <td className="px-3 py-3.5">
+        <span
+          className={cn(
+            'inline-flex max-w-full truncate rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wide',
+            theme.badge
+          )}
+        >
+          {plan.category}
+        </span>
       </td>
       <td className="px-4 py-3.5 text-right">
         <button
@@ -169,7 +181,7 @@ function PlanTableRow({
             theme.button
           )}
         >
-          Invest
+          {labels('invest')}
           <ArrowRight className="h-3.5 w-3.5" />
         </button>
       </td>
@@ -183,12 +195,14 @@ function PlanMobileRow({
   selected,
   onSelect,
   onInvest,
+  labels,
 }: {
   plan: InvestmentPlan
   index: number
   selected: boolean
   onSelect: (plan: InvestmentPlan) => void
   onInvest: (plan: InvestmentPlan) => void
+  labels: ReturnType<typeof useTranslations<'invest.table'>>
 }) {
   const theme = getPlanTheme(plan, index)
   const Icon = theme.icon
@@ -216,35 +230,51 @@ function PlanMobileRow({
               <h3 className="font-semibold text-gray-900">{formatPlanDisplayName(plan.name)}</h3>
               {plan.popular ? (
                 <span className="rounded-full bg-purple-600 px-2 py-0.5 text-[9px] font-bold text-white">
-                  Popular
+                  {labels('popular')}
                 </span>
               ) : null}
             </div>
-            <p className="text-xs text-gray-500">{plan.badge}</p>
+            <span
+              className={cn(
+                'mt-1 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wide',
+                theme.badge
+              )}
+            >
+              {plan.category}
+            </span>
           </div>
         </div>
-        <div className="text-right">
+        <div className="shrink-0 text-right">
           <p className={cn('text-xl font-bold tabular-nums', theme.roiColor)}>{plan.weeklyRoi}</p>
-          <p className="text-[10px] text-gray-500">weekly</p>
+          <p className="text-[10px] text-gray-500">{plan.weeklyRoiLabel}</p>
         </div>
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
         <div>
-          <dt className="text-gray-500">Minimum</dt>
+          <dt className="text-gray-500">{labels('minimum')}</dt>
           <dd className="font-semibold text-gray-900">{plan.minInvestment}</dd>
         </div>
         <div>
-          <dt className="text-gray-500">Duration</dt>
+          <dt className="text-gray-500">{labels('duration')}</dt>
           <dd className="font-semibold text-gray-900">{plan.duration}</dd>
         </div>
         <div>
-          <dt className="text-gray-500">Payout</dt>
+          <dt className="text-gray-500">{labels('payout')}</dt>
           <dd className="font-semibold text-gray-900">{plan.payout}</dd>
         </div>
         <div>
-          <dt className="text-gray-500">Risk</dt>
-          <dd className={cn('font-semibold', theme.riskColor)}>{formatPlanRiskLabel(plan.riskLevel)}</dd>
+          <dt className="text-gray-500">{labels('category')}</dt>
+          <dd>
+            <span
+              className={cn(
+                'inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wide',
+                theme.badge
+              )}
+            >
+              {plan.category}
+            </span>
+          </dd>
         </div>
       </dl>
 
@@ -259,7 +289,7 @@ function PlanMobileRow({
           theme.button
         )}
       >
-        Invest Now
+        {labels('investNow')}
         <ArrowRight className="h-4 w-4" />
       </button>
     </article>

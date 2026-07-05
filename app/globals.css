@@ -317,6 +317,26 @@
   animation-play-state: paused;
 }
 
+/* RTL layout support */
+html[dir='rtl'] {
+  text-align: right;
+}
+
+html[dir='rtl'] input,
+html[dir='rtl'] textarea,
+html[dir='rtl'] select {
+  text-align: right;
+}
+
+html[dir='rtl'] [data-sidebar] {
+  border-inline-start: 1px solid var(--border);
+  border-inline-end: none;
+}
+
+html[dir='rtl'] .primefx-scrollbar {
+  direction: rtl;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .plan-carousel-track {
     animation: none;

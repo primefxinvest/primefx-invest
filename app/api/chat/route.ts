@@ -8,6 +8,7 @@ import {
   logPrimeAiConfig,
 } from '@/lib/ai/provider'
 import { getPrimeAIInvestContext } from '@/lib/ai/invest-context'
+import { buildLocaleSystemInstruction, resolveChatLocale } from '@/lib/ai/locale-chat'
 import { getMessageText } from '@/lib/ai/message-utils'
 import { requireApiUser } from '@/lib/security/require-api-user'
 import { enforceUserRateLimit, RateLimitExceededError, rateLimitResponse } from '@/lib/security/rate-limit'
@@ -82,14 +83,15 @@ export async function POST(req: Request) {
 
     const body = await req.json()
     const messages = (body.messages ?? []) as UIMessage[]
+    const locale = resolveChatLocale(body.locale)
     const lastUserMessage = getLastUserMessage(messages)
-    console.log('PrimeAI request:', lastUserMessage)
+    console.log('PrimeAI request:', lastUserMessage, 'locale:', locale)
 
     const investContext = await getPrimeAIInvestContext()
     const providerLabel = getActiveAiProviderLabel()
     const modelId = getGeminiChatModelId()
 
-    const system = `${BASE_SYSTEM}\n\nAI engine: ${providerLabel} (${modelId})\n\n${investContext}`
+    const system = `${BASE_SYSTEM}\n\n${buildLocaleSystemInstruction(locale)}\n\nAI engine: ${providerLabel} (${modelId})\n\n${investContext}`
 
     const result = streamText({
       model,

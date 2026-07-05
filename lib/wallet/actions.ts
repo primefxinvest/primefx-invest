@@ -88,7 +88,7 @@ export async function submitWalletTransfer(
   const recipient = await lookupTransferRecipient(input.method, input.recipientQuery)
 
   if (!recipient) {
-    return { success: false as const, error: 'Recipient not found. Check the email, username, or PrimeFx ID.' }
+    return { success: false as const, error: 'Recipient not found. Check the email or PrimeFx ID.' }
   }
 
   const supabase = await createServerSupabaseClient()

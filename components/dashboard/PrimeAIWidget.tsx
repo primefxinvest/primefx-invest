@@ -28,13 +28,6 @@ const FEATURE_CONFIG = [
 
 const ACTION_KEYS = ['analyzePortfolio', 'bestPlan', 'marketOpportunities', 'riskScore'] as const
 
-const ACTION_QUERIES: Record<(typeof ACTION_KEYS)[number], string> = {
-  analyzePortfolio: 'Analyze my portfolio',
-  bestPlan: 'What is the best investment plan for me?',
-  marketOpportunities: 'What market opportunities should I consider today?',
-  riskScore: 'What is my portfolio risk score?',
-}
-
 function PrimeAIWidgetInner({ className }: { className?: string }) {
   const t = useTranslations('dashboard.primeAI')
   const router = useRouter()
@@ -45,6 +38,11 @@ function PrimeAIWidgetInner({ className }: { className?: string }) {
       router.push(message ? `/primeai?q=${encodeURIComponent(message)}` : '/primeai')
     },
     [router]
+  )
+
+  const getActionQuery = useCallback(
+    (key: (typeof ACTION_KEYS)[number]) => t(`actionQueries.${key}`),
+    [t]
   )
 
   const handleSubmit = useCallback(
@@ -105,8 +103,8 @@ function PrimeAIWidgetInner({ className }: { className?: string }) {
           {t('insightsTitle')}
         </p>
         <ul className="mt-2 space-y-1.5" aria-label={t('insightsTitle')}>
-          {insights.map((insight) => (
-            <li key={insight} className="flex items-start gap-2 text-xs leading-relaxed text-foreground">
+          {insights.map((insight, index) => (
+            <li key={`insight-${index}`} className="flex items-start gap-2 text-xs leading-relaxed text-foreground">
               <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" aria-hidden />
               <span>{insight}</span>
             </li>
@@ -120,7 +118,7 @@ function PrimeAIWidgetInner({ className }: { className?: string }) {
           <button
             key={key}
             type="button"
-            onClick={() => openChat(ACTION_QUERIES[key])}
+            onClick={() => openChat(getActionQuery(key))}
             className="inline-flex min-h-9 items-center justify-center rounded-full border border-border bg-background px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:border-primary/30 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {t(`actions.${key}`)}

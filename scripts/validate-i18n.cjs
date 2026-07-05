@@ -15,9 +15,12 @@ function flattenKeys(obj, prefix = '') {
 }
 
 const messagesDir = path.join(process.cwd(), 'messages')
-const locales = ['en', 'es', 'de', 'fr']
+const locales = ['en', 'fr', 'es', 'de', 'ar', 'pt', 'sw', 'rw']
 const data = Object.fromEntries(
-  locales.map((locale) => [locale, JSON.parse(fs.readFileSync(path.join(messagesDir, `${locale}.json`), 'utf8'))])
+  locales.map((locale) => {
+    const filePath = path.join(messagesDir, `${locale}.json`)
+    return [locale, JSON.parse(fs.readFileSync(filePath, 'utf8'))]
+  })
 )
 
 const enKeys = new Set(flattenKeys(data.en))

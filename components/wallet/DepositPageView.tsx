@@ -47,7 +47,7 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
   const errorRetryHandler = flow.kyc.fetchError ? flow.handleRetryKyc : flow.handleContinue
 
   return (
-    <div className={cn('min-w-0 pb-24 md:pb-0', pageStackClass)}>
+    <div className={cn('min-w-0', pageStackClass)}>
       <SyncPendingDeposits onSynced={reloadWallet} />
 
       <WalletPageHeader

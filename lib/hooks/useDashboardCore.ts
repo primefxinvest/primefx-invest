@@ -30,6 +30,7 @@ export function useDashboardCore(chartPeriod: PortfolioChartPeriod = 'This Year'
 
   return {
     metrics: data?.metrics,
+    investmentStats: data?.investmentStats,
     wallet: data?.wallet,
     allocation: data?.allocation,
     chartData,

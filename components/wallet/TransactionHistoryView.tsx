@@ -13,7 +13,6 @@ import {
   Filter,
   Gift,
   History,
-  MoreVertical,
   Search,
   Send,
   TrendingUp,
@@ -310,7 +309,7 @@ export function TransactionHistoryView() {
             ) : undefined
           }
           errorTitle={t('loadError')}
-          skeleton={<TableSkeleton rows={6} cols={6} />}
+          skeleton={<TableSkeleton rows={6} cols={5} />}
         >
           <ScrollTable>
             <table className="w-full min-w-[900px]">
@@ -322,7 +321,6 @@ export function TransactionHistoryView() {
                   <th className="px-4 py-3">{t('reference')}</th>
                   <th className="px-4 py-3 text-right">{t('amount')}</th>
                   <th className="px-4 py-3">{t('status')}</th>
-                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -371,11 +369,6 @@ export function TransactionHistoryView() {
                           )}
                           {walletTxStatusLabel(tWallet, tx.status)}
                         </span>
-                      </td>
-                      <td className="px-4 py-4">
-                        <button type="button" className="rounded-lg p-1 text-gray-400 hover:bg-gray-100">
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
                       </td>
                     </tr>
                   )

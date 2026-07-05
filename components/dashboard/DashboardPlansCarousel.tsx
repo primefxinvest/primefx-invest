@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useCallback } from 'react'
+import { memo } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import {
@@ -18,20 +18,7 @@ import { DashboardSectionHeader } from '@/components/dashboard/DashboardSectionH
 import { dashboardCardClass } from '@/lib/layout/surfaces'
 import { cn } from '@/lib/utils'
 
-function useRiskLabel(t: ReturnType<typeof useTranslations<'dashboard'>>) {
-  return useCallback(
-    (plan: { riskLevel: string }) => {
-      if (plan.riskLevel === 'Low') return t('riskLow')
-      if (plan.riskLevel === 'Medium') return t('riskMedium')
-      if (plan.riskLevel === 'Very High') return t('riskVeryHigh')
-      if (plan.riskLevel === 'High') return t('riskHigh')
-      return t('riskGeneric', { level: plan.riskLevel })
-    },
-    [t]
-  )
-}
-
-function getPlanVisuals(plan: { name: string; popular?: boolean; riskLevel: string }) {
+function getPlanVisuals(plan: { name: string; popular?: boolean }) {
   const name = plan.name.toLowerCase()
   let Icon: LucideIcon = TrendingUp
   let iconBg = 'bg-primary/10 text-primary'
@@ -59,16 +46,7 @@ function getPlanVisuals(plan: { name: string; popular?: boolean; riskLevel: stri
     badgeClass = 'bg-[#7c3aed] text-white'
   }
 
-  const riskClass =
-    plan.riskLevel === 'Low'
-      ? 'text-emerald-600'
-      : plan.riskLevel === 'Medium'
-        ? 'text-[#0052ff]'
-        : plan.riskLevel === 'High' || plan.riskLevel === 'Very High'
-          ? 'text-[#7c3aed]'
-          : 'text-muted-foreground'
-
-  return { Icon, iconBg, badgeClass, riskClass }
+  return { Icon, iconBg, badgeClass }
 }
 
 type PlanData = {
@@ -80,8 +58,8 @@ type PlanData = {
   duration: string
   payout: string
   badge: string
+  category: string
   popular?: boolean
-  riskLevel: string
 }
 
 function PlanDetailRow({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) {
@@ -95,22 +73,20 @@ function PlanDetailRow({ label, value, valueClassName }: { label: string; value:
 
 const PlanCard = memo(function PlanCard({
   plan,
-  riskLabel,
   investLabel,
   minLabel,
   durationLabel,
   payoutLabel,
-  riskLevelLabel,
+  categoryLabel,
 }: {
   plan: PlanData
-  riskLabel: string
   investLabel: string
   minLabel: string
   durationLabel: string
   payoutLabel: string
-  riskLevelLabel: string
+  categoryLabel: string
 }) {
-  const { Icon, iconBg, badgeClass, riskClass } = getPlanVisuals(plan)
+  const { Icon, iconBg, badgeClass } = getPlanVisuals(plan)
 
   return (
     <article className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -120,7 +96,7 @@ const PlanCard = memo(function PlanCard({
           badgeClass
         )}
       >
-        {plan.badge}
+        {plan.category}
       </span>
 
       <div className="mt-3 flex flex-1 flex-col min-w-0">
@@ -139,7 +115,11 @@ const PlanCard = memo(function PlanCard({
           <PlanDetailRow label={minLabel} value={plan.minInvestment} />
           <PlanDetailRow label={durationLabel} value={plan.duration} />
           <PlanDetailRow label={payoutLabel} value={plan.payout} />
-          <PlanDetailRow label={riskLevelLabel} value={riskLabel} valueClassName={riskClass} />
+          <PlanDetailRow
+            label={categoryLabel}
+            value={plan.category}
+            valueClassName={cn('text-[10px] font-bold uppercase tracking-wide', badgeClass)}
+          />
         </div>
       </div>
 
@@ -155,7 +135,6 @@ const PlanCard = memo(function PlanCard({
 
 function DashboardPlansCarouselInner({ className }: { className?: string }) {
   const t = useTranslations('dashboard')
-  const riskLabelFn = useRiskLabel(t)
   const { data: plans, loading, error, reload } = useInvestmentPlans()
 
   return (
@@ -208,12 +187,11 @@ function DashboardPlansCarouselInner({ className }: { className?: string }) {
               <PlanCard
                 key={plan.id}
                 plan={plan}
-                riskLabel={riskLabelFn(plan)}
                 investLabel={t('investNow')}
                 minLabel={t('planMin')}
                 durationLabel={t('planDuration')}
                 payoutLabel={t('planPayout')}
-                riskLevelLabel={t('planRisk')}
+                categoryLabel={t('planCategory')}
               />
             ))}
           </div>

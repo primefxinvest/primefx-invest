@@ -2,24 +2,20 @@
 
 import { Link } from '@/i18n/navigation'
 import { useRouter } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { useState } from 'react'
 import { Bot, Send, Sparkles } from 'lucide-react'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 
-const defaultSuggestions = [
-  'Analyze my portfolio',
-  'Best investment for me',
-  'Market outlook today',
-  'Explain investment terms',
-]
+const suggestionKeys = [
+  'analyzePortfolio',
+  'bestInvestment',
+  'marketOutlook',
+  'explainTerms',
+] as const
 
-interface InvestPrimeAIWidgetProps {
-  suggestions?: string[]
-}
-
-export default function InvestPrimeAIWidget({
-  suggestions = defaultSuggestions,
-}: InvestPrimeAIWidgetProps) {
+export default function InvestPrimeAIWidget() {
+  const t = useTranslations('invest.primeAiWidget')
   const router = useRouter()
   const user = useSessionUser()
   const [query, setQuery] = useState('')
@@ -46,9 +42,9 @@ export default function InvestPrimeAIWidget({
           <Sparkles className="h-4 w-4 text-white" />
         </div>
         <div>
-          <h3 className="text-sm font-bold text-gray-900">PrimeAI Assistant</h3>
+          <h3 className="text-sm font-bold text-gray-900">{t('title')}</h3>
           <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#0052ff]">
-            Beta
+            {t('beta')}
           </span>
         </div>
       </div>
@@ -61,21 +57,19 @@ export default function InvestPrimeAIWidget({
           <p className="text-xs font-semibold text-gray-900">
             {user.name && user.name !== 'Guest' ? user.name : 'PrimeAI'}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-gray-500">
-            How can I help you today?
-          </p>
+          <p className="mt-1 text-xs leading-relaxed text-gray-500">{t('greeting')}</p>
         </div>
       </div>
 
       <div className="mb-4 space-y-2">
-        {suggestions.map((s) => (
+        {suggestionKeys.map((key) => (
           <button
-            key={s}
+            key={key}
             type="button"
-            onClick={() => openChat(s)}
+            onClick={() => openChat(t(`suggestions.${key}`))}
             className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-left text-xs text-gray-600 transition-colors hover:border-[#0052ff] hover:text-[#0052ff]"
           >
-            {s}
+            {t(`suggestions.${key}`)}
           </button>
         ))}
       </div>
@@ -85,13 +79,13 @@ export default function InvestPrimeAIWidget({
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask PrimeAI anything..."
+          placeholder={t('placeholder')}
           className="flex-1 bg-transparent text-xs text-gray-900 outline-none placeholder:text-gray-400"
         />
         <button
           type="submit"
           className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0052ff] text-white"
-          aria-label="Send message"
+          aria-label={t('send')}
         >
           <Send className="h-3.5 w-3.5" />
         </button>
@@ -101,7 +95,7 @@ export default function InvestPrimeAIWidget({
         href="/primeai"
         className="mt-2 block text-center text-xs font-semibold text-gray-400 hover:text-[#0052ff]"
       >
-        Open Full Chat →
+        {t('openChat')}
       </Link>
     </div>
   )

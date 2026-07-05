@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { Loader2, X } from 'lucide-react'
 import { toast } from 'sonner'
 import type { InvestmentPlan } from '@/lib/invest/plan-config'
@@ -23,6 +24,7 @@ interface InvestModalProps {
 }
 
 export default function InvestModal({ plan, open, onClose, onSuccess }: InvestModalProps) {
+  const t = useTranslations('invest.modal')
   const router = useRouter()
   const kyc = useFinancialKycAccess()
   const [amount, setAmount] = useState('')
@@ -63,17 +65,17 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
     }
 
     if (!numericAmount || Number.isNaN(numericAmount)) {
-      toast.error('Enter a valid investment amount.')
+      toast.error(t('errors.invalidAmount'))
       return
     }
 
     if (numericAmount < plan.minAmount) {
-      toast.error(`Minimum investment for ${plan.name} is ${plan.minInvestment}.`)
+      toast.error(t('errors.minAmount', { plan: plan.name, min: plan.minInvestment }))
       return
     }
 
     if (numericAmount > walletBalance) {
-      toast.error('Insufficient wallet balance. Please deposit funds first.')
+      toast.error(t('errors.insufficientBalance'))
       return
     }
 
@@ -88,7 +90,7 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
     setLoading(false)
 
     if (!result.success) {
-      toast.error(result.error ?? 'Investment failed. Please try again.')
+      toast.error(result.error ?? t('errors.failed'))
       return
     }
 
@@ -110,7 +112,7 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
         type="button"
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
-        aria-label="Close modal"
+        aria-label={t('close')}
       />
       <div className="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl">
         <button
@@ -121,9 +123,14 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
           <X className="h-5 w-5" />
         </button>
 
-        <h2 className="text-xl font-bold text-gray-900">Invest in {plan.name}</h2>
+        <h2 className="text-xl font-bold text-gray-900">{t('title', { plan: plan.name })}</h2>
         <p className="mt-1 text-sm text-gray-500">
-          {plan.weeklyRoi} weekly return · Min {plan.minInvestment}
+          {t('summary', {
+            roi: plan.weeklyRoi,
+            roiLabel: plan.weeklyRoiLabel.toLowerCase(),
+            min: plan.minInvestment,
+            payout: plan.payout,
+          })}
         </p>
 
         {!kyc.loading && !kyc.verified ? (
@@ -133,16 +140,16 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
         ) : null}
 
         <div className="mt-4 rounded-xl bg-gray-50 px-4 py-3">
-          <p className="text-xs text-gray-500">Available Wallet Balance</p>
+          <p className="text-xs text-gray-500">{t('availableBalance')}</p>
           <p className="text-lg font-bold text-gray-900">
-            {walletLoading ? 'Loading...' : formatCurrency(walletBalance)}
+            {walletLoading ? t('loading') : formatCurrency(walletBalance)}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
           <div>
             <label htmlFor="invest-amount" className="mb-2 block text-sm font-medium text-gray-700">
-              Investment Amount (USD)
+              {t('amountLabel')}
             </label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
@@ -183,10 +190,10 @@ export default function InvestModal({ plan, open, onClose, onSuccess }: InvestMo
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Processing...
+                {t('processing')}
               </>
             ) : (
-              'Confirm Investment'
+              t('confirm')
             )}
           </button>
         </form>

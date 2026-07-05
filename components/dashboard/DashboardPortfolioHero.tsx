@@ -11,6 +11,11 @@ import { cn } from '@/lib/utils'
 
 type DashboardPortfolioHeroProps = {
   metrics?: InvestorKpiMetrics | null
+  investmentStats?: {
+    activeCount?: number
+    totalWeeklyEarnings?: string
+    totalProfitsEarned?: string
+  } | null
   wallet?: InvestorKpiWallet | null
   loading?: boolean
 }
@@ -64,7 +69,7 @@ function StatCell({
   )
 }
 
-function DashboardPortfolioHeroInner({ metrics, wallet, loading }: DashboardPortfolioHeroProps) {
+function DashboardPortfolioHeroInner({ metrics, investmentStats, wallet, loading }: DashboardPortfolioHeroProps) {
   const t = useTranslations('dashboard')
 
   if (loading) {
@@ -114,7 +119,7 @@ function DashboardPortfolioHeroInner({ metrics, wallet, loading }: DashboardPort
             </p>
           </div>
 
-          <p className="mt-4 text-4xl font-bold tabular-nums tracking-tight text-white sm:text-[2.75rem] lg:text-5xl lg:leading-none">
+          <p className="mt-4 min-w-0 truncate text-4xl font-bold tabular-nums tracking-tight text-white sm:text-[2.75rem] lg:text-5xl lg:leading-none">
             {wallet?.availableBalance ?? '$0.00'}
           </p>
 
@@ -140,29 +145,25 @@ function DashboardPortfolioHeroInner({ metrics, wallet, loading }: DashboardPort
 
       <div className="relative mt-7 grid grid-cols-2 gap-y-5 border-t border-white/10 pt-6 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-white/10">
         <StatCell
-          label={t('portfolioHeroLabel')}
-          value={metrics?.currentValue ?? '$0.00'}
-          trend={metrics?.trends?.[1]?.percentage}
-          trendSuffix={t('fromLastMonth')}
-          emphasis
-        />
-        <StatCell
           label={t('totalInvested')}
           value={metrics?.totalInvested ?? '$0.00'}
           trend={metrics?.trends?.[0]?.percentage}
           trendSuffix={t('fromLastMonth')}
+          emphasis
+        />
+        <StatCell
+          label={t('activeInvestments')}
+          value={String(investmentStats?.activeCount ?? 0)}
+        />
+        <StatCell
+          label={t('weeklyEarnings')}
+          value={investmentStats?.totalWeeklyEarnings ?? '$0.00'}
         />
         <StatCell
           label={t('totalProfit')}
-          value={metrics?.totalProfit ?? '$0.00'}
+          value={investmentStats?.totalProfitsEarned ?? metrics?.totalProfit ?? '$0.00'}
           trend={metrics?.trends?.[2]?.percentage}
           trendSuffix={t('fromLastMonth')}
-        />
-        <StatCell
-          label={t('roiOverall')}
-          value={metrics?.roiPercentage ?? '0%'}
-          trend={metrics?.trends?.[3]?.percentage}
-          trendSuffix={t('roiFromLastMonth')}
         />
       </div>
     </section>

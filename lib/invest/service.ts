@@ -146,6 +146,7 @@ export async function executeInvestment(
         current_value: amount,
         roi_percentage: Number(plan.weekly_roi ?? 0),
         status: 'Active',
+        reference_id: referenceId,
       })
       .select('id')
       .single()
@@ -161,6 +162,7 @@ export async function executeInvestment(
       status: 'Completed',
       description: `Investment in ${plan.name}`,
       reference_id: referenceId,
+      investment_id: investment.id,
     })
 
     if (transactionError) {

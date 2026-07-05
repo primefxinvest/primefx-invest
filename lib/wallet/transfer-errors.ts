@@ -49,7 +49,7 @@ export function toTransferUserError(raw: string | undefined | null): string {
   }
 
   if (lower.includes('recipient not found')) {
-    return 'Recipient not found. Check the email, username, or PrimeFx ID.'
+    return 'Recipient not found. Check the email or PrimeFx ID.'
   }
 
   if (lower.includes('minimum transfer')) {

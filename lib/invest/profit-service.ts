@@ -122,6 +122,7 @@ async function runInvestmentProfits(input: InvestmentProfitRunInput) {
       status: 'Completed',
       description: profitDescription,
       reference_id: referenceId,
+      investment_id: investment.id,
     })
 
     await accrueReferralCommissionsForProfit({

@@ -186,37 +186,46 @@
     "actions": {
       "analyzePortfolio": {
         "title": "Analyze My Portfolio",
-        "subtitle": "Get a detailed analysis of your portfolio performance."
+        "subtitle": "Get a detailed analysis of your portfolio performance.",
+        "query": "Analyze my portfolio performance and give me actionable insights."
       },
       "bestPlan": {
         "title": "Best Investment Plan",
-        "subtitle": "Find the plan that best matches your goals."
+        "subtitle": "Find the plan that best matches your goals.",
+        "query": "What is the best investment plan for my goals and risk profile?"
       },
       "marketOpportunities": {
         "title": "Market Opportunities",
-        "subtitle": "Discover trending opportunities today."
+        "subtitle": "Discover trending opportunities today.",
+        "query": "What market opportunities should I consider today?"
       },
       "riskAnalysis": {
         "title": "Risk Analysis",
-        "subtitle": "Evaluate your portfolio risk and exposure."
+        "subtitle": "Evaluate your portfolio risk and exposure.",
+        "query": "Evaluate my portfolio risk and exposure."
       },
       "diversification": {
         "title": "Diversification Advice",
-        "subtitle": "Get tips to diversify and reduce risk."
+        "subtitle": "Get tips to diversify and reduce risk.",
+        "query": "How can I diversify my investments to reduce risk?"
       },
       "profitForecast": {
         "title": "Profit Forecast",
-        "subtitle": "See potential returns based on your plan."
+        "subtitle": "See potential returns based on your plan.",
+        "query": "Forecast potential returns based on my current investment plan."
       },
       "comparePlans": {
         "title": "Compare Plans",
-        "subtitle": "Compare plans side by side easily."
+        "subtitle": "Compare plans side by side easily.",
+        "query": "Compare available investment plans side by side."
       },
       "investmentStrategy": {
         "title": "Investment Strategy",
-        "subtitle": "Get AI-powered strategy recommendations."
+        "subtitle": "Get AI-powered strategy recommendations.",
+        "query": "Recommend an investment strategy tailored to my profile."
       }
-    }
+    },
+    "welcomeMessage": "Hello, I'm PrimeAI.\n\nI'm here to help you analyze portfolios, discover opportunities, understand risks, compare investment plans and make better financial decisions.\n\nHow can I help you today?"
   },
   "common": {
     "loading": "Loading…",
@@ -496,7 +505,7 @@
         },
         {
           "question": "What returns can I realistically expect?",
-          "answer": "Returns vary by plan and market conditions. Our Starter Plan targets 8–15% monthly ROI, while Elite plans can reach 40–60%. Past performance does not guarantee future results."
+          "answer": "Returns vary by plan and market conditions. Weekly target returns range from 3% on the Starter Plan to 5% on the Elite Plan. Past performance does not guarantee future results."
         },
         {
           "question": "Do I need investment experience to get started?",
@@ -612,9 +621,119 @@
     "unlockWith": "Unlock with {tier}",
     "featureRequires": "This feature requires {tier} or higher. Upgrade your investor tier to access {feature}.",
     "thisModule": "this module",
-    "minInvestment": "Min. investment {amount} · ROI {range}",
+    "minInvestment": "Min. investment {amount} · {range} weekly return",
     "upgradeToTier": "Upgrade to {tier}",
     "viewPlans": "View Investment Plans"
+  },
+  "invest": {
+    "title": "Invest",
+    "subtitle": "Compare plans, pick one that matches your goals, and invest from your wallet.",
+    "plansAvailable": "{count} PLANS AVAILABLE",
+    "sectionTitle": "Investment Plans",
+    "sectionSubtitle": "Weekly returns, minimums, and payout schedule — select a plan then invest",
+    "viewModeLabel": "Plan view mode",
+    "viewModes": {
+      "table": "Table",
+      "grid": "Cards",
+      "compare": "Compare"
+    },
+    "empty": {
+      "title": "No investment plans",
+      "description": "Plans will appear here once they are configured in your account."
+    },
+    "toast": {
+      "confirmed": "Investment confirmed",
+      "confirmedDescription": "Successfully invested {amount} in {plan}."
+    },
+    "table": {
+      "plan": "Plan",
+      "weeklyReturn": "Weekly Return",
+      "minimum": "Minimum",
+      "duration": "Duration",
+      "payout": "Payout",
+      "category": "Category",
+      "action": "Action",
+      "invest": "Invest",
+      "popular": "Popular",
+      "investNow": "Invest Now"
+    },
+    "compare": {
+      "feature": "Feature",
+      "weeklyReturn": "Weekly Return",
+      "minimum": "Minimum",
+      "duration": "Duration",
+      "payout": "Payout",
+      "targetInvestor": "Target Investor",
+      "capitalAccess": "Capital Access",
+      "investors": "Investors",
+      "capitalProtection": "Capital Protection",
+      "aiStrategy": "AI Strategy",
+      "investNow": "Invest Now",
+      "popular": "POPULAR"
+    },
+    "card": {
+      "mostPopular": "MOST POPULAR",
+      "minimum": "Minimum",
+      "duration": "Duration",
+      "payout": "Payout",
+      "category": "Category",
+      "access": "Access",
+      "primeAiScore": "PrimeAI Score",
+      "investors": "investors",
+      "investNow": "Invest Now"
+    },
+    "modal": {
+      "title": "Invest in {plan}",
+      "summary": "{roi} {roiLabel} · Min {min} · {payout}",
+      "availableBalance": "Available Wallet Balance",
+      "loading": "Loading...",
+      "amountLabel": "Investment Amount (USD)",
+      "processing": "Processing...",
+      "confirm": "Confirm Investment",
+      "close": "Close modal",
+      "errors": {
+        "invalidAmount": "Enter a valid investment amount.",
+        "minAmount": "Minimum investment for {plan} is {min}.",
+        "insufficientBalance": "Insufficient wallet balance. Please deposit funds first.",
+        "failed": "Investment failed. Please try again."
+      }
+    },
+    "recommendation": {
+      "title": "Not sure which plan is right for you?",
+      "description": "Let PrimeAI analyze your profile and recommend the best investment plan for your goals.",
+      "cta": "Get AI Recommendation",
+      "badge": "PrimeAI Recommendation",
+      "bestMatch": "Best Match",
+      "bulletWeekly": "{roi} weekly return",
+      "bulletTarget": "Designed for {target}",
+      "bulletTrust": "{count} investors trust this plan",
+      "investIn": "Invest in {plan}"
+    },
+    "howItWorks": {
+      "eyebrow": "Simple process",
+      "title": "How investing works",
+      "description": "Pick a plan below, fund your wallet, and profits are distributed weekly. Capital can be withdrawn with a short notice period."
+    },
+    "trust": {
+      "noHiddenFees": "No Hidden Fees",
+      "withdrawAnytime": "Withdraw Anytime",
+      "smartDiversification": "Smart Diversification",
+      "aiRiskManagement": "AI Risk Management"
+    },
+    "primeAiWidget": {
+      "title": "PrimeAI Assistant",
+      "beta": "Beta",
+      "greeting": "How can I help you today?",
+      "placeholder": "Ask PrimeAI anything...",
+      "send": "Send message",
+      "openChat": "Open Full Chat →",
+      "suggestions": {
+        "analyzePortfolio": "Analyze my portfolio",
+        "bestInvestment": "Best investment for me",
+        "marketOutlook": "Market outlook today",
+        "explainTerms": "Explain investment terms"
+      }
+    }
   },
   "settings": {
     "title": "Settings",
@@ -933,6 +1052,8 @@
     "deposit": "Deposit",
     "currentBalance": "Current Balance",
     "totalInvested": "Total Invested",
+    "activeInvestments": "Active Investments",
+    "weeklyEarnings": "Weekly Earnings",
     "currentValue": "Current Value",
     "totalProfit": "Total Profit",
     "roiOverall": "ROI (Overall)",
@@ -991,7 +1112,7 @@
     "planMin": "Minimum",
     "planDuration": "Duration",
     "planPayout": "Payout",
-    "planRisk": "Risk Level",
+    "planCategory": "Category",
     "primeAI": {
       "title": "PrimeAI Assistant",
       "subtitle": "Your AI investment copilot.",
@@ -1017,6 +1138,12 @@
         "marketOpportunities": "Market Opportunities",
         "riskScore": "Risk Score",
         "askPrimeAI": "Ask PrimeAI"
+      },
+      "actionQueries": {
+        "analyzePortfolio": "Analyze my portfolio",
+        "bestPlan": "What is the best investment plan for me?",
+        "marketOpportunities": "What market opportunities should I consider today?",
+        "riskScore": "What is my portfolio risk score?"
       },
       "inputPlaceholder": "Ask PrimeAI anything…",
       "openFullChat": "Open Full Chat",
@@ -1187,6 +1314,8 @@
       "trustVerifiedInfra": "Verified Payment Infrastructure",
       "methodNowPayments": "NOWPayments",
       "methodBinancePay": "Binance Pay",
+      "methodCard": "Card",
+      "cardComingSoon": "More deposit methods are coming soon. Use NOWPayments crypto for now.",
       "methodCryptoPayment": "Crypto Payment",
       "poweredByNowPayments": "Powered by NOWPayments",
       "poweredByBinancePay": "Powered by Binance Pay API",
@@ -1288,22 +1417,43 @@
       "binancePayConfigError": "Binance Pay is not configured",
       "binancePayConfigHint": "Add BINANCEPAY_* credentials to your environment.",
       "paymentCreated": "Payment created — redirecting…",
-      "depositFailed": "Deposit failed"
+      "depositFailed": "Deposit failed",
+      "cardToastTitle": "Deposits",
+      "cardToastDescription": "More deposit methods are coming soon. Use NOWPayments crypto for now."
     },
     "withdraw": {
-      "title": "Withdrawal",
-      "description": "Withdraw to NOWPayments crypto",
+      "title": "Withdraw",
+      "description": "Withdraw your funds securely to your preferred crypto wallet.",
+      "withdrawalHistory": "Withdrawal History",
+      "formTitle": "Withdrawal Details",
+      "formSubtitle": "Complete each step to send funds to your external wallet.",
+      "stepSelectCrypto": "Select Cryptocurrency",
+      "stepSelectNetwork": "Select Network",
+      "stepWalletAddress": "Wallet Address",
+      "stepAmount": "Amount",
       "selectMethod": "1. Select withdrawal method",
       "withdrawDetails": "2. Withdrawal details",
       "securityVerification": "3. Security verification",
-      "cryptoCurrency": "Crypto currency",
+      "cryptoCurrency": "Cryptocurrency",
       "selectCurrency": "Select currency",
-      "nowPaymentsNotConfigured": "NOWPayments is not configured yet. Crypto withdrawals are unavailable.",
+      "cryptoUnavailable": "Crypto withdrawals are temporarily unavailable. Please try again later or contact support.",
+      "noNetworksAvailable": "No networks available for this asset. Choose another cryptocurrency.",
+      "estimatedNetworkFee": "Est. network fee",
       "amountUsd": "Amount (USD)",
-      "walletAddress": "Wallet address",
-      "addressPlaceholder": "Enter your crypto payout address",
+      "max": "Max",
+      "amountHelper": "Min {min} · Available {available}",
+      "estimatedReceive": "You will receive (estimated)",
+      "feeBreakdown": "Platform fee {platform} · Network fee {network}",
+      "walletAddress": "Wallet Address",
+      "addressPlaceholder": "Paste your wallet address",
+      "addressHint": "Enter the address that matches your selected network.",
+      "addressValid": "Address matches selected network.",
+      "addressInvalid": "Address does not match the selected network.",
+      "pasteAddress": "Paste address",
+      "scanQr": "Scan QR code",
+      "scanQrSoon": "QR scanning coming soon",
       "noteOptional": "Note (optional)",
-      "youWillReceive": "You will receive",
+      "youWillReceive": "You Will Receive",
       "fee": "Fee",
       "noticeRequired": "{days}-day notice required before funds are released.",
       "withdrawalPin": "Withdrawal PIN",
@@ -1312,8 +1462,14 @@
       "twoFaPlaceholder": "6 digit code",
       "getCode": "Get Code",
       "securityNotice": "For your security, withdrawals above $1,000 require email confirmation.",
-      "reviewWithdrawal": "Review Withdrawal",
+      "importantNotice": "Make sure the network and address are correct. Withdrawals cannot be reversed.",
+      "continueToReview": "Continue to Review",
+      "reviewWithdrawal": "Review & Withdraw",
+      "confirmWithdrawal": "Confirm Withdrawal",
+      "reviewTitle": "Review Withdrawal",
+      "reviewClose": "Close review",
       "processing": "Processing withdrawal…",
+      "submittedShort": "Submitted",
       "withdrawableBalance": "Withdrawable Balance",
       "pendingWithdrawal": "Pending Withdrawal",
       "totalWithdrawn": "Total Withdrawn",
@@ -1325,15 +1481,30 @@
       "limitsMin": "Min withdrawal",
       "limitsMax": "Max per transaction",
       "limitsFee": "Withdrawal fee",
+      "limitsProcessing": "Processing time",
       "limitsNotice": "Notice period",
+      "processingTimeRange": "5 – 30 minutes",
       "days": "days",
       "minWithdrawalError": "Minimum withdrawal is {amount}",
+      "cardHint": "Funds will be sent to your linked card.",
+      "cardProcessing": "Reference {reference}. Your withdrawal is being processed.",
       "exceedsBalance": "Amount exceeds available balance",
       "addressRequired": "Enter your crypto wallet address",
       "submitted": "Withdrawal submitted",
-      "nowPaymentsProcessing": "Your payout is being processed via NOWPayments.",
+      "submittedDesc": "Your payout is being processed securely. Track status in your transaction history.",
       "failed": "Withdrawal failed",
-      "loadWalletError": "Could not load wallet"
+      "loadWalletError": "Could not load wallet",
+      "summaryTitle": "Withdrawal Summary",
+      "summaryWithdrawalAmount": "Withdrawal Amount",
+      "summaryNetworkFee": "Network Fee",
+      "summaryPlatformFee": "Platform Fee",
+      "summaryProcessingTime": "Processing Time",
+      "trustAddressVerification": "Wallet address verification",
+      "trustSecureTransfer": "Secure blockchain transfer",
+      "trustEncrypted": "Encrypted transaction processing",
+      "trustAntiFraud": "Anti-fraud protection",
+      "trustConfirmation": "Blockchain confirmation tracking",
+      "irreversibleNotice": "Please verify your wallet address and network carefully. Blockchain withdrawals cannot be reversed."
     },
     "transfer": {
       "title": "Transfer Funds",
@@ -1360,7 +1531,7 @@
       "failed": "Transfer failed",
       "processing": "Processing transfer…",
       "transferUnavailable": "Transfer temporarily unavailable. Please try again in a few moments.",
-      "recipientNotFound": "Recipient not found. Check the email, username, or PrimeFx ID.",
+      "recipientNotFound": "Recipient not found. Check the email or PrimeFx ID.",
       "minTransfer": "Minimum transfer is $5.00",
       "insufficientBalance": "Insufficient balance",
       "insufficientBalanceFee": "Insufficient balance for ${fee} transfer fee",
@@ -1377,6 +1548,14 @@
       "placeholderUsername": "username",
       "lookingUpRecipient": "Looking up recipient...",
       "verified": "Verified",
+      "kycVerifiedBadge": "KYC Verified",
+      "selfTransferError": "You cannot transfer funds to your own account.",
+      "closeReview": "Close",
+      "transferAmount": "Transfer amount",
+      "transferFee": "Transfer fee",
+      "totalDebitLabel": "Total debit",
+      "messageLabel": "Message",
+      "comingSoonAction": "Coming soon",
       "noMatchingUser": "No matching PrimeFx user found.",
       "availableLimits": "Available: ${available} · Min $5 · Max $10,000 · Fee 1.2%",
       "totalDebit": "Total debit: ${total} (includes ${fee} fee)",
@@ -1502,21 +1681,21 @@
       },
       "withdraw": {
         "title": "Withdraw Funds",
-        "description": "Crypto withdrawals are processed via NOWPayments mass payouts.",
+        "description": "Send funds securely to your external crypto wallet.",
         "amountUsd": "Amount (USD)",
         "currency": "Currency",
         "selectCurrency": "Select currency",
         "walletAddress": "Wallet address",
         "addressPlaceholder": "Paste your crypto wallet address",
         "submitting": "Submitting withdrawal...",
-        "submit": "Submit Withdrawal",
+        "submit": "Review & Withdraw",
         "invalidAmount": "Enter a valid withdrawal amount.",
         "addressRequired": "Enter your wallet address.",
         "refreshCurrenciesError": "Could not refresh withdrawal currencies",
         "refreshCurrenciesHint": "Using default crypto options. Try again if withdrawal fails.",
         "failed": "Withdrawal failed",
         "submitted": "Withdrawal submitted",
-        "submittedDesc": "Your payout is being processed by NOWPayments."
+        "submittedDesc": "Your payout is being processed securely."
       }
     },
     "txType": {

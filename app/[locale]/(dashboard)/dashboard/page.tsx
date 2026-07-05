@@ -44,7 +44,7 @@ export default function DashboardPage() {
     label: t(PERIOD_KEYS[value]),
   }))
 
-  const { metrics, wallet, allocation, chartData, loading, error, reload } = useDashboardCore(
+  const { metrics, wallet, allocation, chartData, investmentStats, loading, error, reload } = useDashboardCore(
     selectedPeriod as PortfolioChartPeriod
   )
 
@@ -58,10 +58,11 @@ export default function DashboardPage() {
     onUpdate: onWalletUpdate,
   })
 
-  const [todayLabel, setTodayLabel] = useState<string | null>(null)
+  const [today, setToday] = useState<{ label: string; iso: string } | null>(null)
 
   useEffect(() => {
-    setTodayLabel(formatDate(new Date().toISOString()))
+    const iso = new Date().toISOString().slice(0, 10)
+    setToday({ label: formatDate(iso), iso })
   }, [])
 
   const firstName = user.name.split(' ')[0] ?? user.name
@@ -73,9 +74,9 @@ export default function DashboardPage() {
       >
         <div className="min-w-0">
           <p className="text-xs font-medium text-muted-foreground">
-            {todayLabel ? (
-              <time dateTime={new Date().toISOString().slice(0, 10)} suppressHydrationWarning>
-                {todayLabel}
+            {today ? (
+              <time dateTime={today.iso} suppressHydrationWarning>
+                {today.label}
               </time>
             ) : (
               '—'
@@ -94,7 +95,7 @@ export default function DashboardPage() {
           {null}
         </AsyncState>
       ) : (
-        <DashboardPortfolioHero metrics={metrics} wallet={wallet} />
+        <DashboardPortfolioHero metrics={metrics} investmentStats={investmentStats} wallet={wallet} />
       )}
 
       <section
@@ -232,7 +233,7 @@ export default function DashboardPage() {
 
       <section
         aria-labelledby="dashboard-plans-primeai-heading"
-        className={cn('grid w-full grid-cols-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-5', gridGapClass)}
+        className={cn('grid w-full grid-cols-1 items-stretch lg:grid-cols-[minmax(0,1fr)_340px]', gridGapClass)}
       >
         <h2 id="dashboard-plans-primeai-heading" className="sr-only">
           {t('topPlans')}

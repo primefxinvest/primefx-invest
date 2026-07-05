@@ -1,106 +1,331 @@
 'use client'
 
-import { ArrowUpFromLine, Loader2, Lock } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  ClipboardPaste,
+  Loader2,
+  QrCode,
+  Shield,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { CustomSelect } from '@/components/ui/custom-select'
+import { CryptoAssetIcon, NetworkBadge } from '@/components/wallet/withdraw/CryptoAssetIcon'
+import { WithdrawReviewDialog } from '@/components/wallet/withdraw/WithdrawReviewDialog'
 import { dashboardCardClass } from '@/lib/layout/surfaces'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
-import { calculateWithdrawalFee, WITHDRAWAL_NOTICE_DAYS } from '@/lib/fees/constants'
+import { calculateWithdrawalFee } from '@/lib/fees/constants'
+import {
+  getNetworksForAsset,
+  validateWithdrawAddress,
+  WITHDRAW_ASSETS,
+  type WithdrawAssetId,
+  type WithdrawNetworkOption,
+} from '@/lib/payments/withdraw-networks'
 import { cn } from '@/lib/utils'
 
 type WithdrawFormCardProps = {
   amount: string
   onAmountChange: (value: string) => void
-  currency: string
-  onCurrencyChange: (value: string) => void
-  currencies: Array<{ value: string; label: string }>
+  assetId: WithdrawAssetId
+  onAssetChange: (value: WithdrawAssetId) => void
+  networkId: string
+  onNetworkChange: (value: string) => void
+  availableApiCurrencies: string[]
   address: string
   onAddressChange: (value: string) => void
-  note: string
-  onNoteChange: (value: string) => void
   available: number
   onSubmit: () => void
   isProcessing?: boolean
   kycLoading?: boolean
   withdrawDisabled?: boolean
-  nowPaymentsEnabled?: boolean
+  cryptoWithdrawalsEnabled?: boolean
+}
+
+function FormSection({
+  step,
+  title,
+  children,
+}: {
+  step: number
+  title: string
+  children: React.ReactNode
+}) {
+  return (
+    <section className="border-b border-border pb-5 last:border-0 last:pb-0">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#0052ff] text-sm font-bold text-white">
+          {step}
+        </span>
+        <h3 className="text-sm font-semibold text-foreground sm:text-base">{title}</h3>
+      </div>
+      {children}
+    </section>
+  )
 }
 
 export function WithdrawFormCard({
   amount,
   onAmountChange,
-  currency,
-  onCurrencyChange,
-  currencies,
+  assetId,
+  onAssetChange,
+  networkId,
+  onNetworkChange,
+  availableApiCurrencies,
   address,
   onAddressChange,
-  note,
-  onNoteChange,
   available,
   onSubmit,
   isProcessing = false,
   kycLoading = false,
   withdrawDisabled = false,
-  nowPaymentsEnabled = true,
+  cryptoWithdrawalsEnabled = true,
 }: WithdrawFormCardProps) {
   const t = useTranslations('wallet.withdraw')
   const tDeposit = useTranslations('wallet.deposit')
 
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [addressTouched, setAddressTouched] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+
   const amountNum = Number(amount) || 0
   const minWithdrawal = INVESTOR_RULES.financial.minimumWithdrawal
-  const { fee, netAmount } = calculateWithdrawalFee(amountNum)
   const isLocked = isProcessing || kycLoading
-  const buttonDisabled = isLocked || withdrawDisabled || !amount.trim() || !address.trim()
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const networks = useMemo(
+    () => getNetworksForAsset(assetId, availableApiCurrencies),
+    [assetId, availableApiCurrencies]
+  )
+
+  const selectedNetwork: WithdrawNetworkOption | null =
+    networks.find((n) => n.id === networkId) ?? networks[0] ?? null
+
+  useEffect(() => {
+    if (!networks.length) return
+    if (!networks.some((n) => n.id === networkId)) {
+      onNetworkChange(networks[0].id)
+    }
+  }, [networks, networkId, onNetworkChange])
+
+  const addressValidation = validateWithdrawAddress(address, selectedNetwork)
+  const { fee: platformFee, netAmount } = calculateWithdrawalFee(amountNum)
+  const networkFee = selectedNetwork?.estimatedFeeUsd ?? 0
+  const youWillReceive = Math.max(0, Math.round((netAmount - networkFee) * 100) / 100)
+
+  const amountError =
+    amountNum > 0 && amountNum < minWithdrawal
+      ? t('minWithdrawalError', { amount: `$${minWithdrawal.toFixed(2)}` })
+      : amountNum > available
+        ? t('exceedsBalance')
+        : null
+
+  const canReview =
+    !withdrawDisabled &&
+    cryptoWithdrawalsEnabled &&
+    amountNum >= minWithdrawal &&
+    amountNum <= available &&
+    addressValidation.valid &&
+    selectedNetwork !== null
+
+  const handlePaste = async () => {
+    try {
+      const text = await navigator.clipboard.readText()
+      if (text) {
+        onAddressChange(text.trim())
+        setAddressTouched(true)
+      }
+    } catch {
+      /* clipboard denied */
+    }
+  }
+
+  const handleReview = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!buttonDisabled) onSubmit()
+    if (!canReview || isLocked) return
+    setReviewOpen(true)
+  }
+
+  const handleConfirm = () => {
+    setReviewOpen(false)
+    setSubmitSuccess(true)
+    onSubmit()
+    setTimeout(() => setSubmitSuccess(false), 2000)
   }
 
   const buttonLabel = kycLoading
     ? tDeposit('kycCheckingButton')
     : isProcessing
       ? t('processing')
-      : t('reviewWithdrawal')
+      : submitSuccess
+        ? t('submittedShort')
+        : t('continueToReview')
+
+  const selectedAsset = WITHDRAW_ASSETS.find((a) => a.id === assetId)
 
   return (
-    <div className={cn(dashboardCardClass, 'shadow-md')}>
-      <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary sm:h-11 sm:w-11">
-          <ArrowUpFromLine className="h-5 w-5" aria-hidden />
-        </span>
-        <div className="min-w-0">
-          <h2 className="text-base font-bold tracking-tight text-foreground sm:text-lg">
-            {t('withdrawDetails')}
-          </h2>
-          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-            {t('description')}
-          </p>
+    <>
+      <div className={cn(dashboardCardClass, 'shadow-sm')}>
+        <div className="mb-6">
+          <h2 className="text-lg font-bold tracking-tight text-foreground">{t('formTitle')}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{t('formSubtitle')}</p>
         </div>
-      </div>
 
-      {!nowPaymentsEnabled ? (
-        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900" role="status">
-          {t('nowPaymentsNotConfigured')}
-        </p>
-      ) : null}
+        {!cryptoWithdrawalsEnabled ? (
+          <p
+            className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900"
+            role="status"
+          >
+            {t('cryptoUnavailable')}
+          </p>
+        ) : null}
 
-      <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="withdraw-currency" className="mb-1.5 block text-sm font-medium text-foreground">
-                {t('cryptoCurrency')}
-              </label>
-              <CustomSelect
-                value={currency}
-                onValueChange={onCurrencyChange}
-                options={currencies}
-                disabled={isLocked || currencies.length === 0}
-                placeholder={t('selectCurrency')}
+        <form onSubmit={handleReview} className="space-y-5">
+          {/* Step 1: Asset */}
+          <FormSection step={1} title={t('stepSelectCrypto')}>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+              {WITHDRAW_ASSETS.map((asset) => {
+                const assetNetworks = getNetworksForAsset(asset.id, availableApiCurrencies)
+                const disabled = assetNetworks.length === 0 || isLocked
+                const selected = assetId === asset.id
+
+                return (
+                  <button
+                    key={asset.id}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => onAssetChange(asset.id)}
+                    className={cn(
+                      'flex min-h-[44px] items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition-all',
+                      selected
+                        ? 'border-[#0052ff] bg-[#0052ff]/5 ring-2 ring-[#0052ff]/15'
+                        : 'border-border bg-card hover:border-[#0052ff]/30',
+                      disabled && 'cursor-not-allowed opacity-40'
+                    )}
+                  >
+                    <CryptoAssetIcon assetId={asset.id} size="sm" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{asset.symbol}</p>
+                      <p className="truncate text-[10px] text-muted-foreground">{asset.name}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </FormSection>
+
+          {/* Step 2: Network */}
+          <FormSection step={2} title={t('stepSelectNetwork')}>
+            {networks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t('noNetworksAvailable')}</p>
+            ) : (
+              <div className="space-y-2">
+                {networks.map((network) => {
+                  const selected = networkId === network.id
+                  return (
+                    <button
+                      key={network.id}
+                      type="button"
+                      disabled={isLocked}
+                      onClick={() => onNetworkChange(network.id)}
+                      className={cn(
+                        'flex w-full min-h-[44px] items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left transition-all',
+                        selected
+                          ? 'border-[#0052ff] bg-[#0052ff]/5 ring-2 ring-[#0052ff]/15'
+                          : 'border-border bg-card hover:border-[#0052ff]/30',
+                        isLocked && 'opacity-60'
+                      )}
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <CryptoAssetIcon assetId={assetId} size="sm" />
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-semibold text-foreground">{network.label}</span>
+                            <NetworkBadge label={network.badge} />
+                          </div>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {t('estimatedNetworkFee')}: ${network.estimatedFeeUsd.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                      {selected ? (
+                        <CheckCircle2 className="h-5 w-5 shrink-0 text-[#0052ff]" aria-hidden />
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+          </FormSection>
+
+          {/* Step 3: Address */}
+          <FormSection step={3} title={t('stepWalletAddress')}>
+            <div className="relative">
+              <input
+                id="withdraw-address"
+                type="text"
+                value={address}
+                onChange={(e) => {
+                  onAddressChange(e.target.value)
+                  setAddressTouched(true)
+                }}
+                onBlur={() => setAddressTouched(true)}
+                placeholder={t('addressPlaceholder')}
+                readOnly={isLocked}
+                autoComplete="off"
+                spellCheck={false}
+                className={cn(
+                  'w-full rounded-xl border bg-background py-3 pl-4 pr-24 font-mono text-sm text-foreground',
+                  'focus:border-[#0052ff] focus:outline-none focus:ring-2 focus:ring-[#0052ff]/20',
+                  addressTouched && !addressValidation.valid && address.trim()
+                    ? 'border-red-300'
+                    : addressValidation.valid
+                      ? 'border-emerald-400'
+                      : 'border-border',
+                  isLocked && 'opacity-60'
+                )}
               />
+              <div className="absolute right-2 top-1/2 flex -translate-y-1/2 items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handlePaste}
+                  disabled={isLocked}
+                  className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  aria-label={t('pasteAddress')}
+                >
+                  <ClipboardPaste className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  className="cursor-not-allowed rounded-lg p-2 text-muted-foreground/40"
+                  aria-label={t('scanQr')}
+                  title={t('scanQrSoon')}
+                >
+                  <QrCode className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
+            {addressTouched && address.trim() ? (
+              addressValidation.valid ? (
+                <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
+                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                  {t('addressValid')}
+                </p>
+              ) : (
+                <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-600">
+                  <AlertCircle className="h-3.5 w-3.5" aria-hidden />
+                  {t('addressInvalid')}
+                </p>
+              )
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground">{t('addressHint')}</p>
+            )}
+          </FormSection>
+
+          {/* Step 4: Amount */}
+          <FormSection step={4} title={t('stepAmount')}>
             <div>
               <label htmlFor="withdraw-amount" className="mb-1.5 block text-sm font-medium text-foreground">
                 {t('amountUsd')}
@@ -117,87 +342,111 @@ export function WithdrawFormCard({
                   onChange={(e) => onAmountChange(e.target.value.replace(/[^\d.]/g, ''))}
                   readOnly={isLocked}
                   className={cn(
-                    'w-full rounded-xl border border-border bg-background py-3 pl-7 pr-4 text-lg font-bold tabular-nums text-foreground',
-                    'focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
+                    'w-full rounded-xl border border-border bg-background py-3 pl-7 pr-16 text-lg font-bold tabular-nums text-foreground',
+                    'focus:border-[#0052ff] focus:outline-none focus:ring-2 focus:ring-[#0052ff]/20',
+                    amountError && 'border-red-300',
                     isLocked && 'opacity-60'
                   )}
                 />
+                <button
+                  type="button"
+                  onClick={() => onAmountChange(available.toFixed(2))}
+                  disabled={isLocked || available <= 0}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg bg-[#0052ff]/10 px-2.5 py-1 text-xs font-bold text-[#0052ff] hover:bg-[#0052ff]/15 disabled:opacity-40"
+                >
+                  {t('max')}
+                </button>
               </div>
+              <p className="mt-1.5 text-xs text-muted-foreground">
+                {t('amountHelper', {
+                  min: `$${minWithdrawal.toFixed(2)}`,
+                  available: `$${available.toFixed(2)}`,
+                })}
+              </p>
+              {amountError ? (
+                <p className="mt-1 text-xs font-medium text-red-600">{amountError}</p>
+              ) : null}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-border bg-muted/30 px-4 py-3">
+              <p className="text-xs text-muted-foreground">{t('estimatedReceive')}</p>
+              <p className="mt-0.5 text-2xl font-bold tabular-nums text-[#0052ff]">
+                ${youWillReceive.toFixed(2)}
+              </p>
               <p className="mt-1 text-[11px] text-muted-foreground">
-                Min ${minWithdrawal.toFixed(2)} · Available ${available.toFixed(2)}
+                {t('feeBreakdown', {
+                  platform: `$${platformFee.toFixed(2)}`,
+                  network: `$${networkFee.toFixed(2)}`,
+                })}
               </p>
             </div>
+          </FormSection>
 
-            <div>
-              <label htmlFor="withdraw-address" className="mb-1.5 block text-sm font-medium text-foreground">
-                {t('walletAddress')}
-              </label>
-              <input
-                id="withdraw-address"
-                type="text"
-                value={address}
-                onChange={(e) => onAddressChange(e.target.value)}
-                placeholder={t('addressPlaceholder')}
-                readOnly={isLocked}
-                className={cn(
-                  'w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground',
-                  'focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
-                  isLocked && 'opacity-60'
-                )}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="withdraw-note" className="mb-1.5 block text-sm font-medium text-foreground">
-                {t('noteOptional')}
-              </label>
-              <textarea
-                id="withdraw-note"
-                value={note}
-                onChange={(e) => onNoteChange(e.target.value)}
-                maxLength={100}
-                rows={2}
-                readOnly={isLocked}
-                className="w-full resize-none rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
-            </div>
+          {/* Notice */}
+          <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+            <Shield className="mt-0.5 h-5 w-5 shrink-0 text-[#0052ff]" aria-hidden />
+            <p className="text-sm leading-relaxed text-foreground">{t('importantNotice')}</p>
           </div>
 
-          <div className="rounded-xl border border-primary/15 bg-primary/5 p-4 sm:p-5">
-            <p className="text-sm text-muted-foreground">{t('youWillReceive')}</p>
-            <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">
-              ${netAmount.toFixed(2)}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {t('fee')}: ${fee.toFixed(2)} ({(INVESTOR_RULES.financial.withdrawalFeeRate * 100).toFixed(1)}%)
-            </p>
-            <p className="mt-2 text-xs font-medium text-amber-700">
-              {t('noticeRequired', { days: WITHDRAWAL_NOTICE_DAYS })}
-            </p>
-          </div>
-        </div>
+          {/* Desktop submit */}
+          <button
+            type="submit"
+            disabled={!canReview || isLocked}
+            aria-busy={isLocked}
+            className={cn(
+              'hidden min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0052ff] px-6 text-sm font-semibold text-white shadow-lg shadow-[#0052ff]/20 transition-all sm:flex',
+              'hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50',
+              submitSuccess && 'bg-emerald-600 shadow-emerald-600/20'
+            )}
+          >
+            {isLocked ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                {buttonLabel}
+              </>
+            ) : (
+              <>
+                {buttonLabel}
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </>
+            )}
+          </button>
+        </form>
+      </div>
 
+      {/* Mobile sticky CTA */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-4 backdrop-blur sm:hidden">
         <button
-          type="submit"
-          disabled={buttonDisabled}
-          aria-busy={isLocked}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+          type="button"
+          onClick={(e) => {
+            e.preventDefault()
+            if (canReview && !isLocked) setReviewOpen(true)
+          }}
+          disabled={!canReview || isLocked}
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0052ff] px-6 text-sm font-semibold text-white disabled:opacity-50"
         >
-          {isLocked ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              {buttonLabel}
-            </>
-          ) : (
-            t('reviewWithdrawal')
-          )}
+          {isLocked ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+          {buttonLabel}
+          {!isLocked ? <ArrowRight className="h-4 w-4" /> : null}
         </button>
+      </div>
 
-        <p className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
-          <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          {t('securityNotice')}
-        </p>
-      </form>
-    </div>
+      <WithdrawReviewDialog
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        onConfirm={handleConfirm}
+        isProcessing={isProcessing}
+        assetId={assetId}
+        assetName={selectedAsset?.name ?? assetId}
+        networkLabel={selectedNetwork?.label ?? ''}
+        networkBadge={selectedNetwork?.badge ?? ''}
+        address={address.trim()}
+        amountUsd={`$${amountNum.toFixed(2)}`}
+        networkFee={`$${networkFee.toFixed(2)}`}
+        platformFee={`$${platformFee.toFixed(2)}`}
+        youWillReceive={`$${youWillReceive.toFixed(2)}`}
+        processingTime={t('processingTimeRange')}
+      />
+    </>
   )
 }

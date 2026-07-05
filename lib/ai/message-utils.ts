@@ -7,13 +7,10 @@ export function getMessageText(message: UIMessage): string {
     .join('')
 }
 
-export const PRIMEAI_WELCOME_MESSAGE: UIMessage = {
-  id: 'welcome',
-  role: 'assistant',
-  parts: [
-    {
-      type: 'text',
-      text: "Hello, I'm PrimeAI.\n\nI'm here to help you analyze portfolios, discover opportunities, understand risks, compare investment plans and make better financial decisions.\n\nHow can I help you today?",
-    },
-  ],
+export function createPrimeAIWelcomeMessage(text: string): UIMessage {
+  return {
+    id: 'welcome',
+    role: 'assistant',
+    parts: [{ type: 'text', text }],
+  }
 }

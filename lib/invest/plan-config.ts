@@ -32,7 +32,7 @@ export const planThemes: Record<string, PlanTheme> = {
     avatarColors: ['bg-emerald-400', 'bg-teal-400', 'bg-green-500'],
     primeAiScore: 88,
     features: [
-      'Daily Profit Distribution',
+      'Weekly Profit Distribution',
       'Flexible Exit',
       'PrimeAI Monitoring',
       '24/7 Support',
@@ -52,7 +52,7 @@ export const planThemes: Record<string, PlanTheme> = {
     avatarColors: ['bg-blue-400', 'bg-indigo-400', 'bg-sky-500'],
     primeAiScore: 90,
     features: [
-      'Daily Profit Distribution',
+      'Weekly Profit Distribution',
       'Flexible Exit',
       'PrimeAI Monitoring',
       '24/7 Support',
@@ -72,7 +72,7 @@ export const planThemes: Record<string, PlanTheme> = {
     avatarColors: ['bg-purple-400', 'bg-violet-400', 'bg-fuchsia-500'],
     primeAiScore: 94,
     features: [
-      'Daily Profit Distribution',
+      'Weekly Profit Distribution',
       'Flexible Exit',
       'PrimeAI Monitoring',
       '24/7 Support',
@@ -93,7 +93,7 @@ export const planThemes: Record<string, PlanTheme> = {
     avatarColors: ['bg-orange-400', 'bg-amber-400', 'bg-yellow-500'],
     primeAiScore: 98,
     features: [
-      'Daily Profit Distribution',
+      'Weekly Profit Distribution',
       'Flexible Exit',
       'PrimeAI Monitoring',
       '24/7 Support',
@@ -119,7 +119,7 @@ export interface LandingPlanTheme {
   icon: LucideIcon
   card: string
   iconBg: string
-  riskColor: string
+  badge: string
   buttonClass: string
 }
 
@@ -127,25 +127,25 @@ const landingPlanThemes: Record<keyof typeof planThemes, Omit<LandingPlanTheme, 
   '1': {
     card: 'border-emerald-200 bg-emerald-50/50',
     iconBg: 'bg-emerald-100 text-emerald-600',
-    riskColor: 'bg-emerald-100 text-emerald-700',
+    badge: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
     buttonClass: 'border-emerald-500 text-emerald-600 hover:bg-emerald-50',
   },
   '2': {
     card: 'border-blue-200 bg-blue-50/50',
     iconBg: 'bg-blue-100 text-[#0052ff]',
-    riskColor: 'bg-blue-100 text-blue-700',
+    badge: 'bg-blue-50 text-blue-700 ring-1 ring-blue-100',
     buttonClass: 'border-[#0052ff] text-[#0052ff] hover:bg-blue-50',
   },
   '3': {
     card: 'border-purple-300 bg-purple-50/50 ring-2 ring-purple-400',
     iconBg: 'bg-purple-100 text-purple-600',
-    riskColor: 'bg-purple-100 text-purple-700',
+    badge: 'bg-purple-50 text-purple-700 ring-1 ring-purple-100',
     buttonClass: 'border-purple-500 text-purple-600 hover:bg-purple-50',
   },
   '4': {
     card: 'border-orange-200 bg-orange-50/50',
     iconBg: 'bg-orange-100 text-orange-600',
-    riskColor: 'bg-orange-100 text-orange-700',
+    badge: 'bg-orange-50 text-orange-700 ring-1 ring-orange-100',
     buttonClass: 'border-orange-500 text-orange-600 hover:bg-orange-50',
   },
 }

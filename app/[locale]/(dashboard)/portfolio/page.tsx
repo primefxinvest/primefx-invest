@@ -6,7 +6,6 @@ import {
   DollarSign,
   TrendingUp,
   BarChart2,
-  Percent,
   ChevronRight,
   Sprout,
   Layers,
@@ -23,7 +22,7 @@ import {
   AllocationDonut,
   MonthlyReturnsChart,
 } from '@/components/portfolio/Charts.lazy'
-import { CapitalWithdrawButton } from '@/components/portfolio/CapitalWithdrawButton'
+import ActiveInvestmentsTable from '@/components/portfolio/ActiveInvestmentsTable'
 import PortfolioInvestmentTimeline from '@/components/portfolio/PortfolioInvestmentTimeline'
 import PortfolioRiskExposure from '@/components/portfolio/PortfolioRiskExposure'
 import PortfolioRecentActivity from '@/components/portfolio/PortfolioRecentActivity'
@@ -52,16 +51,11 @@ const planIcons: Record<string, typeof Sprout> = {
 
 const PORTFOLIO_CACHE_OPTS = { cacheTtlMs: 30_000 } as const
 
-const RISK_COLORS: Record<string, string> = {
-  Low: '#10b981',
-  Medium: '#0052ff',
-  High: '#f97316',
-}
-
-function parseRiskLevel(riskLabel: string): string {
-  if (riskLabel.toLowerCase().includes('low')) return 'Low'
-  if (riskLabel.toLowerCase().includes('high')) return 'High'
-  return 'Medium'
+const CATEGORY_COLORS: Record<string, string> = {
+  'FOR BEGINNERS': '#10b981',
+  'GROW YOUR WEALTH': '#0052ff',
+  'BEST VALUE': '#7c3aed',
+  'PREMIUM ACCESS': '#f97316',
 }
 
 export default function PortfolioPage() {
@@ -148,6 +142,8 @@ export default function PortfolioPage() {
     profitLoss: '$0.00',
     roi: '0%',
     activePlans: 0,
+    totalWeeklyEarnings: '$0.00',
+    totalProfitsEarned: '$0.00',
   }
 
   const profitLossValue = portfolioOverview.profitLoss
@@ -168,8 +164,8 @@ export default function PortfolioPage() {
     portfolioActiveInvestments.forEach((inv) => {
       events.push({
         id: `active-${inv.id}`,
-        title: inv.plan,
-        subtitle: `${inv.invested} invested · ${inv.roi} ROI`,
+        title: `${inv.displayId} · ${inv.plan}`,
+        subtitle: `${inv.invested} invested · ${inv.weeklyReturn} weekly`,
         date: 'Active',
         status: 'active',
       })
@@ -198,28 +194,25 @@ export default function PortfolioPage() {
     return events.slice(0, 8)
   }, [portfolioActiveInvestments, portfolioCompletedInvestments, capitalWithdrawals])
 
-  const riskBuckets = useMemo(() => {
+  const planCategoryBuckets = useMemo(() => {
     const counts = new Map<string, number>()
     portfolioActiveInvestments.forEach((inv) => {
-      const level = parseRiskLevel(inv.risk)
-      counts.set(level, (counts.get(level) ?? 0) + 1)
+      counts.set(inv.category, (counts.get(inv.category) ?? 0) + 1)
     })
     const total = portfolioActiveInvestments.length || 1
-    return ['Low', 'Medium', 'High']
-      .filter((level) => (counts.get(level) ?? 0) > 0)
-      .map((level) => ({
-        label: `${level} Risk`,
-        count: counts.get(level) ?? 0,
-        percentage: Math.round(((counts.get(level) ?? 0) / total) * 100),
-        color: RISK_COLORS[level] ?? '#0052ff',
-      }))
+    return Array.from(counts.entries()).map(([label, count]) => ({
+      label,
+      count,
+      percentage: Math.round((count / total) * 100),
+      color: CATEGORY_COLORS[label] ?? '#0052ff',
+    }))
   }, [portfolioActiveInvestments])
 
-  const overallRiskLabel = useMemo(() => {
-    if (!riskBuckets.length) return 'No exposure'
-    const dominant = riskBuckets.reduce((a, b) => (a.percentage >= b.percentage ? a : b))
+  const overallAllocationLabel = useMemo(() => {
+    if (!planCategoryBuckets.length) return 'No active plans'
+    const dominant = planCategoryBuckets.reduce((a, b) => (a.percentage >= b.percentage ? a : b))
     return `${dominant.label} weighted`
-  }, [riskBuckets])
+  }, [planCategoryBuckets])
 
   if (overviewLoading && !overview) {
     return (
@@ -292,19 +285,18 @@ export default function PortfolioPage() {
             iconBg="bg-violet-50 text-violet-600"
           />
           <KpiCard
-            label="ROI"
-            value={portfolioOverview.roi}
-            caption="Overall return"
-            valueClassName={isProfitNegative ? 'text-red-600' : 'text-emerald-600'}
-            icon={<Percent className="h-4 w-4 sm:h-5 sm:w-5" />}
-            iconBg="bg-orange-50 text-orange-500"
-          />
-          <KpiCard
-            label="Active Plans"
+            label="Active Investments"
             value={String(portfolioOverview.activePlans)}
-            caption="Currently running"
+            caption="Independent positions"
             icon={<Briefcase className="h-4 w-4 sm:h-5 sm:w-5" />}
             iconBg="bg-slate-100 text-slate-600"
+          />
+          <KpiCard
+            label="Weekly Earnings"
+            value={portfolioOverview.totalWeeklyEarnings ?? '$0.00'}
+            caption="Target across active plans"
+            icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
+            iconBg="bg-emerald-50 text-emerald-600"
           />
         </KpiGrid>
       </section>
@@ -330,102 +322,14 @@ export default function PortfolioPage() {
       {/* 4. Active Investments */}
       <section aria-label="Active investments">
         <div className={cn(dashboardCardClass, 'overflow-hidden p-0 sm:p-0')}>
-          <div className="border-b border-border px-5 py-3.5">
-            <h2 className={dashboardSectionTitleClass}>Active Investments</h2>
-          </div>
-          <ScrollTable>
-            <table className="w-full min-w-[640px] text-[13px]">
-              <thead>
-                <tr className="border-b border-border bg-muted/50 text-left text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  <th className="px-5 py-3">Plan</th>
-                  <th className="px-3 py-3">Invested</th>
-                  <th className="px-3 py-3">Current Value</th>
-                  <th className="px-3 py-3">ROI %</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {investmentsLoading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <tr key={i}>
-                      <td colSpan={6} className="px-5 py-3">
-                        <div className="h-10 animate-pulse rounded-md bg-gray-200/80" />
-                      </td>
-                    </tr>
-                  ))
-                ) : investmentsError ? (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-6">
-                      <ErrorState
-                        description={investmentsError}
-                        onRetry={reloadInvestments}
-                        compact
-                      />
-                    </td>
-                  </tr>
-                ) : portfolioActiveInvestments.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-8 text-center text-[13px] text-muted-foreground">
-                      No active investments yet.{' '}
-                      <Link href="/invest" className="font-medium text-primary hover:underline">
-                        Start investing
-                      </Link>
-                    </td>
-                  </tr>
-                ) : (
-                  portfolioActiveInvestments.map((inv) => {
-                    const Icon = planIcons[inv.plan] ?? Layers
-                    return (
-                      <tr key={inv.id} className="transition-colors hover:bg-muted/30">
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-3">
-                            <div
-                              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${inv.iconBg}`}
-                            >
-                              <Icon className="h-3.5 w-3.5" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-foreground">{inv.plan}</p>
-                              <span
-                                className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${inv.riskColor}`}
-                              >
-                                {inv.risk}
-                              </span>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3.5 text-muted-foreground">{inv.invested}</td>
-                        <td className="px-3 py-3.5 font-medium text-foreground">{inv.currentValue}</td>
-                        <td className="px-3 py-3.5 font-semibold text-emerald-600">{inv.roi}</td>
-                        <td className="px-5 py-3.5">
-                          <span className="inline-flex rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-                            {inv.status}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5">
-                          <CapitalWithdrawButton
-                            investmentId={inv.id}
-                            planName={inv.plan}
-                            pendingRequest={capitalWithdrawalByInvestment.get(inv.id)}
-                            onRequested={reloadCapitalWithdrawalState}
-                          />
-                        </td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
-          </ScrollTable>
-          <div className="border-t border-border px-5 py-3">
-            <Link
-              href="/invest"
-              className="flex items-center gap-1 text-[13px] font-medium text-primary hover:underline"
-            >
-              View All Active <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
+          <ActiveInvestmentsTable
+            investments={portfolioActiveInvestments}
+            loading={investmentsLoading}
+            error={investmentsError}
+            onRetry={reloadInvestments}
+            capitalWithdrawalByInvestment={capitalWithdrawalByInvestment}
+            onWithdrawalRequested={reloadCapitalWithdrawalState}
+          />
         </div>
       </section>
 
@@ -441,7 +345,7 @@ export default function PortfolioPage() {
             <MonthlyReturnsChart data={monthlyReturns} />
           </div>
         </div>
-        <PortfolioRiskExposure buckets={riskBuckets} overallLabel={overallRiskLabel} />
+        <PortfolioRiskExposure buckets={planCategoryBuckets} overallLabel={overallAllocationLabel} />
       </section>
 
       {/* Completed investments (retained feature) */}
@@ -487,8 +391,8 @@ export default function PortfolioPage() {
                               <Icon className="h-3.5 w-3.5" />
                             </div>
                             <div>
-                              <p className="font-medium text-foreground">{inv.plan}</p>
-                              <p className="text-[11px] text-muted-foreground">{inv.date}</p>
+                              <p className="font-medium text-foreground">{inv.displayId}</p>
+                              <p className="text-[11px] text-muted-foreground">{inv.plan} · {inv.date}</p>
                             </div>
                           </div>
                         </td>

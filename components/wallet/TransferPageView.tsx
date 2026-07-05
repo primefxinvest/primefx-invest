@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useTranslations } from 'next-intl'
-import { useRouter } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import {
   ArrowRight,
   ArrowUpRight,
@@ -35,11 +35,13 @@ import { searchTransferRecipient, submitWalletTransfer } from '@/lib/wallet/acti
 import type { TransferRecipientMethod } from '@/lib/wallet/types'
 import { calculateP2pTransferFee } from '@/lib/fees/constants'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
+import { TransferConfirmDialog } from '@/components/wallet/transfer/TransferConfirmDialog'
+import { useSessionUser } from '@/lib/hooks/useSessionUser'
+import { pageStackClass, gridGapClass, sectionStackClass } from '@/lib/layout/spacing'
 import { cn } from '@/lib/utils'
 
 const TRANSFER_METHODS = [
   { id: 'email', labelKey: 'methodEmail' },
-  { id: 'username', labelKey: 'methodUsername' },
   { id: 'id', labelKey: 'methodId' },
 ] as const
 
@@ -60,6 +62,7 @@ export function TransferPageView() {
   const tWallet = useTranslations('wallet')
   const tCompliance = useTranslations('compliance')
   const router = useRouter()
+  const sessionUser = useSessionUser()
   const kyc = useFinancialKycAccess()
   const {
     wallet,
@@ -79,6 +82,10 @@ export function TransferPageView() {
   const [amount, setAmount] = useState('250')
   const [currency, setCurrency] = useState('USD')
   const [message, setMessage] = useState('')
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [selfTransfer, setSelfTransfer] = useState(false)
+  const submitLockRef = useRef(false)
+  const recipientInputRef = useRef<HTMLInputElement>(null)
   const [pending, startTransition] = useTransition()
 
   const transferAmount = Number(amount) || 0
@@ -133,6 +140,7 @@ export function TransferPageView() {
 
   useEffect(() => {
     setRecipientPreview(null)
+    setSelfTransfer(false)
     const query = recipient.trim()
     if (query.length < 3) return
     if (method === 'email' && !query.includes('@')) return
@@ -146,6 +154,11 @@ export function TransferPageView() {
       setLookupPending(true)
       try {
         const result = await searchTransferRecipient(method, query)
+        if (result.found && result.recipient.id === sessionUser.id) {
+          setRecipientPreview(null)
+          setSelfTransfer(true)
+          return
+        }
         setRecipientPreview(result.found ? result.recipient : null)
       } catch {
         setRecipientPreview(null)
@@ -155,7 +168,43 @@ export function TransferPageView() {
     }, 400)
 
     return () => window.clearTimeout(timer)
-  }, [recipient, method])
+  }, [recipient, method, sessionUser.id])
+
+  const executeTransfer = () => {
+    if (submitLockRef.current || pending || !recipientPreview) return
+    submitLockRef.current = true
+
+    startTransition(async () => {
+      try {
+        const result = await submitWalletTransfer({
+          method,
+          recipientQuery: recipient.trim(),
+          amountUsd: Number(amount),
+          message: message.trim() || undefined,
+        })
+
+        if (!result.success) {
+          toast.error(t('failed'), { description: result.error })
+          return
+        }
+
+        setConfirmOpen(false)
+        setStep(4)
+        toast.success(t('transferCompleted'), {
+          description: t('transferCompletedDesc', { reference: result.referenceId ?? '' }),
+        })
+        setRecipient('')
+        setRecipientPreview(null)
+        setMessage('')
+        reloadWallet()
+        reloadTransactions()
+        router.refresh()
+        window.dispatchEvent(new Event('primefx:transactions-updated'))
+      } finally {
+        submitLockRef.current = false
+      }
+    })
+  }
 
   const handleContinue = () => {
     if (!kyc.loading && !kyc.verified) {
@@ -172,6 +221,10 @@ export function TransferPageView() {
     }
 
     if (step === 1) {
+      if (selfTransfer) {
+        toast.error(t('selfTransferError'))
+        return
+      }
       if (!recipientPreview) {
         toast.error(t('recipientNotFound'))
         return
@@ -199,31 +252,7 @@ export function TransferPageView() {
     }
 
     if (step === 3) {
-      startTransition(async () => {
-        const result = await submitWalletTransfer({
-          method,
-          recipientQuery: recipient.trim(),
-          amountUsd: Number(amount),
-          message: message.trim() || undefined,
-        })
-
-        if (!result.success) {
-          toast.error(t('failed'), { description: result.error })
-          return
-        }
-
-        setStep(4)
-        toast.success(t('transferCompleted'), {
-          description: t('transferCompletedDesc', { reference: result.referenceId ?? '' }),
-        })
-        setRecipient('')
-        setRecipientPreview(null)
-        setMessage('')
-        reloadWallet()
-        reloadTransactions()
-        router.refresh()
-        window.dispatchEvent(new Event('primefx:transactions-updated'))
-      })
+      setConfirmOpen(true)
     }
   }
 
@@ -239,7 +268,7 @@ export function TransferPageView() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className={cn('min-w-0', pageStackClass)}>
       <WalletPageHeader title={t('title')} description={t('description')} />
 
       <KycFinancialBanner />
@@ -251,26 +280,30 @@ export function TransferPageView() {
         errorTitle={t('loadWalletError')}
         skeleton={<MetricCardsSkeleton count={4} />}
       >
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
           <WalletStatCard
+            compact
             label={t('availableBalance')}
             value={wallet?.availableBalance ?? '$0.00'}
             subtext={tBalances('usdWallet')}
             icon={Send}
           />
           <WalletStatCard
+            compact
             label={t('sentToday')}
             value={`$${sentToday.toFixed(2)}`}
             icon={ArrowUpRight}
             iconClassName="bg-emerald-50 text-emerald-600"
           />
           <WalletStatCard
+            compact
             label={t('receivedToday')}
             value={`$${receivedToday.toFixed(2)}`}
             icon={ArrowRight}
             iconClassName="bg-blue-50 text-[#0052ff]"
           />
           <WalletStatCard
+            compact
             label={tActivity('transfers')}
             value={`$${transferTx.reduce((s, tx) => s + Math.abs(tx.amountValue), 0).toFixed(2)}`}
             subtext={`${transferTx.length} ${tDeposit('transactions')}`}
@@ -280,63 +313,63 @@ export function TransferPageView() {
         </div>
       </AsyncState>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px]">
-        <div className="space-y-6">
+      <div className={cn('grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px]', gridGapClass)}>
+        <div className={sectionStackClass}>
           {wallet?.primeFxId ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+            <div className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">{t('yourIdTitle')}</h2>
-                  <p className="mt-1 text-sm text-gray-600">{t('yourIdDesc')}</p>
+                  <h2 className="text-lg font-bold text-foreground">{t('yourIdTitle')}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">{t('yourIdDesc')}</p>
                 </div>
               </div>
-              <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-gray-500">{t('primeFxIdLabel')}</p>
-                    <p className="mt-1 break-all font-mono text-sm font-semibold text-gray-900">
-                      {wallet.primeFxId}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCopyPrimeFxId}
-                    className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                  >
+              <div className="mt-4 flex flex-wrap items-start justify-between gap-3 rounded-xl border border-border bg-muted/30 p-4">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-muted-foreground">{t('primeFxIdLabel')}</p>
+                  <p className="mt-1 break-all font-mono text-sm font-semibold text-foreground">
+                    {wallet.primeFxId}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCopyPrimeFxId}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted sm:whitespace-nowrap"
+                >
                     <Copy className="h-4 w-4" />
                     {t('copyId')}
-                  </button>
-                </div>
+                </button>
               </div>
             </div>
           ) : null}
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
             <WalletStepIndicator
               steps={[t('stepRecipient'), t('stepAmount'), t('stepReview'), t('stepConfirm')]}
               current={step}
             />
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900">{t('sendMoney')}</h2>
+          <div id="transfer-form" className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
+            <h2 className="text-lg font-bold text-foreground">{t('sendMoney')}</h2>
 
             {step < 4 ? (
               <>
-                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3">
                   {TRANSFER_METHODS.map((item) => (
                     <button
                       key={item.id}
                       type="button"
                       onClick={() => {
                         setMethod(item.id)
+                        setRecipient('')
                         setRecipientPreview(null)
+                        setSelfTransfer(false)
                       }}
                       className={cn(
-                        'rounded-xl border px-4 py-3 text-sm font-semibold',
+                        'min-h-[44px] rounded-xl border px-4 py-3 text-sm font-semibold transition-colors',
                         method === item.id
-                          ? 'border-[#0052ff] bg-blue-50 text-[#0052ff]'
-                          : 'border-gray-200 text-gray-700'
+                          ? 'border-[#0052ff] bg-[#0052ff]/5 text-[#0052ff]'
+                          : 'border-border text-foreground hover:border-[#0052ff]/30'
                       )}
                     >
                       {t(item.labelKey)}
@@ -345,46 +378,47 @@ export function TransferPageView() {
                 </div>
 
                 <div className="mt-5">
-                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('recipient')}</label>
+                  <label className="mb-2 block text-sm font-medium text-foreground">{t('recipient')}</label>
                   <input
+                    ref={recipientInputRef}
                     type="text"
                     value={recipient}
                     onChange={(e) => setRecipient(e.target.value)}
-                    placeholder={
-                      method === 'email'
-                        ? t('placeholderEmail')
-                        : method === 'id'
-                          ? t('placeholderId')
-                          : t('placeholderUsername')
-                    }
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-[#0052ff] focus:outline-none"
+                    placeholder={method === 'email' ? t('placeholderEmail') : t('placeholderId')}
+                    className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm focus:border-[#0052ff] focus:outline-none focus:ring-2 focus:ring-[#0052ff]/20"
                     disabled={step > 1 || pending}
+                    autoComplete="off"
                   />
                 </div>
 
                 {lookupPending ? (
-                  <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+                  <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
                     <Loader2 className="h-4 w-4 animate-spin" />
                     {t('lookingUpRecipient')}
                   </div>
+                ) : selfTransfer ? (
+                  <p className="mt-3 text-sm font-medium text-red-600">{t('selfTransferError')}</p>
                 ) : recipientPreview ? (
-                  <div className="mt-4 flex items-center gap-3 rounded-xl border border-gray-100 bg-gray-50 p-4">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#0052ff]/10 text-[#0052ff]">
+                  <div className="mt-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#0052ff]/10 text-[#0052ff]">
                       <User className="h-6 w-6" />
                     </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold text-foreground">
                           {recipientPreview.fullName || recipientPreview.email}
                         </p>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                          <CheckCircle2 className="h-3 w-3" aria-hidden />
+                          {t('verified')}
+                        </span>
                         {recipientPreview.kycVerified ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {t('verified')}
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-700">
+                            {t('kycVerifiedBadge')}
                           </span>
                         ) : null}
                       </div>
-                      <p className="text-sm text-gray-500">{recipientPreview.primeFxId}</p>
+                      <p className="truncate text-sm text-muted-foreground">{recipientPreview.primeFxId}</p>
                     </div>
                   </div>
                 ) : recipient.trim().length >= 3 ? (
@@ -459,7 +493,7 @@ export function TransferPageView() {
                   type="button"
                   disabled={pending}
                   onClick={handleContinue}
-                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0052ff] px-6 py-3.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+                  className="mt-6 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0052ff] px-6 py-3.5 text-sm font-semibold text-white hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {pending ? t('processing') : step === 3 ? t('confirmTransfer') : t('continue')}
@@ -482,7 +516,7 @@ export function TransferPageView() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className={cn('grid grid-cols-1 lg:grid-cols-2', gridGapClass)}>
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
               <h3 className="font-semibold text-gray-900">{t('conditionsTitle')}</h3>
               <ul className="mt-4 space-y-2 text-sm text-gray-600">
@@ -519,21 +553,41 @@ export function TransferPageView() {
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <h3 className="mb-4 font-semibold text-gray-900">{t('quickActions')}</h3>
             <div className="grid grid-cols-2 gap-2">
-              {[
-                { label: t('sendMoneyAction'), icon: Send },
-                { label: t('requestMoney'), icon: ArrowRight },
-                { label: t('scanQr'), icon: QrCode },
-                { label: t('transferHistory'), icon: History },
-              ].map((action) => (
-                <button
-                  key={action.label}
-                  type="button"
-                  className="flex flex-col items-center gap-2 rounded-xl border border-gray-200 p-4 text-xs font-semibold text-gray-700 hover:bg-gray-50"
-                >
-                  <action.icon className="h-5 w-5 text-[#0052ff]" />
-                  {action.label}
-                </button>
-              ))}
+              <button
+                type="button"
+                onClick={() => recipientInputRef.current?.focus()}
+                className="flex min-h-[44px] flex-col items-center justify-center gap-2 rounded-xl border border-border p-4 text-xs font-semibold text-foreground hover:bg-muted"
+              >
+                <Send className="h-5 w-5 text-[#0052ff]" />
+                {t('sendMoneyAction')}
+              </button>
+              <button
+                type="button"
+                disabled
+                aria-disabled
+                title={t('comingSoonAction')}
+                className="flex min-h-[44px] cursor-not-allowed flex-col items-center justify-center gap-2 rounded-xl border border-border p-4 text-xs font-semibold text-muted-foreground opacity-50"
+              >
+                <ArrowRight className="h-5 w-5" />
+                {t('requestMoney')}
+              </button>
+              <button
+                type="button"
+                disabled
+                aria-disabled
+                title={t('comingSoonAction')}
+                className="flex min-h-[44px] cursor-not-allowed flex-col items-center justify-center gap-2 rounded-xl border border-border p-4 text-xs font-semibold text-muted-foreground opacity-50"
+              >
+                <QrCode className="h-5 w-5" />
+                {t('scanQr')}
+              </button>
+              <Link
+                href="/transactions"
+                className="flex min-h-[44px] flex-col items-center justify-center gap-2 rounded-xl border border-border p-4 text-xs font-semibold text-foreground hover:bg-muted"
+              >
+                <History className="h-5 w-5 text-[#0052ff]" />
+                {t('transferHistory')}
+              </Link>
             </div>
           </div>
 
@@ -592,7 +646,20 @@ export function TransferPageView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <TransferConfirmDialog
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={executeTransfer}
+        isProcessing={pending}
+        recipientName={recipientPreview?.fullName || recipientPreview?.email || ''}
+        recipientId={recipientPreview?.primeFxId || ''}
+        amount={Number(amount).toFixed(2)}
+        fee={transferFees.fee.toFixed(2)}
+        totalDebit={transferFees.senderTotal.toFixed(2)}
+        message={message.trim() || undefined}
+      />
+
+      <div className={cn('grid grid-cols-2 lg:grid-cols-4', gridGapClass)}>
         {[
           { icon: Zap, label: t('featureInstant') },
           { icon: Send, label: t('featureFee') },

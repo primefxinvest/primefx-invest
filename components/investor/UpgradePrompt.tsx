@@ -56,7 +56,7 @@ export function UpgradePrompt({
             currency: 'USD',
             maximumFractionDigits: 0,
           }),
-          range: required.roiRange,
+          range: required.weeklyReturn,
         })}
       </p>
       <Link

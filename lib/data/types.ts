@@ -5,9 +5,8 @@ export interface InvestmentPlan {
   name: string
   weeklyRoi: string
   weeklyRoiLabel: string
-  roiRange: string
-  monthlyRoi: string
-  riskLevel: string
+  category: string
+  targetInvestor: string
   minInvestment: string
   minAmount: number
   duration: string
@@ -26,9 +25,46 @@ export interface PortfolioMetrics {
   trends: { percentage: string; label: string }[]
 }
 
+export interface InvestmentSummaryStats {
+  activeCount: number
+  totalWeeklyEarnings: string
+  totalProfitsEarned: string
+}
+
+export interface PortfolioInvestmentWithdrawalItem {
+  id: string
+  amountUsd: number
+  status: string
+  requestedAt: string
+  availableAt: string
+  referenceId: string | null
+}
+
+export interface PortfolioInvestmentItem {
+  id: string
+  displayId: string
+  referenceId: string | null
+  plan: string
+  category: string
+  categoryColor: string
+  iconBg: string
+  invested: string
+  investedAmount: number
+  currentValue: string
+  weeklyReturn: string
+  weeklyReturnPercent: number
+  createdAt: string
+  nextPayoutDate: string
+  accumulatedProfit: string
+  roi: string
+  status: string
+  withdrawalHistory: PortfolioInvestmentWithdrawalItem[]
+}
+
 /** Raw + derived dashboard payload from a single data fetch. */
 export interface DashboardCoreData {
   metrics: PortfolioMetrics
+  investmentStats: InvestmentSummaryStats
   wallet: WalletData
   allocation: AssetAllocationItem[]
   investments: InvestmentDbRow[]

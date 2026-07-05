@@ -27,7 +27,7 @@ const DashboardCommandMenu = dynamic(
 )
 
 function usePlatformShortcut() {
-  const [shortcut, setShortcut] = useState('Ctrl+K')
+  const [shortcut, setShortcut] = useState<string | null>(null)
 
   useEffect(() => {
     setShortcut(/Mac|iPhone|iPad/i.test(navigator.userAgent) ? '⌘K' : 'Ctrl+K')
@@ -109,8 +109,11 @@ export default function Navbar() {
             <span className="min-w-0 flex-1 truncate text-sm text-gray-500">
               {t('searchPlaceholder')}
             </span>
-            <kbd className="hidden shrink-0 rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-400 md:inline">
-              {shortcut}
+            <kbd
+              className="hidden shrink-0 rounded border border-gray-200 bg-white px-1.5 py-0.5 text-[10px] font-medium text-gray-400 md:inline"
+              suppressHydrationWarning
+            >
+              {shortcut ?? 'Ctrl+K'}
             </kbd>
           </button>
 

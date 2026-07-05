@@ -43,8 +43,8 @@ export interface InvestorTierConfig {
   key: InvestorTierKey
   label: string
   minimumInvestment: number
-  roiRange: string
-  riskLevel: string
+  weeklyReturn: string
+  category: string
   badge: string
   features: InvestorFeature[]
 }

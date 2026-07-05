@@ -1,19 +1,18 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import { ArrowDownLeft, Clock, Loader2, Wallet } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, Clock, History, Wallet } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useRouter } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import { toast } from 'sonner'
 import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
 import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
 import { WalletStatCard } from '@/components/wallet/layout/WalletStatCard'
-import {
-  WalletHelpPanel,
-  WalletLimitsPanel,
-  WalletRecentPanel,
-} from '@/components/wallet/layout/WalletSidePanels'
+import { WalletHelpPanel, WalletRecentPanel } from '@/components/wallet/layout/WalletSidePanels'
 import { WithdrawFormCard } from '@/components/wallet/withdraw/WithdrawFormCard'
+import { WithdrawSummaryCard } from '@/components/wallet/withdraw/WithdrawSummaryCard'
+import { WithdrawTrustPanel } from '@/components/wallet/withdraw/WithdrawTrustPanel'
+import { WithdrawLimitsCard } from '@/components/wallet/withdraw/WithdrawLimitsCard'
 import { AsyncState } from '@/components/shared/data-state'
 import { MetricCardsSkeleton } from '@/components/shared/skeletons'
 import { useWalletPageData } from '@/lib/hooks/useWalletPageData'
@@ -22,18 +21,29 @@ import { kycBlockReason, kycFallbackMessage } from '@/lib/investor/kyc-i18n'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 import type { PaymentProviderOptions } from '@/lib/payments/types'
 import {
-  buildWithdrawalCurrencyOptions,
-  DEFAULT_WITHDRAW_CURRENCY,
-} from '@/lib/payments/currency-options'
+  getNetworksForAsset,
+  resolveApiCurrency,
+  WITHDRAW_ASSETS,
+  type WithdrawAssetId,
+} from '@/lib/payments/withdraw-networks'
 import { initiateWithdrawal } from '@/lib/wallet/actions'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
-import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/fees/constants'
+import { calculateWithdrawalFee } from '@/lib/fees/constants'
 import { pageStackClass, sectionStackClass } from '@/lib/layout/spacing'
 import { cn } from '@/lib/utils'
 
 type WithdrawPageViewProps = {
   initialPaymentOptions: PaymentProviderOptions
+}
+
+function pickDefaultAsset(availableApiCurrencies: string[]): WithdrawAssetId {
+  for (const asset of WITHDRAW_ASSETS) {
+    if (getNetworksForAsset(asset.id, availableApiCurrencies).length > 0) {
+      return asset.id
+    }
+  }
+  return 'USDT'
 }
 
 export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProps) {
@@ -55,20 +65,25 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
     reloadTransactions,
   } = useWalletPageData()
 
-  const [amount, setAmount] = useState('500')
-  const [currency, setCurrency] = useState(() => {
-    const first = initialPaymentOptions.withdrawalCurrencies[0]?.value
-    return first ?? DEFAULT_WITHDRAW_CURRENCY
+  const availableApiCurrencies = useMemo(() => {
+    if (initialPaymentOptions.withdrawalCurrencies.length > 0) {
+      return initialPaymentOptions.withdrawalCurrencies.map((c) => c.value)
+    }
+    return ['USDT_TRC20', 'BTC', 'ETH', 'USDC', 'BNB', 'SOL', 'MATIC']
+  }, [initialPaymentOptions.withdrawalCurrencies])
+
+  const cryptoWithdrawalsEnabled = initialPaymentOptions.nowPaymentsEnabled
+
+  const [amount, setAmount] = useState('')
+  const [assetId, setAssetId] = useState<WithdrawAssetId>(() =>
+    pickDefaultAsset(availableApiCurrencies)
+  )
+  const [networkId, setNetworkId] = useState(() => {
+    const networks = getNetworksForAsset(pickDefaultAsset(availableApiCurrencies), availableApiCurrencies)
+    return networks[0]?.id ?? 'TRC20'
   })
   const [address, setAddress] = useState('')
-  const [note, setNote] = useState('')
   const [pending, startTransition] = useTransition()
-
-  const currencies =
-    initialPaymentOptions.withdrawalCurrencies.length > 0
-      ? initialPaymentOptions.withdrawalCurrencies
-      : buildWithdrawalCurrencyOptions()
-  const nowPaymentsEnabled = initialPaymentOptions.nowPaymentsEnabled
 
   const available = useMemo(() => {
     const match = wallet?.availableBalance?.replace(/[^0-9.-]/g, '')
@@ -96,7 +111,14 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
   const withdrawableAmount = Math.max(0, available - pendingTotal)
   const amountNum = Number(amount) || 0
   const minWithdrawal = INVESTOR_RULES.financial.minimumWithdrawal
-  const withdrawBlocked = kyc.loading || kyc.fetchError || !kyc.verified || !nowPaymentsEnabled
+  const withdrawBlocked = kyc.loading || kyc.fetchError || !kyc.verified || !cryptoWithdrawalsEnabled
+
+  const selectedNetwork = getNetworksForAsset(assetId, availableApiCurrencies).find(
+    (n) => n.id === networkId
+  )
+  const networkFee = selectedNetwork?.estimatedFeeUsd ?? 0
+  const { fee: platformFee, netAmount } = calculateWithdrawalFee(amountNum)
+  const youWillReceive = Math.max(0, Math.round((netAmount - networkFee) * 100) / 100)
 
   const recentWithdrawals = useMemo(
     () =>
@@ -146,10 +168,8 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
       return
     }
 
-    if (!nowPaymentsEnabled) {
-      toast.error(tDeposit('nowPaymentsConfigError'), {
-        description: tDeposit('nowPaymentsConfigHint'),
-      })
+    if (!cryptoWithdrawalsEnabled) {
+      toast.error(t('cryptoUnavailable'))
       return
     }
 
@@ -158,33 +178,42 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
       return
     }
 
+    const apiCurrency = resolveApiCurrency(assetId, networkId, availableApiCurrencies)
+    if (!apiCurrency) {
+      toast.error(t('noNetworksAvailable'))
+      return
+    }
+
     startTransition(async () => {
       const result = await initiateWithdrawal({
         amountUsd: amountNum,
-        currency,
+        currency: apiCurrency,
         address: address.trim(),
       })
       if (!result.success) {
         toast.error(t('failed'), { description: result.error })
         return
       }
-      toast.success(t('submitted'), { description: t('nowPaymentsProcessing') })
+      toast.success(t('submitted'), { description: t('submittedDesc') })
       setAmount('')
       setAddress('')
-      setNote('')
       router.refresh()
     })
   }
 
   return (
-    <div className={cn('min-w-0 pb-24 md:pb-0', pageStackClass)}>
+    <div className={cn('min-w-0 pb-28 md:pb-0', pageStackClass)}>
       <WalletPageHeader
         title={t('title')}
         description={t('description')}
         actions={
-          <span className="inline-flex items-center rounded-lg border border-border bg-card px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
-            {t('limitsNotice')}: {WITHDRAWAL_NOTICE_DAYS} {t('days')}
-          </span>
+          <Link
+            href="/transactions"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-border bg-card px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+          >
+            <History className="h-4 w-4 text-[#0052ff]" aria-hidden />
+            {t('withdrawalHistory')}
+          </Link>
         }
       />
 
@@ -208,14 +237,6 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
           />
           <WalletStatCard
             compact
-            label={t('pendingWithdrawal')}
-            value={`$${pendingTotal.toFixed(2)}`}
-            subtext={`${pendingWithdrawals.length} ${pendingWithdrawals.length === 1 ? t('request') : t('requests')}`}
-            icon={Clock}
-            iconClassName="bg-amber-50 text-amber-600"
-          />
-          <WalletStatCard
-            compact
             label={t('totalWithdrawn')}
             value={`$${totalWithdrawn.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
             subtext={tBalances('allTime')}
@@ -224,43 +245,72 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
           />
           <WalletStatCard
             compact
+            label={t('pendingWithdrawal')}
+            value={`$${pendingTotal.toFixed(2)}`}
+            subtext={`${pendingWithdrawals.length} ${pendingWithdrawals.length === 1 ? t('request') : t('requests')}`}
+            icon={Clock}
+            iconClassName="bg-amber-50 text-amber-600"
+          />
+          <WalletStatCard
+            compact
             label={t('withdrawableBalance')}
             value={`$${withdrawableAmount.toFixed(2)}`}
             subtext={tBalances('afterFees')}
-            icon={Loader2}
+            icon={ArrowUpRight}
             iconClassName="bg-indigo-50 text-indigo-600"
           />
         </div>
       </AsyncState>
 
-      <div className={cn('grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_280px]', sectionStackClass)}>
-        <WithdrawFormCard
-          amount={amount}
-          onAmountChange={setAmount}
-          currency={currency}
-          onCurrencyChange={setCurrency}
-          currencies={currencies}
-          address={address}
-          onAddressChange={setAddress}
-          note={note}
-          onNoteChange={setNote}
-          available={withdrawableAmount}
-          onSubmit={handleSubmit}
-          isProcessing={pending}
-          kycLoading={kyc.loading}
-          withdrawDisabled={withdrawBlocked}
-          nowPaymentsEnabled={nowPaymentsEnabled}
-        />
-
-        <aside className="space-y-3 xl:sticky xl:top-24 xl:self-start">
-          <WalletLimitsPanel
-            rules={[
-              { label: t('limitsMin'), value: '$10.00' },
-              { label: t('limitsMax'), value: '$10,000.00' },
-              { label: t('limitsFee'), value: '5%' },
-              { label: t('limitsNotice'), value: `${WITHDRAWAL_NOTICE_DAYS} ${t('days')}` },
-            ]}
+      <div
+        className={cn(
+          'grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_340px]',
+          sectionStackClass
+        )}
+      >
+        <div className="min-w-0 space-y-5">
+          <WithdrawFormCard
+            amount={amount}
+            onAmountChange={setAmount}
+            assetId={assetId}
+            onAssetChange={(next) => {
+              setAssetId(next)
+              const networks = getNetworksForAsset(next, availableApiCurrencies)
+              setNetworkId(networks[0]?.id ?? '')
+            }}
+            networkId={networkId}
+            onNetworkChange={setNetworkId}
+            availableApiCurrencies={availableApiCurrencies}
+            address={address}
+            onAddressChange={setAddress}
+            available={withdrawableAmount}
+            onSubmit={handleSubmit}
+            isProcessing={pending}
+            kycLoading={kyc.loading}
+            withdrawDisabled={withdrawBlocked}
+            cryptoWithdrawalsEnabled={cryptoWithdrawalsEnabled}
           />
+
+          <div className="lg:hidden">
+            <WithdrawTrustPanel />
+          </div>
+        </div>
+
+        <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+          <WithdrawSummaryCard
+            withdrawalAmount={`$${amountNum > 0 ? amountNum.toFixed(2) : '0.00'}`}
+            networkFee={`$${networkFee.toFixed(2)}`}
+            platformFee={`$${platformFee.toFixed(2)}`}
+            youWillReceive={`$${youWillReceive.toFixed(2)}`}
+            processingTime={t('processingTimeRange')}
+          />
+
+          <WithdrawLimitsCard verified={kyc.verified} />
+
+          <div className="hidden lg:block">
+            <WithdrawTrustPanel />
+          </div>
+
           <WalletRecentPanel
             title={t('recentWithdrawals')}
             items={recentWithdrawals}
@@ -270,6 +320,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
             emptyTitle={t('noWithdrawalsTitle')}
             emptyDescription={t('noWithdrawalsDesc')}
           />
+
           <WalletHelpPanel />
         </aside>
       </div>

@@ -101,9 +101,9 @@ function InvestPlanCard({
         <StatRow icon={Clock} label="Payout" value={plan.payout} />
         <StatRow
           icon={Shield}
-          label="Risk Level"
-          value={plan.riskLevel}
-          valueClassName={theme.riskColor}
+          label="Category"
+          value={plan.category}
+          valueClassName={cn('text-[10px] font-bold tracking-wide', theme.badge)}
         />
         <StatRow icon={User} label="Access" value={plan.capitalAccess} />
         <StatRow

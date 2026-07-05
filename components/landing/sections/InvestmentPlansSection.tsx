@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils'
 import { fetchPublicInvestmentPlans } from '@/lib/invest/public-plans'
 import {
   formatPlanDisplayName,
-  formatPlanRiskLabel,
 } from '@/lib/invest/plan-mapper'
 import { getLandingPlanTheme } from '@/lib/invest/plan-config'
 
@@ -109,10 +108,10 @@ export default async function InvestmentPlansSection() {
                   <span
                     className={cn(
                       'mt-1.5 inline-flex w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                      theme.riskColor
+                      theme.badge
                     )}
                   >
-                    {formatPlanRiskLabel(plan.riskLevel)}
+                    {plan.category}
                   </span>
 
                   <div className="mt-4">

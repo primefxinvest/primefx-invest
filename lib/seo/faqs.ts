@@ -12,7 +12,7 @@ export const LANDING_FAQS = [
   {
     question: 'How often can I withdraw my profits?',
     answer:
-      'Profits are credited to your wallet every trading day (Monday–Friday). You can withdraw anytime, and capital has no lock-in periods.',
+      'Profits are distributed to your wallet every week. You can withdraw anytime, and capital has no lock-in periods.',
   },
   {
     question: 'How does the AI investment system work?',
@@ -22,7 +22,7 @@ export const LANDING_FAQS = [
   {
     question: 'What returns can I realistically expect?',
     answer:
-      'Returns vary by plan and market conditions. Our Starter Plan targets 8–15% monthly ROI, while Elite plans can reach 40–60%. Past performance does not guarantee future results.',
+      'Returns vary by plan and market conditions. Weekly target returns range from 3% on the Starter Plan to 5% on the Elite Plan. Past performance does not guarantee future results.',
   },
   {
     question: 'Do I need investment experience to get started?',

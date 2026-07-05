@@ -9,8 +9,8 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
     key: 'starter',
     label: 'Starter Investor',
     minimumInvestment: 50,
-    roiRange: '8% - 15%',
-    riskLevel: 'Low',
+    weeklyReturn: '3%',
+    category: 'FOR BEGINNERS',
     badge: '🌱',
     features: [
       'basic_dashboard',
@@ -24,8 +24,8 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
     key: 'growth',
     label: 'Growth Investor',
     minimumInvestment: 200,
-    roiRange: '15% - 25%',
-    riskLevel: 'Medium',
+    weeklyReturn: '3.5%',
+    category: 'GROW YOUR WEALTH',
     badge: '📈',
     features: [
       'full_dashboard',
@@ -40,8 +40,8 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
     key: 'prime',
     label: 'Prime Investor',
     minimumInvestment: 500,
-    roiRange: '25% - 40%',
-    riskLevel: 'High',
+    weeklyReturn: '4%',
+    category: 'BEST VALUE',
     badge: '💎',
     features: [
       'advanced_dashboard',
@@ -58,8 +58,8 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
     key: 'elite',
     label: 'Elite Investor',
     minimumInvestment: 1000,
-    roiRange: '40% - 60%',
-    riskLevel: 'Very High',
+    weeklyReturn: '5%',
+    category: 'PREMIUM ACCESS',
     badge: '👑',
     features: [
       'premium_dashboard',

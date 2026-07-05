@@ -16,7 +16,7 @@ const compareRows: { key: keyof InvestmentPlan; label: string }[] = [
   { key: 'minInvestment', label: 'Minimum' },
   { key: 'duration', label: 'Duration' },
   { key: 'payout', label: 'Payout' },
-  { key: 'riskLevel', label: 'Risk Level' },
+  { key: 'targetInvestor', label: 'Target Investor' },
   { key: 'capitalAccess', label: 'Capital Access' },
   { key: 'investors', label: 'Investors' },
 ]
@@ -42,8 +42,16 @@ function PlanCompareView({ plans, onInvest }: PlanCompareViewProps) {
                 </div>
                 <div className="min-w-0 flex-1">
                   <h3 className="font-semibold text-gray-900">{plan.name}</h3>
+                  <span
+                    className={cn(
+                      'mt-1 inline-flex rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wide',
+                      theme.badge
+                    )}
+                  >
+                    {plan.category}
+                  </span>
                   {plan.popular ? (
-                    <span className="mt-1 inline-block rounded-full bg-purple-600 px-2 py-0.5 text-[9px] font-bold text-white">
+                    <span className="ml-1.5 inline-block rounded-full bg-purple-600 px-2 py-0.5 text-[9px] font-bold text-white">
                       POPULAR
                     </span>
                   ) : null}
@@ -53,12 +61,7 @@ function PlanCompareView({ plans, onInvest }: PlanCompareViewProps) {
                 {compareRows.map((row) => (
                   <div key={row.label} className="flex items-center justify-between gap-3">
                     <dt className="text-gray-500">{row.label}</dt>
-                    <dd
-                      className={cn(
-                        'font-semibold text-gray-900',
-                        row.key === 'riskLevel' && theme.riskColor
-                      )}
-                    >
+                    <dd className="text-right font-semibold text-gray-900">
                       {String(plan[row.key] ?? '—')}
                     </dd>
                   </div>
@@ -119,6 +122,14 @@ function PlanCompareView({ plans, onInvest }: PlanCompareViewProps) {
                         <Icon className="h-4 w-4" />
                       </div>
                       <span className="text-xs font-bold leading-tight text-gray-900 sm:text-sm">{plan.name}</span>
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-[8px] font-bold tracking-wide',
+                          theme.badge
+                        )}
+                      >
+                        {plan.category}
+                      </span>
                       {plan.popular && (
                         <span className="rounded-full bg-purple-600 px-2 py-0.5 text-[9px] font-bold text-white">
                           POPULAR
@@ -137,20 +148,14 @@ function PlanCompareView({ plans, onInvest }: PlanCompareViewProps) {
                 className={cn('border-b border-gray-50', rowIndex % 2 === 1 && 'bg-gray-50/40')}
               >
                 <td className="px-4 py-3.5 text-sm font-medium text-gray-500">{row.label}</td>
-                {plans.map((plan, idx) => {
-                  const theme = getPlanTheme(plan, idx)
-                  return (
-                    <td
-                      key={plan.id}
-                      className={cn(
-                        'px-3 py-3.5 text-center text-xs font-semibold tabular-nums text-gray-900 sm:text-sm',
-                        row.key === 'riskLevel' && theme.riskColor
-                      )}
-                    >
-                      {String(plan[row.key] ?? '—')}
-                    </td>
-                  )
-                })}
+                {plans.map((plan) => (
+                  <td
+                    key={plan.id}
+                    className="px-3 py-3.5 text-center text-xs font-semibold tabular-nums text-gray-900 sm:text-sm"
+                  >
+                    {String(plan[row.key] ?? '—')}
+                  </td>
+                ))}
               </tr>
             ))}
             <tr className="border-b border-gray-50 bg-gray-50/40">

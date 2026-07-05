@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { LayoutGrid, Scale, Star, Table2 } from 'lucide-react'
 import { AsyncState } from '@/components/shared/data-state'
@@ -25,15 +26,11 @@ import { cn } from '@/lib/utils'
 import { pageStackClass, gridGapClass, pageHeaderGapClass } from '@/lib/layout/spacing'
 import { dashboardCardClass, dashboardMutedTextClass } from '@/lib/layout/surfaces'
 
-type ViewMode = 'table' | 'grid' | 'compare'
-
-const VIEW_MODES: { id: ViewMode; label: string; icon: typeof Table2 }[] = [
-  { id: 'table', label: 'Table', icon: Table2 },
-  { id: 'grid', label: 'Cards', icon: LayoutGrid },
-  { id: 'compare', label: 'Compare', icon: Scale },
-]
+const VIEW_MODE_IDS = ['table', 'grid', 'compare'] as const
+type ViewMode = (typeof VIEW_MODE_IDS)[number]
 
 export default function InvestPage() {
+  const t = useTranslations('invest')
   const searchParams = useSearchParams()
   const { data: investmentPlans, loading: plansLoading, error: plansError, reload: reloadPlans } =
     useInvestmentPlans()
@@ -91,10 +88,23 @@ export default function InvestPage() {
   )
 
   const handleInvestSuccess = useCallback((plan: InvestmentPlan, amount: number) => {
-    toast.success('Investment confirmed', {
-      description: `Successfully invested $${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })} in ${plan.name}.`,
+    toast.success(t('toast.confirmed'), {
+      description: t('toast.confirmedDescription', {
+        amount: `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+        plan: plan.name,
+      }),
     })
-  }, [])
+  }, [t])
+
+  const viewModes = useMemo(
+    () =>
+      [
+        { id: 'table' as const, label: t('viewModes.table'), icon: Table2 },
+        { id: 'grid' as const, label: t('viewModes.grid'), icon: LayoutGrid },
+        { id: 'compare' as const, label: t('viewModes.compare'), icon: Scale },
+      ] as const,
+    [t]
+  )
 
   const scrollToRecommendation = useCallback(() => {
     if (!recommendedPlan) return
@@ -123,9 +133,9 @@ export default function InvestPage() {
       <div className={cn('min-w-0', pageStackClass)}>
         <header className={cn('flex flex-col', pageHeaderGapClass)}>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">Invest</h1>
+            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">{t('title')}</h1>
             <p className={cn('mt-1 max-w-2xl', dashboardMutedTextClass)}>
-              Compare plans, pick one that matches your goals, and invest from your wallet.
+              {t('subtitle')}
             </p>
           </div>
           <KycFinancialBanner />
@@ -136,15 +146,15 @@ export default function InvestPage() {
             <div className="min-w-0">
               <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[10px] font-bold tracking-wide text-[#0052ff]">
                 <Star className="h-3 w-3 fill-[#0052ff]" aria-hidden />
-                {investmentPlans.length} PLANS AVAILABLE
+                {t('plansAvailable', { count: investmentPlans.length })}
               </span>
-              <h2 className="mt-2 text-xl font-bold text-gray-900 sm:text-2xl">Investment Plans</h2>
+              <h2 className="mt-2 text-xl font-bold text-gray-900 sm:text-2xl">{t('sectionTitle')}</h2>
               <p className="mt-1 text-sm text-gray-500">
-                Weekly returns, minimums, and payout schedule — select a plan then invest
+                {t('sectionSubtitle')}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2" role="group" aria-label="Plan view mode">
-              {VIEW_MODES.map(({ id, label, icon: Icon }) => (
+            <div className="flex flex-wrap gap-2" role="group" aria-label={t('viewModeLabel')}>
+              {viewModes.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   type="button"
@@ -169,8 +179,8 @@ export default function InvestPage() {
             error={plansError}
             onRetry={reloadPlans}
             isEmpty={investmentPlans.length === 0}
-            emptyTitle="No investment plans"
-            emptyDescription="Plans will appear here once they are configured in your account."
+            emptyTitle={t('empty.title')}
+            emptyDescription={t('empty.description')}
             skeleton={planSkeleton}
             compact
           >
