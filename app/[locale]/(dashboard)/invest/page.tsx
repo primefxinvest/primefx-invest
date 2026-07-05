@@ -17,6 +17,7 @@ import {
   TrustFeaturesBar,
 } from '@/components/invest/Invest.lazy'
 import InvestModal from '@/components/invest/InvestModal'
+import { InvestDisclaimer } from '@/components/invest/InvestDisclaimer'
 import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { useInvestmentPlans } from '@/lib/hooks/useInvestmentPlans'
@@ -229,6 +230,8 @@ export default function InvestPage() {
             </section>
 
             <TrustFeaturesBar />
+
+            <InvestDisclaimer />
           </div>
 
           <aside className="min-w-0 xl:sticky xl:top-6">

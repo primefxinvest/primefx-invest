@@ -43,7 +43,7 @@ function ReferralMyRankSectionInner({ overview }: ReferralMyRankSectionProps) {
       <ReferralPageHeader
         icon={<Crown className="h-5 w-5 text-amber-500" aria-hidden />}
         title="My Rank"
-        subtitle="Build your team, grow your rank, and earn bigger rewards every week."
+        subtitle="Track your rank progress, team growth, and weekly commission distribution."
         action={
           <Link
             href={referralSectionHref('benefits')}
@@ -311,14 +311,14 @@ function ReferralMyRankSectionInner({ overview }: ReferralMyRankSectionProps) {
             </Link>
           </div>
 
-          <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#0f172a] to-[#1e293b] p-5 text-white">
-            <p className="font-semibold">Top Performer</p>
-            <p className="mt-1 text-sm text-slate-300">
-              Be in the top 10 this month and win an extra $500 bonus!
+          <div className="overflow-hidden rounded-2xl border border-border bg-muted/40 p-5">
+            <p className="font-semibold text-foreground">Top Performers</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Top 10 performers this month may qualify for rank achievement rewards.
             </p>
             <Link
               href={referralSectionHref('leaderboard')}
-              className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-orange-400 hover:underline"
+              className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
             >
               View Leaderboard →
             </Link>

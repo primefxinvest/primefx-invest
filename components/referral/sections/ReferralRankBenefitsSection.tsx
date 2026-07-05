@@ -40,7 +40,7 @@ function ReferralRankBenefitsSectionInner({ overview }: ReferralRankBenefitsSect
       <ReferralPageHeader
         icon={<Crown className="h-5 w-5 text-violet-600" aria-hidden />}
         title="Rank Benefits"
-        subtitle="Climb higher, unlock more, and enjoy premium rewards."
+        subtitle="Each rank unlocks additional commission levels and transparent program benefits."
         action={
           <Link
             href={referralSectionHref('rank')}
@@ -104,23 +104,23 @@ function ReferralRankBenefitsSectionInner({ overview }: ReferralRankBenefitsSect
             </table>
           </div>
 
-          <div className="rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 p-6">
+          <div className="rounded-2xl border border-violet-200 bg-violet-50/50 p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="font-semibold text-foreground">
-                  The Higher You Climb, The More You Earn!
+                  Higher ranks unlock additional commission levels
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Each rank brings bigger rewards, more profit share, and exclusive lifestyle
-                  benefits.
+                  Each rank increases your weekly profit share and program benefits — all rates
+                  disclosed upfront.
                 </p>
               </div>
               <Link
                 href={referralSectionHref('network')}
-                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-primary to-violet-600 px-5 text-sm font-semibold text-white"
+                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground"
               >
                 <Rocket className="h-4 w-4" />
-                Start Building Your Empire
+                View Network Overview
               </Link>
             </div>
           </div>
@@ -161,11 +161,11 @@ function ReferralRankBenefitsSectionInner({ overview }: ReferralRankBenefitsSect
           </div>
 
           <div className={cardSurfaceClass}>
-            <h3 className="font-semibold text-foreground">Exclusive Highlights</h3>
+            <h3 className="font-semibold text-foreground">Rank Program Highlights</h3>
             <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>Higher weekly profit share at every rank</li>
-              <li>One-time rank bonuses up to $2,000</li>
-              <li>Premium support and analytics tools</li>
+              <li>Transparent weekly profit share at each rank</li>
+              <li>One-time rank achievement bonuses (disclosed per tier)</li>
+              <li>Priority support and analytics tools</li>
               <li>Global recognition at Ambassador level</li>
             </ul>
           </div>

@@ -2,6 +2,7 @@
 
 import { memo, type ReactNode } from 'react'
 import { Link } from '@/i18n/navigation'
+import { MotionCard } from '@/lib/motion'
 import { statusCardSurfaceClass } from '@/lib/layout/surfaces'
 import { cn } from '@/lib/utils'
 
@@ -55,7 +56,7 @@ function KpiCardInner({
   className,
 }: KpiCardProps) {
   return (
-    <div
+    <MotionCard
       className={cn(
         statusCardSurfaceClass,
         'flex h-full min-h-[5.5rem] flex-col justify-between sm:min-h-[6rem]',
@@ -98,7 +99,7 @@ function KpiCardInner({
           </div>
         ) : null}
       </div>
-    </div>
+    </MotionCard>
   )
 }
 

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { m, AnimatePresence } from 'framer-motion'
 import { Link, usePathname } from '@/i18n/navigation'
 import { logout } from '@/lib/auth/logout'
 import Logo from '@/components/shared/Logo'
@@ -51,6 +52,8 @@ import { useReferralProgramEnabled } from '@/lib/hooks/useReferralProgramEnabled
 import { fetchNotifications } from '@/lib/data/queries'
 import { CACHE_KEYS } from '@/lib/data/cache-keys'
 import { SIDEBAR_WIDTH_DESKTOP_CLASS, SIDEBAR_WIDTH_MOBILE_CLASS, SIDEBAR_WIDTH_TABLET_CLASS } from '@/lib/layout/sidebar'
+import { MOTION_VARIANTS } from '@/lib/motion/tokens'
+import { useReducedMotion } from '@/lib/motion/use-reduced-motion'
 import {
   NAV_ICON_SLOT,
   NAV_ITEM_ACTIVE,
@@ -134,6 +137,7 @@ export default function Sidebar() {
   const searchParams = useSearchParams()
   const referralSection = parseReferralSection(searchParams.get('section'))
   const { open, close } = useMobileNav()
+  const reducedMotion = useReducedMotion()
   const asideRef = useRef<HTMLElement>(null)
   const [loggingOut, setLoggingOut] = useState(false)
   const [walletOpen, setWalletOpen] = useState(() => isWalletSectionActive(pathname))
@@ -213,14 +217,21 @@ export default function Sidebar() {
 
   return (
     <>
-      {open ? (
-        <button
-          type="button"
-          aria-label={t('closeMenu')}
-          className="fixed inset-0 z-40 bg-gray-900/50 backdrop-blur-[2px] transition-opacity duration-300 lg:hidden"
-          onClick={close}
-        />
-      ) : null}
+      <AnimatePresence>
+        {open ? (
+          <m.button
+            type="button"
+            key="sidebar-backdrop"
+            aria-label={t('closeMenu')}
+            initial={reducedMotion ? false : 'initial'}
+            animate="animate"
+            exit="exit"
+            variants={MOTION_VARIANTS.backdrop}
+            className="fixed inset-0 z-40 bg-gray-900/50 backdrop-blur-[2px] lg:hidden"
+            onClick={close}
+          />
+        ) : null}
+      </AnimatePresence>
 
       <aside
         ref={asideRef}
@@ -234,33 +245,46 @@ export default function Sidebar() {
           open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
-        <div className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-4 lg:px-5">
-          <Logo
-            href="/dashboard"
-            sizeKey="mobileDrawer"
-            showText
-            className="min-w-0 flex-1 md:hidden"
-            priority
-          />
-          <Logo
-            href="/dashboard"
-            sizeKey="sidebarIcon"
-            showText={false}
-            className="hidden shrink-0 md:flex lg:hidden"
-            priority
-          />
-          <Logo
-            href="/dashboard"
-            sizeKey="sidebarFull"
-            showText
-            className="hidden min-w-0 flex-1 lg:flex"
-            priority
-          />
+        {/* Brand lockup — Coinbase / Revolut / Stripe-style header */}
+        <div className="relative flex h-[72px] shrink-0 items-center border-b border-gray-200 lg:h-20">
+          {/* Mobile drawer: optically centered lockup with balanced side insets for close control */}
+          <div className="flex w-full items-center justify-center px-14 md:hidden">
+            <Logo
+              href="/dashboard"
+              size={36}
+              showText
+              className="shrink-0 gap-3"
+              priority
+            />
+          </div>
+
+          {/* Tablet icon rail: mark centered in collapsed sidebar */}
+          <div className="hidden w-full items-center justify-center md:flex lg:hidden">
+            <Logo
+              href="/dashboard"
+              size={36}
+              showText={false}
+              className="shrink-0"
+              priority
+            />
+          </div>
+
+          {/* Desktop: left-aligned lockup with equal horizontal padding */}
+          <div className="hidden w-full items-center px-6 lg:flex">
+            <Logo
+              href="/dashboard"
+              size={36}
+              showText
+              className="min-w-0 shrink-0 gap-3"
+              priority
+            />
+          </div>
+
           <button
             type="button"
             onClick={close}
             aria-label={t('closeNavMenu')}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
+            className="absolute end-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
           >
             <X className="h-5 w-5" />
           </button>

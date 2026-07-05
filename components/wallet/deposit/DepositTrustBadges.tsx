@@ -6,22 +6,18 @@ import {
   Lock,
   Shield,
   ShieldCheck,
-  Sparkles,
   Wallet,
-  Zap,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 
 const TRUST_ITEMS = [
-  { key: 'trustNowPayments', icon: BadgeCheck },
   { key: 'trustSecureCrypto', icon: Lock },
-  { key: 'trustInstantInvoice', icon: Zap },
+  { key: 'trustVerifiedInfra', icon: BadgeCheck },
   { key: 'trustBankGrade', icon: ShieldCheck },
   { key: 'trustFraudProtection', icon: Shield },
   { key: 'trustAutoCredit', icon: Wallet },
   { key: 'trust247', icon: Clock },
-  { key: 'trustVerifiedInfra', icon: Sparkles },
 ] as const
 
 export function DepositTrustBadges({ className }: { className?: string }) {

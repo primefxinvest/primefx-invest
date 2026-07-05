@@ -106,6 +106,10 @@ export function WithdrawReviewDialog({
             </div>
           </dl>
 
+          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+            {t('summaryBlockchainNote')}
+          </p>
+
           <p className="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             {t('irreversibleNotice')}

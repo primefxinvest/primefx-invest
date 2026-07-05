@@ -314,7 +314,7 @@ export function TransactionHistoryView() {
           <ScrollTable>
             <table className="w-full min-w-[900px]">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                <tr className="border-b border-border bg-muted/40 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <th className="px-4 py-3">{t('dateTime')}</th>
                   <th className="px-4 py-3">{t('type')}</th>
                   <th className="px-4 py-3">{t('descriptionCol')}</th>

@@ -75,7 +75,7 @@ const landingEn = {
   },
   journey: {
     eyebrow: 'HOW IT WORKS',
-    title: 'Your Journey To Financial Freedom',
+    title: 'How Investing Works',
     cta: 'Get Started Now',
     steps: [
       {
@@ -213,7 +213,7 @@ const landingEn = {
       {
         question: 'What returns can I realistically expect?',
         answer:
-          'Returns vary by plan and market conditions. Our Starter Plan targets 8–15% monthly ROI, while Elite plans can reach 40–60%. Past performance does not guarantee future results.',
+          'Returns vary by plan and market conditions. Weekly target returns range from 3% on the Starter Plan to 5% on the Elite Plan. Past performance does not guarantee future results.',
       },
       {
         question: 'Do I need investment experience to get started?',

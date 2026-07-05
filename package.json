@@ -9,6 +9,10 @@
     "lint": "eslint .",
     "i18n:validate": "node scripts/validate-i18n.cjs",
     "i18n:sync": "node scripts/sync-locale-keys.cjs",
+    "i18n:sync-trust": "node scripts/sync-trust-locale-keys.cjs",
+    "i18n:clean-orphans": "node scripts/clean-locale-orphans.cjs",
+    "i18n:translate-gaps": "node scripts/translate-gaps.cjs",
+    "i18n:arabic-core": "node scripts/expand-arabic-messages.cjs",
     "i18n:landing": "node scripts/expand-landing-messages.cjs",
     "i18n:dashboard": "node scripts/expand-dashboard-messages.cjs"
   },
@@ -26,6 +30,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
+    "framer-motion": "^12.42.2",
     "lucide-react": "^1.16.0",
     "next": "16.2.6",
     "next-intl": "^4.13.0",

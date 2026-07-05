@@ -1,12 +1,16 @@
 /** Shared card and layout surface tokens — semantic theme classes only. */
 
+/** Shared card hover — GPU-accelerated lift, max scale via MotionCard when interactive. */
+export const cardHoverClass =
+  'transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-md'
+
 /** Primary dashboard card (profile, settings, rewards, community). */
 export const cardSurfaceClass =
-  'rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5'
+  'rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5'
 
 /** Metric / status cards on dashboard and wallet. */
 export const statusCardSurfaceClass =
-  'rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5'
+  'rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5'
 
 /** Admin portal cards — same padding as status cards. */
 export const statusCardAdminSurfaceClass =
@@ -27,7 +31,7 @@ export const panelRadiusClass = 'rounded-xl'
 
 /** Compact dashboard widget card — dense but readable (20px padding). */
 export const dashboardCardClass =
-  'rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5'
+  'rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5'
 
 /** Dashboard section title — primary hierarchy. */
 export const dashboardSectionTitleClass = 'text-sm font-semibold tracking-tight text-foreground sm:text-base'

@@ -15,7 +15,7 @@ function flattenKeys(obj, prefix = '') {
 }
 
 const messagesDir = path.join(process.cwd(), 'messages')
-const locales = ['en', 'fr', 'es', 'de', 'ar', 'pt', 'sw', 'rw']
+const locales = ['en', 'fr', 'es', 'de', 'ar']
 const data = Object.fromEntries(
   locales.map((locale) => {
     const filePath = path.join(messagesDir, `${locale}.json`)

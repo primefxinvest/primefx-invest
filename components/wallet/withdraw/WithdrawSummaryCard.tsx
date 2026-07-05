@@ -56,6 +56,8 @@ export function WithdrawSummaryCard({
           </dt>
           <dd className="text-sm font-semibold text-[#0052ff]">{processingTime}</dd>
         </div>
+
+        <p className="text-[11px] leading-relaxed text-muted-foreground">{t('summaryBlockchainNote')}</p>
       </dl>
     </div>
   )

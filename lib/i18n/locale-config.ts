@@ -47,27 +47,6 @@ export const localeMeta: Record<AppLocale, LocaleMeta> = {
     flag: '🇸🇦',
     languageName: 'Arabic',
   },
-  pt: {
-    label: 'Portuguese',
-    nativeName: 'Português',
-    short: 'PT',
-    flag: '🇵🇹',
-    languageName: 'Portuguese',
-  },
-  sw: {
-    label: 'Swahili',
-    nativeName: 'Kiswahili',
-    short: 'SW',
-    flag: '🇰🇪',
-    languageName: 'Swahili',
-  },
-  rw: {
-    label: 'Kinyarwanda',
-    nativeName: 'Ikinyarwanda',
-    short: 'RW',
-    flag: '🇷🇼',
-    languageName: 'Kinyarwanda',
-  },
 }
 
 export const rtlLocales: AppLocale[] = ['ar']

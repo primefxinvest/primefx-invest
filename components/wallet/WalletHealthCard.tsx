@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { fetchWalletHealth } from '@/lib/data/queries'
 import { ErrorState } from '@/components/shared/data-state'
+import { Skeleton } from '@/components/ui/skeleton'
 import { dashboardCardClass } from '@/lib/layout/surfaces'
 import { cn } from '@/lib/utils'
 
@@ -23,12 +24,12 @@ export default function WalletHealthCard() {
 
   if (loading) {
     return (
-      <div className={cn('flex h-full flex-col', dashboardCardClass)}>
-        <div className="h-4 w-32 animate-pulse rounded bg-gray-100" />
+      <div className={cn('flex h-full flex-col', dashboardCardClass)} aria-busy="true">
+        <Skeleton className="h-4 w-32" />
         <div className="mt-4 flex flex-1 flex-col items-center justify-center gap-3">
-          <div className="h-28 w-28 animate-pulse rounded-full bg-gray-100" />
-          <div className="h-4 w-24 animate-pulse rounded bg-gray-100" />
-          <div className="h-3 w-40 animate-pulse rounded bg-gray-100" />
+          <Skeleton className="h-28 w-28 rounded-full" />
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-3 w-40" />
         </div>
       </div>
     )
@@ -72,7 +73,7 @@ export default function WalletHealthCard() {
         </div>
 
         <p className={`mt-4 text-sm font-semibold ${colors.text}`}>{t(statusKey)}</p>
-        <p className="mt-1 text-center text-xs text-gray-500">{t('encryption')}</p>
+        <p className="mt-1 text-center text-xs text-muted-foreground">{t('encryption')}</p>
 
         <span className={`mt-4 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${colors.bg}`}>
           {statusKey === 'actionRequired' ? t('completeKyc') : t('allNormal')}

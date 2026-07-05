@@ -38,7 +38,7 @@ function DialogPopup({ className, children, ...props }: DialogPrimitive.Popup.Pr
   return (
     <DialogPrimitive.Popup
       className={cn(
-        'relative w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl outline-none',
+        'relative w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl outline-none transition-[transform,opacity] duration-200 ease-out',
         'data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0',
         className
       )}

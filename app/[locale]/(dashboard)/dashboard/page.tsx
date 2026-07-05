@@ -26,6 +26,7 @@ import { formatDate } from '@/lib/data/format'
 import { pageStackClass, pageHeaderGapClass, gridGapClass } from '@/lib/layout/spacing'
 import { dashboardCardClass } from '@/lib/layout/surfaces'
 import { CHART_HEIGHT_AREA, CHART_HEIGHT_DONUT, CHART_SKELETON_AREA_CLASS } from '@/lib/layout/charts'
+import { MotionCard, StaggerContainer, StaggerItem } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 const PERIOD_KEYS = {
@@ -106,7 +107,9 @@ export default function DashboardPage() {
           {t('portfolioPerformance')}
         </h2>
 
-        <div className={cn(dashboardCardClass, 'min-w-0 lg:col-span-2')}>
+        <StaggerContainer className="contents">
+          <StaggerItem className="contents">
+            <MotionCard className={cn(dashboardCardClass, 'min-w-0 lg:col-span-2')}>
           <DashboardSectionHeader
             title={t('portfolioPerformance')}
             action={
@@ -144,9 +147,11 @@ export default function DashboardPage() {
               <PortfolioChart data={chartData ?? []} height={CHART_HEIGHT_AREA} />
             </AsyncState>
           </div>
-        </div>
+            </MotionCard>
+          </StaggerItem>
 
-        <div className={cn(dashboardCardClass, 'min-w-0')}>
+          <StaggerItem className="contents">
+            <MotionCard className={cn(dashboardCardClass, 'min-w-0')}>
           <DashboardSectionHeader
             title={t('assetAllocation')}
             action={
@@ -209,7 +214,9 @@ export default function DashboardPage() {
               </>
             </AsyncState>
           </div>
-        </div>
+            </MotionCard>
+          </StaggerItem>
+        </StaggerContainer>
       </section>
 
       <DashboardQuickActions />

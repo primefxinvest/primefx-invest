@@ -9,6 +9,7 @@ import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { useLiveTransactions } from '@/lib/hooks/useLiveTransactions'
 import { fetchRecentTransactions } from '@/lib/data/queries'
 import { dashboardCardClass, dashboardSectionTitleClass } from '@/lib/layout/surfaces'
+import { MotionCard, StaggerContainer, StaggerItem } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 const typeKeys: Record<string, 'txDeposit' | 'txProfit' | 'txWithdraw' | 'txTransfer' | 'txBonus'> = {
@@ -59,7 +60,7 @@ export default function DashboardRecentTransactions() {
   )
 
   return (
-    <div className={dashboardCardClass}>
+    <MotionCard className={dashboardCardClass}>
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className={dashboardSectionTitleClass}>{t('recentTransactions')}</h2>
         <Link
@@ -89,7 +90,7 @@ export default function DashboardRecentTransactions() {
         skeleton={<ListSkeleton rows={4} />}
         compact
       >
-        <ul className="divide-y divide-border" aria-label={t('recentTransactions')}>
+        <StaggerContainer as="ul" className="divide-y divide-border" aria-label={t('recentTransactions')}>
           {transactions?.map((tx) => {
             const style = typeStyles[tx.type] ?? typeStyles.Deposit
             const labelKey = typeKeys[tx.type] ?? 'txDeposit'
@@ -97,7 +98,7 @@ export default function DashboardRecentTransactions() {
             const isPositive = tx.amount.startsWith('+')
 
             return (
-              <li key={tx.id}>
+              <StaggerItem key={tx.id} as="li">
                 <div className="flex min-h-[3.25rem] items-center justify-between gap-3 py-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <div
@@ -125,11 +126,11 @@ export default function DashboardRecentTransactions() {
                     <p className="text-xs text-muted-foreground">{tx.status}</p>
                   </div>
                 </div>
-              </li>
+              </StaggerItem>
             )
           })}
-        </ul>
+        </StaggerContainer>
       </AsyncState>
-    </div>
+    </MotionCard>
   )
 }

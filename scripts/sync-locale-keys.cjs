@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 
-const locales = ['en', 'fr', 'es', 'de', 'ar', 'pt', 'sw', 'rw']
+const locales = ['en', 'fr', 'es', 'de', 'ar']
 const messagesDir = path.join(process.cwd(), 'messages')
 
 function setNested(obj, keyPath, value) {

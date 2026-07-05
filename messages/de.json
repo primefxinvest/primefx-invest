@@ -52,7 +52,7 @@
     "loginHeroTitleLine1": "Willkommen zurück!",
     "loginHeroTitleLine2": "Intelligentes Investieren",
     "loginHeroTitleHighlight": "beginnt hier.",
-    "loginHeroSubtitle": "Greifen Sie auf Ihr Portfolio zu, verfolgen Sie die Performance und lassen Sie Ihr Vermögen mit PrimeFx wachsen.",
+    "loginHeroSubtitle": "Access your portfolio, track performance, and manage your investments with PrimeFx.",
     "loginFeatureSecure": "Sicher & geschützt",
     "loginFeatureSecureDesc": "Bankübliche Sicherheit für Ihr Konto.",
     "loginFeatureInstant": "Sofortiger Zugang",
@@ -117,7 +117,16 @@
     "metaSignInTitle": "Anmelden",
     "metaSignInDescription": "Melden Sie sich bei Ihrem PrimeFx Invest-Investoren-Dashboard an.",
     "metaSignUpTitle": "Konto erstellen",
-    "metaSignUpDescription": "Treten Sie PrimeFx Invest bei — erstellen Sie Ihr kostenloses Konto und investieren Sie ab $50 mit KI-gestützten Plänen."
+    "metaSignUpDescription": "Treten Sie PrimeFx Invest bei — erstellen Sie Ihr kostenloses Konto und investieren Sie ab $50 mit KI-gestützten Plänen.",
+    "mfaSecureBadge": "Secure Login Verification",
+    "mfaAuthenticatorTitle": "Authenticator App",
+    "mfaVerified": "Verified",
+    "mfaCheckingSession": "Checking session",
+    "mfaTrustTitle": "Security Features",
+    "mfaTrustEncryption": "Bank-grade encryption",
+    "mfaTrustDevice": "Device verification",
+    "mfaTrustSession": "Session protection",
+    "mfaTrustFraud": "Fraud monitoring"
   },
   "verification": {
     "verifyIdentity": "Identität verifizieren",
@@ -241,7 +250,8 @@
     "tryAgain": "Erneut versuchen",
     "language": "Sprache",
     "close": "Schließen",
-    "done": "Fertig"
+    "done": "Fertig",
+    "skipToMainContent": "Skip to main content"
   },
   "errors": {
     "genericError": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
@@ -310,81 +320,81 @@
     "openMenu": "Menü öffnen",
     "closeMenu": "Menü schließen",
     "hero": {
-      "badge": "KI-GESTÜTZTES INVESTITIONSÖKOSYSTEM",
-      "titleLine1": "Klüger investieren.",
-      "titleHighlight": "Vermögen aufbauen.",
-      "titleLine2": "Zukunft sichern.",
-      "subtitle": "PrimeFx Invest verbindet KI-Technologie, globale Märkte und Expertenstrategien, um Ihr Vermögen konstant und sicher zu steigern.",
-      "featureSecure": "Sicher & reguliert",
-      "featureAi": "KI-gestützte Strategien",
-      "featureReturns": "Hohes Renditepotenzial",
-      "featureGlobal": "Globale Chancen",
-      "ctaStart": "Jetzt investieren",
-      "ctaDashboard": "Zum Dashboard",
-      "ctaWatch": "So funktioniert es",
-      "trustedBy": "Vertraut von {count} Investoren weltweit",
-      "reviews": "({count} Bewertungen)",
-      "statInvestors": "Aktive Investoren",
-      "statAum": "Verwaltetes Vermögen",
-      "statReturns": "Durchschnittliche Jahresrendite",
-      "statCountries": "Bediente Länder",
-      "statSecure": "Sicher & geschützt"
+      "badge": "INSTITUTIONAL INVESTMENT PLATFORM",
+      "titleLine1": "Professional Investing.",
+      "titleHighlight": "Built for Transparency.",
+      "titleLine2": "Secure. Global. Clear.",
+      "subtitle": "PrimeFx Invest is a secure international platform for portfolio management, transparent fees, and institutional-grade investor tools.",
+      "featureSecure": "Bank-Level Security",
+      "featureAi": "AI-Assisted Insights",
+      "featureReturns": "Transparent Returns",
+      "featureGlobal": "Global Access",
+      "ctaStart": "Open Investor Account",
+      "ctaDashboard": "Go to Dashboard",
+      "ctaWatch": "Watch How It Works",
+      "trustedBy": "Trusted by {count} investors worldwide",
+      "reviews": "({count} Reviews)",
+      "statInvestors": "Active Investors",
+      "statAum": "Assets Under Management",
+      "statReturns": "Average Annual Returns",
+      "statCountries": "Countries Served",
+      "statSecure": "Secure & Protected"
     },
     "whyChoose": {
-      "eyebrow": "WARUM PRIMEAI INVEST?",
-      "title": "Warum Tausende uns wählen",
-      "subtitle": "Wir verbinden modernste Technologie mit bewährten Anlagestrategien für konstante, sichere Renditen auf jedem Niveau.",
+      "eyebrow": "WHY CHOOSE PRIMEAI INVEST?",
+      "title": "Why Thousands Choose Us",
+      "subtitle": "Technology, security, and clear reporting — designed for investors who expect institutional standards.",
       "features": [
         {
-          "title": "KI-Vorsprung",
-          "description": "Unsere proprietäre KI analysiert globale Märkte rund um die Uhr, um Chancen mit hoher Wahrscheinlichkeit früh zu erkennen."
+          "title": "AI-Powered Edge",
+          "description": "Our tools analyze global markets to support informed investment decisions. Performance may vary with market conditions."
         },
         {
-          "title": "Vielfältige Chancen",
-          "description": "Zugang zu Forex, Rohstoffen, Indizes und digitalen Assets in über 150 Ländern — alles auf einer Plattform."
+          "title": "Diverse Opportunities",
+          "description": "Access forex, commodities, indices, and digital assets across 150+ countries — all from one unified platform."
         },
         {
-          "title": "Bank-Level-Sicherheit",
-          "description": "256-Bit-SSL, Cold Storage und Multi-Faktor-Authentifizierung schützen Ihre Mittel und Daten."
+          "title": "Bank-Level Security",
+          "description": "256-bit SSL encryption, cold storage, and multi-factor authentication keep your funds and data fully protected."
         },
         {
-          "title": "Expertenmanagement",
-          "description": "Ein Team erfahrener Analysten und Portfoliomanager arbeitet mit der KI zusammen, um Ihre Renditen zu maximieren."
+          "title": "Expert Management",
+          "description": "Experienced analysts and portfolio tools work alongside you — with full visibility into fees, payouts, and performance."
         },
         {
-          "title": "Transparent & fair",
-          "description": "Keine versteckten Gebühren. Echtzeit-Tracking und detaillierte Berichte."
+          "title": "Transparent & Fair",
+          "description": "No hidden fees, no surprises. Real-time portfolio tracking and detailed reports so you always know where you stand."
         },
         {
-          "title": "Menschlicher Support 24/7",
-          "description": "Unser Support-Team ist rund um die Uhr per Chat, E-Mail und Telefon erreichbar."
+          "title": "24/7 Human Support",
+          "description": "Our dedicated support team is available around the clock via live chat, email, and phone whenever you need help."
         }
       ]
     },
     "journey": {
-      "eyebrow": "SO FUNKTIONIERT ES",
-      "title": "Ihr Weg zur finanziellen Freiheit",
-      "cta": "Jetzt starten",
+      "eyebrow": "HOW IT WORKS",
+      "title": "How Investing Works",
+      "cta": "Create Account",
       "steps": [
         {
-          "title": "Konto erstellen",
-          "description": "Registrieren Sie sich in unter 2 Minuten mit E-Mail und Basisdaten."
+          "title": "Create Account",
+          "description": "Sign up in under 2 minutes with just your email and basic info."
         },
         {
-          "title": "Plan wählen",
-          "description": "Wählen Sie Starter, Growth, Prime oder Elite nach Ihren Zielen."
+          "title": "Choose Your Plan",
+          "description": "Pick from Starter, Growth, Prime, or Elite based on your goals."
         },
         {
-          "title": "Konto aufladen",
-          "description": "Einzahlung per Überweisung, Karte oder Krypto — sofort gutgeschrieben."
+          "title": "Fund Your Account",
+          "description": "Deposit via supported crypto methods. Funds are credited after blockchain verification."
         },
         {
-          "title": "Wir investieren für Sie",
-          "description": "KI und Expertenteam verwalten Ihr Portfolio rund um die Uhr."
+          "title": "Portfolio Management",
+          "description": "Your allocation is managed according to your selected plan and strategy."
         },
         {
-          "title": "Wachsen & abheben",
-          "description": "Beobachten Sie Ihr Wachstum und heben Sie Gewinne jederzeit ab."
+          "title": "Track & Withdraw",
+          "description": "Monitor performance, fees, and payout schedules. Withdraw on your schedule."
         }
       ]
     },
@@ -403,27 +413,28 @@
       "choosePlan": "Plan wählen"
     },
     "performance": {
-      "eyebrow": "MARKTPERFORMANCE",
-      "title": "Konstante Renditen. Bewährte Performance.",
-      "subtitle": "Unsere KI-Strategien haben traditionelle Benchmarks Jahr für Jahr übertroffen.",
-      "viewReport": "Vollständigen Performance-Bericht ansehen",
-      "comparison": "Performance-Vergleich",
-      "primeaiReturn": "PrimeAI-Durchschnittsrendite",
-      "sp500": "S&P 500 Durchschnitt",
-      "liveMarkets": "Live-Marktchancen",
-      "liveMarketsSubtitle": "Echtzeit-Kursbewegungen",
-      "viewOpportunities": "Alle Chancen ansehen",
-      "statReturn": "Durchschnittliche Jahresrendite",
-      "statWinRate": "Gewinnrate",
-      "statAum": "Verwaltetes Gesamtvermögen",
-      "statInvestors": "Aktive Investoren",
+      "eyebrow": "MARKET PERFORMANCE",
+      "title": "Historical Performance Overview",
+      "subtitle": "Illustrative performance data for reference. Investment performance may vary and is not guaranteed.",
+      "viewReport": "View Performance Details",
+      "comparison": "Performance Comparison",
+      "primeaiReturn": "PrimeAI's Average Return",
+      "sp500": "S&P 500 Average",
+      "liveMarkets": "Live Market Opportunities",
+      "liveMarketsSubtitle": "Real-time price movements",
+      "viewOpportunities": "View All Opportunities",
+      "statReturn": "Illustrative Annual Return",
+      "statWinRate": "Platform Uptime",
+      "statAum": "Total Assets Managed",
+      "statInvestors": "Active Investors",
       "timeframes": [
         "1M",
         "6M",
         "1Y",
         "2Y",
         "All Time"
-      ]
+      ],
+      "disclaimer": "Past performance is illustrative only and does not guarantee future results. Returns depend on market conditions and investment strategy."
     },
     "security": {
       "eyebrow": "IHRE SICHERHEIT IST UNSERE PRIORITÄT",
@@ -441,22 +452,22 @@
       ]
     },
     "testimonials": {
-      "eyebrow": "ERFAHRUNGSBERICHTE",
-      "title": "Was unsere Investoren sagen",
-      "viewAll": "Alle Bewertungen ansehen",
+      "eyebrow": "TESTIMONIALS",
+      "title": "What Our Investors Say",
+      "viewAll": "View All Reviews",
       "items": [
         {
-          "quote": "PrimeFx Invest completely changed how I approach investing. The AI recommendations are spot-on, and I've seen consistent returns month after month.",
+          "quote": "The dashboard gives me clear visibility into my portfolio, fees, and payout schedule. Support responded quickly when I had questions about verification.",
           "name": "Sarah Mitchell",
           "role": "Growth Plan Investor"
         },
         {
-          "quote": "I was skeptical at first, but the transparency and 24/7 support won me over. My portfolio has grown 34% in just 8 months. Highly recommended!",
+          "quote": "I appreciate the transparent fee breakdown and transaction history. The platform feels professional and easy to navigate on mobile.",
           "name": "James Okafor",
           "role": "Prime Plan Investor"
         },
         {
-          "quote": "As a busy professional, I don't have time to manage investments. PrimeFx does it all for me — secure, profitable, and completely hands-off.",
+          "quote": "Security features like 2FA and clear withdrawal status gave me confidence. I can track everything without guesswork.",
           "name": "Elena Rodriguez",
           "role": "Elite Plan Investor"
         }
@@ -493,7 +504,7 @@
         },
         {
           "question": "What is the minimum investment amount?",
-          "answer": "You can start with as little as $50 on our Starter Plan. Higher-tier plans have higher minimums but offer greater return potential."
+          "answer": "You can start with as little as $50 on our Starter Plan. Higher-tier plans have higher minimums. Investment performance may vary."
         },
         {
           "question": "How often can I withdraw my profits?",
@@ -501,7 +512,7 @@
         },
         {
           "question": "How does the AI investment system work?",
-          "answer": "Our proprietary AI analyzes thousands of market signals in real time and executes trades through our expert management team to optimize your portfolio."
+          "answer": "Our tools analyze market data to support portfolio decisions. Performance depends on market conditions and your selected plan. PrimeAI provides informational guidance only."
         },
         {
           "question": "What returns can I realistically expect?",
@@ -523,28 +534,28 @@
     },
     "appCta": {
       "mobileEyebrow": "MOBILE APP",
-      "mobileTitle": "Nehmen Sie Ihre Investments überall hin mit",
-      "mobileSubtitle": "Verwalten Sie Ihr Portfolio, verfolgen Sie die Performance und investieren Sie mobil.",
-      "appStoreAria": "Im App Store laden",
-      "googlePlayAria": "Bei Google Play holen",
-      "ctaTitle": "Bereit für Ihre Investment-Reise?",
-      "ctaSubtitle": "Schließen Sie sich über 120.000 Investoren an, die PrimeFx Invest vertrauen.",
-      "ctaButton": "Jetzt investieren"
+      "mobileTitle": "Take Your Investments Anywhere You Go",
+      "mobileSubtitle": "Manage your portfolio, track performance, and invest on the go with our mobile app.",
+      "appStoreAria": "Download on the App Store",
+      "googlePlayAria": "Get it on Google Play",
+      "ctaTitle": "Ready to Start Your Investment Journey?",
+      "ctaSubtitle": "Join 120,000+ investors who use PrimeFx for transparent portfolio management.",
+      "ctaButton": "Open Investor Account"
     },
     "footer": {
-      "tagline": "KI-gestützte Investmentplattform für smarteres, sichereres Vermögenswachstum.",
-      "product": "Produkt",
-      "company": "Unternehmen",
-      "legal": "Rechtliches",
-      "features": "Funktionen",
-      "pricing": "Preise",
-      "security": "Sicherheit",
-      "about": "Über uns",
-      "contact": "Kontakt",
-      "privacy": "Datenschutz",
-      "terms": "AGB",
-      "legalCenter": "Rechtliches Zentrum",
-      "rights": "Alle Rechte vorbehalten."
+      "tagline": "International investment platform built for transparency, security, and professional portfolio management.",
+      "product": "Product",
+      "company": "Company",
+      "legal": "Legal",
+      "features": "Features",
+      "pricing": "Pricing",
+      "security": "Security",
+      "about": "About",
+      "contact": "Contact",
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "legalCenter": "Legal Center",
+      "rights": "All rights reserved."
     }
   },
   "navbar": {
@@ -925,7 +936,7 @@
     "dashboardTitle": "Investoren-Dashboard",
     "dashboardDescription": "Privates Investoren-Dashboard für PrimeFx Invest.",
     "marketingTitle": "Klüger investieren mit KI",
-    "marketingDescription": "Vermögen aufbauen mit PrimeFx Invest — KI-Investitionspläne, sichere Wallets, wöchentliche Auszahlungen und ein vollständiges Dashboard.",
+    "marketingDescription": "PrimeFx Invest — transparent investment plans, secure wallets, scheduled payouts, and a full investor dashboard.",
     "aboutTitle": "Über uns",
     "aboutDescription": "Erfahren Sie mehr über PrimeFx Invest und unsere Mission, KI-Investitionen zu demokratisieren.",
     "contactTitle": "Kontakt",
@@ -998,45 +1009,45 @@
     "planPayout": "Auszahlung",
     "planCategory": "Kategorie",
     "primeAI": {
-      "title": "PrimeAI-Assistent",
-      "subtitle": "Ihr KI-Investment-Copilot.",
+      "title": "PrimeAI Assistant",
+      "subtitle": "Your AI investment copilot.",
       "beta": "Beta",
       "features": {
-        "recommendations": "Personalisierte Empfehlungen",
-        "market": "Marktchancen",
-        "health": "Portfolio-Gesundheitsanalyse",
-        "risk": "Risikoanalyse",
-        "alerts": "Intelligente Warnungen",
-        "suggestions": "Investitionsvorschläge"
+        "recommendations": "Personalized recommendations",
+        "market": "Market opportunities",
+        "health": "Portfolio health analysis",
+        "risk": "Risk analysis",
+        "alerts": "Smart alerts",
+        "suggestions": "Investment suggestions"
       },
-      "insightsTitle": "Heutige Einblicke",
+      "insightsTitle": "Today's insights",
       "insights": [
-        "Ihr Portfolio-Risiko ist niedrig.",
-        "Der Growth-Plan passt zu Ihrem Anlageverhalten.",
-        "Erwägen Sie eine Diversifikation Ihrer Investments.",
-        "Die Marktstimmung ist derzeit bullish."
+        "Review your portfolio allocation regularly.",
+        "Compare plans against your investment horizon.",
+        "Diversification may help manage exposure.",
+        "Market conditions change — verify data before acting."
       ],
       "actions": {
-        "analyzePortfolio": "Portfolio analysieren",
-        "bestPlan": "Bester Plan für mich",
-        "marketOpportunities": "Marktchancen",
-        "riskScore": "Risikobewertung",
-        "askPrimeAI": "PrimeAI fragen"
+        "analyzePortfolio": "Analyze Portfolio",
+        "bestPlan": "Best Plan For Me",
+        "marketOpportunities": "Market Opportunities",
+        "riskScore": "Risk Score",
+        "askPrimeAI": "Ask PrimeAI"
       },
-      "inputPlaceholder": "Fragen Sie PrimeAI alles…",
-      "openFullChat": "Vollständigen Chat öffnen",
-      "sendMessage": "Nachricht senden",
       "actionQueries": {
         "analyzePortfolio": "Analyze my portfolio",
         "bestPlan": "What is the best investment plan for me?",
         "marketOpportunities": "What market opportunities should I consider today?",
         "riskScore": "What is my portfolio risk score?"
-      }
+      },
+      "inputPlaceholder": "Ask PrimeAI anything…",
+      "openFullChat": "Open Full Chat",
+      "sendMessage": "Send message"
     },
-    "riskLow": "Niedriges Risiko",
-    "riskMedium": "Mittleres Risiko",
-    "riskHigh": "Hohes Risiko",
-    "riskVeryHigh": "Sehr hohes Risiko",
+    "riskLow": "For Beginners",
+    "riskMedium": "Balanced Profile",
+    "riskHigh": "Growth Profile",
+    "riskVeryHigh": "Premium Access",
     "riskGeneric": "{level} Risiko",
     "recentTransactions": "Letzte Transaktionen",
     "viewAll": "Alle ansehen",
@@ -1168,7 +1179,7 @@
     },
     "deposit": {
       "title": "Geld einzahlen",
-      "description": "Zahlen Sie sicher per Kryptowährung über NOWPayments ein.",
+      "description": "Deposit securely using supported cryptocurrency. Funds are credited after blockchain verification.",
       "badgeCryptoOnly": "Nur Krypto",
       "supportedBy": "Unterstützt von",
       "cardTitle": "Auf Ihr PrimeFx-Wallet einzahlen",
@@ -1183,25 +1194,23 @@
       "tipsLargeDeposits": "Größere Einzahlungen können zusätzliche Bestätigungen erfordern.",
       "tipsBlockchain": "Einzahlungen werden nach Blockchain-Verifizierung gutgeschrieben.",
       "tipsSupport": "Hilfe benötigt? Support rund um die Uhr erreichbar.",
-      "promoEyebrow": "Krypto-Zahlung",
-      "promoTitle": "Powered by NOWPayments",
-      "promoSubtitle": "Schnell · Sicher · Automatisch",
-      "promoCryptoCount": "18+ Kryptowährungen unterstützt",
-      "promoAutoConvert": "Automatische Umrechnung",
-      "promoRates": "Beste Wechselkurse",
-      "promoSecure": "Sichere Blockchain-Zahlungen",
+      "promoEyebrow": "Secure Funding",
+      "promoTitle": "PrimeFx Secure Deposits",
+      "promoSubtitle": "Encrypted processing · Blockchain verification · 24/7 availability",
+      "promoCryptoCount": "18+ supported cryptocurrencies",
+      "promoAutoConvert": "Automatic settlement",
+      "promoRates": "Transparent exchange rates",
+      "promoSecure": "Encrypted blockchain payments",
       "securitySecureProcessing": "Sichere Krypto-Zahlungsabwicklung",
       "securityAutoConfirm": "Automatische Bestätigung",
       "securityWalletCredit": "Gutschrift nach Verifizierung",
       "securityFraud": "Betrugsschutz aktiviert",
-      "trustNowPayments": "Powered by NOWPayments",
-      "trustSecureCrypto": "Sichere Krypto-Zahlungen",
-      "trustInstantInvoice": "Sofortige Rechnungserstellung",
-      "trustBankGrade": "Bankensicherheit",
-      "trustFraudProtection": "Betrugsschutz aktiviert",
-      "trustAutoCredit": "Automatische Wallet-Gutschrift",
-      "trust247": "24/7 Verarbeitung",
-      "trustVerifiedInfra": "Verifizierte Zahlungsinfrastruktur",
+      "trustSecureCrypto": "Secure Crypto Payments",
+      "trustBankGrade": "Bank-grade Security",
+      "trustFraudProtection": "Fraud Protection Enabled",
+      "trustAutoCredit": "Automatic Wallet Credit",
+      "trust247": "24/7 Processing",
+      "trustVerifiedInfra": "Verified Payment Infrastructure",
       "methodNowPayments": "NOWPayments",
       "methodBinancePay": "Binance Pay",
       "methodCard": "Karte",
@@ -1227,7 +1236,7 @@
       "youWillReceive": "Sie erhalten",
       "noteOptional": "Notiz (optional)",
       "notePlaceholder": "Notiz für Ihre Unterlagen hinzufügen",
-      "cardComingSoon": "Weitere Einzahlungsmethoden kommen bald. Nutzen Sie vorerst NOWPayments-Krypto.",
+      "cardComingSoon": "More deposit methods are coming soon. Use crypto deposit for now.",
       "paymentReady": "Zahlung bereit",
       "openCheckout": "Checkout öffnen",
       "sendToAddress": "An Adresse senden:",
@@ -1275,7 +1284,7 @@
       "paymentCreated": "Zahlung erstellt — Weiterleitung…",
       "depositFailed": "Einzahlung fehlgeschlagen",
       "methodCryptoPayment": "Crypto Payment",
-      "poweredByNowPayments": "Powered by NOWPayments",
+      "poweredByNowPayments": "Secure crypto processing",
       "poweredByBinancePay": "Powered by Binance Pay API",
       "supportedAssets": "Supported",
       "andMore": "+ more",
@@ -1287,7 +1296,7 @@
       "heroInstant": "Instant Confirmation",
       "hero247": "24/7 Processing",
       "heroBankGrade": "Bank-grade security",
-      "heroCryptoCount": "{count}+ supported cryptocurrencies via NOWPayments",
+      "heroCryptoCount": "{count}+ supported cryptocurrencies",
       "amountSectionTitle": "Enter deposit amount",
       "amountSectionSubtitle": "Choose an amount and settlement currency for your deposit.",
       "quickAmounts": "Quick amounts",
@@ -1319,7 +1328,6 @@
       "cryptoCurrency": "Kryptowährung",
       "selectCurrency": "Währung wählen",
       "cardHint": "Guthaben wird an Ihre verknüpfte Karte gesendet.",
-      "nowPaymentsNotConfigured": "NOWPayments ist noch nicht konfiguriert. Krypto-Auszahlungen sind nicht verfügbar.",
       "amountUsd": "Betrag (USD)",
       "walletAddress": "Wallet-Adresse",
       "addressPlaceholder": "Krypto-Auszahlungsadresse eingeben",
@@ -1352,7 +1360,6 @@
       "addressRequired": "Geben Sie Ihre Krypto-Wallet-Adresse ein",
       "submitted": "Auszahlung eingereicht",
       "cardProcessing": "Referenz {reference}. Ihre Auszahlung wird bearbeitet.",
-      "nowPaymentsProcessing": "Ihre Auszahlung wird über NOWPayments bearbeitet.",
       "failed": "Auszahlung fehlgeschlagen",
       "loadWalletError": "Wallet konnte nicht geladen werden",
       "processing": "Processing withdrawal…",
@@ -1395,7 +1402,8 @@
       "trustEncrypted": "Encrypted transaction processing",
       "trustAntiFraud": "Anti-fraud protection",
       "trustConfirmation": "Blockchain confirmation tracking",
-      "irreversibleNotice": "Please verify your wallet address and network carefully. Blockchain withdrawals cannot be reversed."
+      "irreversibleNotice": "Please verify your wallet address and network carefully. Blockchain withdrawals cannot be reversed.",
+      "summaryBlockchainNote": "Arrival time depends on blockchain network confirmations (typically 1–12 confirmations)."
     },
     "transfer": {
       "title": "Guthaben überweisen",
@@ -1653,7 +1661,9 @@
       "popular": "POPULAR"
     },
     "card": {
-      "mostPopular": "MOST POPULAR",
+      "mostPopular": "Most Popular",
+      "weeklyReturn": "Weekly Return",
+      "performanceDisclaimer": "Target return. Actual performance may vary.",
       "minimum": "Minimum",
       "duration": "Duration",
       "payout": "Payout",
@@ -1681,7 +1691,7 @@
     },
     "recommendation": {
       "title": "Not sure which plan is right for you?",
-      "description": "Let PrimeAI analyze your profile and recommend the best investment plan for your goals.",
+      "description": "Let PrimeAI help you compare plans based on your profile and goals. Recommendations are informational only.",
       "cta": "Get AI Recommendation",
       "badge": "PrimeAI Recommendation",
       "bestMatch": "Best Match",

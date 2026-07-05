@@ -169,17 +169,17 @@ export const trustFeatures = [
 ] as const
 
 export const whyInvestItems = [
-  'Licensed & Regulated',
-  'Advanced AI Trading',
-  'Real-time Market Intelligence',
+  'Transparent Fee Structure',
   'Institutional-Grade Security',
+  'Real-time Portfolio Tracking',
+  'Verified Transaction Processing',
   '24/7 Multilingual Support',
 ] as const
 
 export const howItWorksSteps = [
   { number: '1', title: 'Create Account', description: 'Sign up and verify your identity' },
   { number: '2', title: 'Choose Your Plan', description: 'Select a plan that matches your goals' },
-  { number: '3', title: 'Fund Your Account', description: 'Add funds to your wallet' },
-  { number: '4', title: 'We Invest For You', description: 'Our AI handles the investing' },
-  { number: '5', title: 'Grow & Withdraw', description: 'Watch your wealth grow and withdraw anytime' },
+  { number: '3', title: 'Fund Your Account', description: 'Add funds to your wallet securely' },
+  { number: '4', title: 'Portfolio Management', description: 'Our team and tools manage your allocation' },
+  { number: '5', title: 'Track & Withdraw', description: 'Monitor performance and withdraw on schedule' },
 ] as const

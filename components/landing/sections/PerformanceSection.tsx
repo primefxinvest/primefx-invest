@@ -4,6 +4,7 @@ import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { ArrowRight } from 'lucide-react'
+import { TrustDisclaimer } from '@/components/shared/TrustDisclaimer'
 import {
   Area,
   AreaChart,
@@ -40,9 +41,9 @@ const chartData = [
 ]
 
 const statValues = [
-  { value: '+24.8%', color: 'text-emerald-500' },
-  { value: '92%', color: 'text-[#0052ff]' },
-  { value: '$250M+', color: 'text-emerald-500' },
+  { value: '+24.8%', color: 'text-emerald-600' },
+  { value: '99.9%', color: 'text-[#0052ff]' },
+  { value: '$250M+', color: 'text-emerald-600' },
   { value: '120K+', color: 'text-[#0052ff]' },
 ]
 
@@ -193,6 +194,10 @@ export default function PerformanceSection() {
             </div>
           </div>
         </div>
+
+        <TrustDisclaimer variant="performance" className="mt-8 text-center">
+          {t('disclaimer')}
+        </TrustDisclaimer>
       </div>
     </section>
   )

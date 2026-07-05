@@ -3,6 +3,7 @@
 import type { LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AlertCircle, Inbox, RefreshCw } from 'lucide-react'
+import { toUserFacingError } from '@/lib/errors/user-facing'
 import { cn } from '@/lib/utils'
 
 interface EmptyStateProps {
@@ -25,17 +26,17 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 text-center',
+        'flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/30 text-center',
         compact ? 'px-4 py-8' : 'px-6 py-12',
         className
       )}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
-        <Icon className="h-6 w-6" />
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
+        <Icon className="h-6 w-6" aria-hidden />
       </div>
-      <h3 className="mt-4 text-sm font-semibold text-gray-900">{title}</h3>
+      <h3 className="mt-4 text-sm font-semibold text-foreground">{title}</h3>
       {description ? (
-        <p className="mt-1 max-w-sm text-sm text-gray-500">{description}</p>
+        <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
       ) : null}
       {action ? <div className="mt-4">{action}</div> : null}
     </div>
@@ -51,8 +52,8 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = 'Something went wrong',
-  description = 'We could not load this data. Please try again.',
+  title,
+  description,
   onRetry,
   className,
   compact = false,
@@ -60,28 +61,30 @@ export function ErrorState({
   const t = useTranslations('errors')
   const tCommon = useTranslations('common')
   const resolvedTitle = title ?? t('genericError')
-  const resolvedDescription = description ?? t('loadErrorDescription')
+  const resolvedDescription = toUserFacingError(description, t('loadErrorDescription'))
 
   return (
     <div
+      role="alert"
+      aria-live="polite"
       className={cn(
-        'flex flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50/50 text-center',
+        'flex flex-col items-center justify-center rounded-xl border border-destructive/20 bg-destructive/5 text-center',
         compact ? 'px-4 py-8' : 'px-6 py-12',
         className
       )}
     >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-500">
-        <AlertCircle className="h-6 w-6" />
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+        <AlertCircle className="h-6 w-6" aria-hidden />
       </div>
-      <h3 className="mt-4 text-sm font-semibold text-gray-900">{resolvedTitle}</h3>
-      <p className="mt-1 max-w-sm text-sm text-gray-600">{resolvedDescription}</p>
+      <h3 className="mt-4 text-sm font-semibold text-foreground">{resolvedTitle}</h3>
+      <p className="mt-1 max-w-sm text-sm text-muted-foreground">{resolvedDescription}</p>
       {onRetry ? (
         <button
           type="button"
           onClick={onRetry}
-          className="mt-4 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm ring-1 ring-gray-200 transition-colors hover:bg-gray-50"
+          className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-4 text-sm font-semibold text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-4 w-4" aria-hidden />
           {tCommon('tryAgain')}
         </button>
       ) : null}

@@ -7,7 +7,7 @@ export const LANDING_FAQS = [
   {
     question: 'What is the minimum investment amount?',
     answer:
-      'You can start with as little as $50 on our Starter Plan. Higher-tier plans have higher minimums but offer greater return potential.',
+      'You can start with as little as $50 on our Starter Plan. Higher-tier plans have higher minimums. Investment performance may vary.',
   },
   {
     question: 'How often can I withdraw my profits?',
@@ -17,7 +17,7 @@ export const LANDING_FAQS = [
   {
     question: 'How does the AI investment system work?',
     answer:
-      'Our proprietary AI analyzes thousands of market signals in real time and executes trades through our expert management team to optimize your portfolio.',
+      'Our tools analyze market data to support portfolio decisions. Performance depends on market conditions and your selected plan. PrimeAI provides informational guidance only.',
   },
   {
     question: 'What returns can I realistically expect?',
@@ -32,7 +32,7 @@ export const LANDING_FAQS = [
   {
     question: 'What payment methods do you accept?',
     answer:
-      'We accept crypto via NOWPayments for deposits and withdrawals.',
+      'We accept supported cryptocurrencies for deposits and withdrawals. All transactions are processed securely with blockchain verification.',
   },
   {
     question: 'Is there a mobile app available?',

@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { PRIMEAI_CAPABILITIES, PRIMEAI_QUICK_ACTIONS } from '@/components/primeai/constants'
+import { PrimeAIQuickActionsGrid } from '@/components/primeai/PrimeAIQuickActionsGrid'
 import { createPrimeAIWelcomeMessage, getMessageText } from '@/lib/ai/message-utils'
 import { toPrimeAiClientError, PRIMEAI_UNAVAILABLE_USER_MESSAGE } from '@/lib/ai/user-errors'
 import { useLocaleChatTransport } from '@/lib/hooks/useLocaleChatTransport'
@@ -21,6 +22,21 @@ import { cn } from '@/lib/utils'
 
 function formatMessageTime(date = new Date()) {
   return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+}
+
+/** Client-only timestamp avoids hydration mismatch from Date.now() during render. */
+function MessageTimestamp({ index, total }: { index: number; total: number }) {
+  const [time, setTime] = useState('')
+
+  useEffect(() => {
+    setTime(formatMessageTime(new Date(Date.now() - (total - index) * 60_000)))
+  }, [index, total])
+
+  return (
+    <span className="px-1 text-[10px] tabular-nums text-muted-foreground" suppressHydrationWarning>
+      {time}
+    </span>
+  )
 }
 
 function TypingIndicator({ label }: { label: string }) {
@@ -46,13 +62,15 @@ function MessageBubble({
   text,
   userAvatar,
   userName,
-  timestamp,
+  messageIndex,
+  messageTotal,
 }: {
   role: 'user' | 'assistant'
   text: string
   userAvatar?: string
   userName?: string
-  timestamp: string
+  messageIndex: number
+  messageTotal: number
 }) {
   const isUser = role === 'user'
 
@@ -86,7 +104,7 @@ function MessageBubble({
           {/* Markdown-ready wrapper — swap inner renderer when streaming markdown is enabled */}
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{text}</p>
         </div>
-        <span className="px-1 text-[10px] tabular-nums text-muted-foreground">{timestamp}</span>
+        <MessageTimestamp index={messageIndex} total={messageTotal} />
       </div>
     </div>
   )
@@ -123,6 +141,17 @@ function PrimeAIChatInner() {
   const isLoading = status === 'submitted' || status === 'streaming'
   const userMessageCount = messages.filter((m) => m.role === 'user').length
   const showQuickActions = userMessageCount === 0 && !isLoading
+
+  const quickActions = useMemo(
+    () =>
+      PRIMEAI_QUICK_ACTIONS.map(({ key, icon }) => ({
+        key,
+        icon,
+        title: t(`actions.${key}.title`),
+        query: t(`actions.${key}.query`),
+      })),
+    [t]
+  )
 
   const typingLabel = useMemo(() => {
     if (loadingPhase === 'connecting') return t('loadingConnecting')
@@ -202,32 +231,32 @@ function PrimeAIChatInner() {
     <div className="flex min-h-0 w-full flex-1 flex-col">
       {/* Header */}
       <header className="shrink-0">
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0052ff] to-[#2563eb] shadow-md shadow-[#0052ff]/20">
-            <Sparkles className="h-5 w-5 text-white" aria-hidden />
+        <div className="flex items-start gap-2.5 sm:gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0052ff] to-[#2563eb] shadow-md shadow-[#0052ff]/20 sm:h-11 sm:w-11">
+            <Sparkles className="h-4 w-4 text-white sm:h-5 sm:w-5" aria-hidden />
           </div>
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <h1 className="text-lg font-bold tracking-tight text-foreground sm:text-xl lg:text-2xl">
                 {t('title')}
               </h1>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 sm:gap-1.5 sm:px-2.5 sm:text-[11px]">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
                 {isLoading ? t('statusThinking') : t('statusOnline')}
               </span>
             </div>
-            <p className="mt-0.5 text-sm text-muted-foreground">{t('subtitle')}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">{t('subtitle')}</p>
           </div>
         </div>
 
         {/* Capability chips */}
-        <div className="primefx-scrollbar mt-4 flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible">
+        <div className="primefx-scrollbar mt-3 flex gap-1.5 overflow-x-auto pb-0.5 sm:mt-3.5 sm:gap-2 lg:flex-wrap lg:overflow-visible">
           {PRIMEAI_CAPABILITIES.map(({ key, icon: Icon }) => (
             <span
               key={key}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground shadow-sm"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] font-medium text-foreground shadow-sm sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-xs"
             >
-              <Icon className="h-3.5 w-3.5 text-primary" aria-hidden />
+              <Icon className="h-3 w-3 text-primary sm:h-3.5 sm:w-3.5" aria-hidden />
               {t(`capabilities.${key}`)}
             </span>
           ))}
@@ -235,9 +264,9 @@ function PrimeAIChatInner() {
       </header>
 
       {/* Chat workspace */}
-      <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:mt-4 sm:rounded-2xl">
         <div
-          className="primefx-scrollbar min-h-[280px] flex-1 space-y-5 overflow-y-auto p-4 sm:p-5 lg:min-h-[360px]"
+          className="primefx-scrollbar min-h-[220px] flex-1 space-y-4 overflow-y-auto p-3 sm:min-h-[280px] sm:space-y-5 sm:p-4 lg:min-h-[320px] lg:p-5"
           role="log"
           aria-live="polite"
           aria-label={t('chatLabel')}
@@ -249,7 +278,8 @@ function PrimeAIChatInner() {
               text={getMessageText(message)}
               userAvatar={user.avatar}
               userName={user.name}
-              timestamp={formatMessageTime(new Date(Date.now() - (messages.length - index) * 60_000))}
+              messageIndex={index}
+              messageTotal={messages.length}
             />
           ))}
 
@@ -259,41 +289,18 @@ function PrimeAIChatInner() {
 
         {/* Quick action cards */}
         {showQuickActions ? (
-          <div className="border-t border-border bg-muted/20 p-2 md:p-4 lg:p-5">
-            <div className="grid grid-cols-3 gap-1.5 md:grid-cols-2 md:gap-3 lg:grid-cols-4">
-              {PRIMEAI_QUICK_ACTIONS.map(({ key, icon: Icon }) => {
-                const isPending = pendingAction === key && isLoading
-                const query = t(`actions.${key}.query`)
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    disabled={isLoading}
-                    onClick={() => handleQuickAction(query, key)}
-                    className="group flex min-h-[4.25rem] flex-col rounded-lg border border-border bg-card p-2 text-left shadow-sm transition-all hover:border-primary/30 hover:shadow-md disabled:pointer-events-none disabled:opacity-60 md:min-h-[5.5rem] md:rounded-xl md:p-3 md:hover:-translate-y-0.5 lg:min-h-[88px]"
-                  >
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 md:h-8 md:w-8 md:rounded-lg">
-                      {isPending ? (
-                        <Loader2 className="h-3 w-3 animate-spin md:h-4 md:w-4" aria-hidden />
-                      ) : (
-                        <Icon className="h-3 w-3 md:h-4 md:w-4" aria-hidden />
-                      )}
-                    </span>
-                    <span className="mt-1 line-clamp-2 text-[10px] font-semibold leading-tight text-foreground md:mt-2 md:text-xs">
-                      {t(`actions.${key}.title`)}
-                    </span>
-                    <span className="mt-0.5 hidden line-clamp-2 text-[10px] leading-snug text-muted-foreground md:block">
-                      {t(`actions.${key}.subtitle`)}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+          <div className="border-t border-border bg-muted/20 px-2.5 py-2.5 sm:px-3 sm:py-3 lg:px-4">
+            <PrimeAIQuickActionsGrid
+              actions={quickActions}
+              pendingKey={pendingAction}
+              isLoading={isLoading}
+              onAction={handleQuickAction}
+            />
           </div>
         ) : null}
 
         {/* Sticky input */}
-        <div className="shrink-0 border-t border-border bg-card p-3 sm:p-4">
+        <div className="shrink-0 border-t border-border bg-card p-2.5 sm:p-3 lg:p-4">
           {clientError ? (
             <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2" role="alert">
               <p className="text-xs font-semibold text-amber-900">{tErrors('unavailableTitle')}</p>
@@ -333,14 +340,14 @@ function PrimeAIChatInner() {
               onKeyDown={handleKeyDown}
               placeholder={t('inputPlaceholder')}
               disabled={isLoading}
-              className="max-h-40 min-h-[44px] min-w-0 flex-1 resize-none rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60"
+              className="max-h-40 min-h-[40px] min-w-0 flex-1 resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:opacity-60 sm:min-h-[44px] sm:px-4 sm:py-3"
             />
 
             <button
               type="submit"
               disabled={isLoading || input.trim().length === 0}
               aria-label={isLoading ? t('sending') : t('send')}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:h-11 sm:w-11"
             >
               {isLoading ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -352,7 +359,7 @@ function PrimeAIChatInner() {
         </div>
       </div>
 
-      <p className="mt-3 shrink-0 text-center text-[11px] leading-relaxed text-muted-foreground">
+      <p className="mt-2 shrink-0 text-center text-[10px] leading-relaxed text-muted-foreground sm:mt-3 sm:text-[11px]">
         {t('disclaimer')}
       </p>
     </div>

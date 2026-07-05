@@ -295,8 +295,8 @@ function ReferralOverviewAnalyticsInner({ overview }: { overview: ReferralProgra
             color: 'text-[#7c3aed] bg-[#7c3aed]/10',
           },
           {
-            title: 'Instant Payouts',
-            body: 'Withdraw earnings to your crypto wallet securely and quickly.',
+            title: 'Scheduled Payouts',
+            body: 'Withdraw earnings to your crypto wallet on the platform payout schedule.',
             icon: Wallet,
             color: 'text-emerald-600 bg-emerald-50',
           },
@@ -308,7 +308,7 @@ function ReferralOverviewAnalyticsInner({ overview }: { overview: ReferralProgra
           },
           {
             title: 'Worldwide Access',
-            body: 'Earn from anywhere with unlimited global referral opportunities.',
+            body: 'Participate in the global referral program from supported regions.',
             icon: Users,
             color: 'text-orange-600 bg-orange-50',
           },

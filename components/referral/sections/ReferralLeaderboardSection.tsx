@@ -33,7 +33,7 @@ function ReferralLeaderboardSectionInner({ overview }: ReferralLeaderboardSectio
       <ReferralPageHeader
         icon={<Trophy className="h-5 w-5 text-amber-500" aria-hidden />}
         title="Leaderboard"
-        subtitle="Top performers building the future of wealth together."
+        subtitle="Top performers ranked by team commission contributions."
         action={
           <div className="inline-flex min-h-11 items-center rounded-xl border border-border bg-card px-3 text-sm font-medium text-muted-foreground">
             This Month

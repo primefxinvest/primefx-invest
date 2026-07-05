@@ -1,9 +1,12 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { m } from 'framer-motion'
 import { Link, usePathname } from '@/i18n/navigation'
 import { Home, Menu, PieChart, TrendingUp, Wallet } from 'lucide-react'
 import { useMobileNav } from '@/components/shared/MobileNavContext'
+import { CARD_TAP } from '@/lib/motion/tokens'
+import { useReducedMotion } from '@/lib/motion/use-reduced-motion'
 import { cn } from '@/lib/utils'
 
 const primaryItems = [
@@ -17,6 +20,8 @@ export default function MobileBottomNav() {
   const t = useTranslations('sidebar')
   const pathname = usePathname()
   const { toggle } = useMobileNav()
+  const reducedMotion = useReducedMotion()
+  const TapWrapper = reducedMotion ? 'div' : m.div
 
   return (
     <nav
@@ -32,15 +37,15 @@ export default function MobileBottomNav() {
             (item.href !== '/dashboard' && pathname.startsWith(`${item.href}/`))
 
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={active ? 'page' : undefined}
-              className={cn(
-                'relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-medium transition-colors',
-                active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
+            <TapWrapper key={item.href} whileTap={reducedMotion ? undefined : CARD_TAP}>
+              <Link
+                href={item.href}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-medium transition-colors',
+                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
               {active ? (
                 <span
                   className="absolute inset-x-2 top-1 h-0.5 rounded-full bg-primary"
@@ -49,20 +54,23 @@ export default function MobileBottomNav() {
               ) : null}
               <Icon className={cn('h-5 w-5 shrink-0', active && 'stroke-[2.25]')} aria-hidden />
               <span className="max-w-full truncate">{t(item.labelKey)}</span>
-            </Link>
+              </Link>
+            </TapWrapper>
           )
         })}
 
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={t('openMenu')}
-          aria-haspopup="dialog"
-          className="flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Menu className="h-5 w-5 shrink-0" aria-hidden />
-          <span className="max-w-full truncate">{t('more')}</span>
-        </button>
+        <TapWrapper whileTap={reducedMotion ? undefined : CARD_TAP}>
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={t('openMenu')}
+            aria-haspopup="dialog"
+            className="flex min-h-11 min-w-0 w-full flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Menu className="h-5 w-5 shrink-0" aria-hidden />
+            <span className="max-w-full truncate">{t('more')}</span>
+          </button>
+        </TapWrapper>
       </div>
     </nav>
   )

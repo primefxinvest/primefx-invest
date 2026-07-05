@@ -6,6 +6,7 @@ import {
   invalidateAsyncCache,
   loadWithAsyncCache,
 } from '@/lib/hooks/async-cache'
+import { toUserFacingError } from '@/lib/errors/user-facing'
 
 export type UseAsyncDataOptions = {
   /** Dedupe requests and reuse results across components (e.g. notifications, wallet). */
@@ -70,7 +71,7 @@ export function useAsyncData<T>(
       const result = await runLoader()
       setDataState(result)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load data')
+      setError(toUserFacingError(err))
     } finally {
       setLoading(false)
     }
@@ -89,7 +90,7 @@ export function useAsyncData<T>(
         if (active) setDataState(result)
       } catch (err) {
         if (active) {
-          setError(err instanceof Error ? err.message : 'Failed to load data')
+          setError(toUserFacingError(err))
         }
       } finally {
         if (active) setLoading(false)

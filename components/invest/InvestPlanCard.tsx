@@ -1,6 +1,7 @@
 'use client'
 
 import { memo } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   ArrowRight,
   Calendar,
@@ -32,6 +33,7 @@ function InvestPlanCard({
   onSelect,
   onInvest,
 }: InvestPlanCardProps) {
+  const t = useTranslations('invest.card')
   const theme = getPlanTheme(plan, index)
   const Icon = theme.icon
   const isElite = plan.name === 'Elite Plan'
@@ -51,9 +53,9 @@ function InvestPlanCard({
       )}
     >
       {plan.popular && (
-        <div className="absolute -top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full bg-purple-600 px-3 py-1 text-[10px] font-bold tracking-wide text-white shadow-md">
-          <Star className="h-3 w-3 fill-white" />
-          MOST POPULAR
+        <div className="absolute -top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-full border border-purple-200 bg-purple-50 px-3 py-1 text-[10px] font-semibold tracking-wide text-purple-700 shadow-sm">
+          <Star className="h-3 w-3 fill-purple-600 text-purple-600" />
+          {t('mostPopular')}
         </div>
       )}
 
@@ -86,29 +88,30 @@ function InvestPlanCard({
       <h3 className="text-base font-bold text-gray-900 sm:text-lg">{plan.name}</h3>
 
       <div className="mt-3">
-        <p className={cn('text-3xl font-bold tracking-tight sm:text-4xl', theme.roiColor)}>
+        <p className={cn('text-2xl font-bold tabular-nums tracking-tight sm:text-3xl', theme.roiColor)}>
           {plan.weeklyRoi}
         </p>
-        <p className="mt-1 flex items-center gap-1 text-xs text-gray-500">
-          {plan.weeklyRoiLabel ?? 'Target Weekly Return'}
-          <Info className="h-3.5 w-3.5 text-gray-400" aria-hidden />
+        <p className="mt-1 flex items-center gap-1 text-xs font-medium text-gray-600">
+          {plan.weeklyRoiLabel ?? t('weeklyReturn')}
+          <Info className="h-3.5 w-3.5 text-gray-400" aria-hidden title={t('performanceDisclaimer')} />
         </p>
+        <p className="mt-1 text-[10px] leading-snug text-gray-500">{t('performanceDisclaimer')}</p>
       </div>
 
       <div className="mt-4 space-y-2.5 border-b border-gray-100 pb-4 text-xs sm:text-sm">
-        <StatRow icon={Wallet} label="Minimum" value={plan.minInvestment} />
-        <StatRow icon={Calendar} label="Duration" value={plan.duration} />
-        <StatRow icon={Clock} label="Payout" value={plan.payout} />
+        <StatRow icon={Wallet} label={t('minimum')} value={plan.minInvestment} />
+        <StatRow icon={Calendar} label={t('duration')} value={plan.duration} />
+        <StatRow icon={Clock} label={t('payout')} value={plan.payout} />
         <StatRow
           icon={Shield}
-          label="Category"
+          label={t('category')}
           value={plan.category}
           valueClassName={cn('text-[10px] font-bold tracking-wide', theme.badge)}
         />
-        <StatRow icon={User} label="Access" value={plan.capitalAccess} />
+        <StatRow icon={User} label={t('access')} value={plan.capitalAccess} />
         <StatRow
           icon={Globe}
-          label="PrimeAI Score"
+          label={t('primeAiScore')}
           value={`${theme.primeAiScore}/100`}
           valueClassName={theme.riskColor}
         />
@@ -137,7 +140,9 @@ function InvestPlanCard({
             </div>
           ))}
         </div>
-        <p className="text-xs text-gray-500 sm:text-sm">{plan.investors} investors</p>
+        <p className="text-xs text-gray-500 sm:text-sm">
+          {plan.investors} {t('investors')}
+        </p>
       </div>
 
       <button
@@ -151,7 +156,7 @@ function InvestPlanCard({
           theme.button
         )}
       >
-        Invest Now
+        {t('investNow')}
         <ArrowRight className="h-4 w-4" />
       </button>
     </div>
