@@ -44,7 +44,7 @@ export function VerifyIdentityButton({
   const label =
     verificationStatus === 'declined'
       ? t('retryVerification')
-      : verificationStatus === 'expired'
+      : verificationStatus === 'expired' || verificationStatus === 'abandoned'
         ? t('restartVerification')
         : t('verifyIdentity')
 

@@ -6,7 +6,8 @@ import { DiditVerificationPanel } from '@/components/verification/DiditVerificat
 import { ErrorState } from '@/components/shared/data-state'
 import { ProfileSkeleton } from '@/components/shared/skeletons'
 import { getUserProfile } from '@/lib/profile/actions'
-import type { UserProfile } from '@/lib/profile/types'
+import type { UserProfile, UserVerificationStatus } from '@/lib/profile/types'
+import { useUserVerificationRealtime } from '@/lib/hooks/useVerificationRealtime'
 
 export default function VerifyPage() {
   const t = useTranslations('verification')
@@ -20,7 +21,38 @@ export default function VerifyPage() {
       .then(setProfile)
       .catch((err) => setError(err instanceof Error ? err.message : t('loadStatusFailed')))
       .finally(() => setLoading(false))
+
+    const handleUpdate = () => {
+      getUserProfile().then(setProfile).catch(() => {})
+    }
+
+    window.addEventListener('primefx:verification-updated', handleUpdate)
+    return () => window.removeEventListener('primefx:verification-updated', handleUpdate)
   }, [t])
+
+  useUserVerificationRealtime({
+    userId: profile?.id,
+    onUpdate: (update) => {
+      setProfile((current) => {
+        if (!current) return current
+
+        const verificationStatus = update.verificationStatus as UserVerificationStatus
+        const isVerified = update.isVerified || verificationStatus === 'approved'
+
+        return {
+          ...current,
+          isVerified,
+          verificationStatus,
+          kycStatus: isVerified
+            ? 'Verified'
+            : verificationStatus === 'declined'
+              ? 'Rejected'
+              : 'Pending',
+          verifiedAt: isVerified && !current.verifiedAt ? new Date().toISOString() : current.verifiedAt,
+        }
+      })
+    },
+  })
 
   if (loading) return <ProfileSkeleton />
 
@@ -35,7 +67,7 @@ export default function VerifyPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="mx-auto min-w-0 max-w-2xl">
       <DiditVerificationPanel profile={profile} />
     </div>
   )

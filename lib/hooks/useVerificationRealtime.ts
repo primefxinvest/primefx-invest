@@ -119,6 +119,50 @@ export function useUserVerificationRealtime(input: {
       )
     }
 
+    if (userId) {
+      const handleUserSessionRow = (row: VerificationSessionRealtimeRow) => {
+        const diditStatus = row.status ?? 'In Progress'
+
+        onUpdateRef.current({
+          verificationStatus: mapDiditStatusToVerificationStatus(diditStatus),
+          kycStatus: diditStatus === 'Approved' ? 'Verified' : null,
+          isVerified: diditStatus === 'Approved',
+          diditStatus,
+          sessionId: row.session_id,
+          decision: row.decision,
+        })
+
+        if (isTerminalDiditStatus(diditStatus)) {
+          dispatchVerificationUpdated()
+        }
+      }
+
+      channel.on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'verification_sessions',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          handleUserSessionRow(payload.new as VerificationSessionRealtimeRow)
+        }
+      )
+      channel.on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'verification_sessions',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          handleUserSessionRow(payload.new as VerificationSessionRealtimeRow)
+        }
+      )
+    }
+
     if (sessionId) {
       const handleSessionRow = (row: VerificationSessionRealtimeRow) => {
         const diditStatus = row.status ?? 'In Progress'

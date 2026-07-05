@@ -2,9 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from '@/i18n/navigation'
 import { Link } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
-import { AlertCircle, CheckCircle2, Clock, Loader2 } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  ShieldCheck,
+} from 'lucide-react'
 import { VerifyIdentityButton } from '@/components/VerifyIdentityButton'
 import { getUserProfile } from '@/lib/profile/actions'
 import {
@@ -18,6 +26,7 @@ import {
 } from '@/lib/didit/callback-session'
 import { isTerminalDiditStatus } from '@/lib/didit/status-maps'
 import { useUserVerificationRealtime } from '@/lib/hooks/useVerificationRealtime'
+import { cn } from '@/lib/utils'
 
 type VerificationResult = {
   sessionId: string
@@ -31,6 +40,11 @@ type VerificationResult = {
   source?: string
 }
 
+type CallbackPhase = 'checking' | 'success' | 'redirecting' | 'review' | 'declined' | 'expired' | 'error'
+
+const UNLOCK_FEATURES = ['deposits', 'withdrawals', 'transfers', 'investments'] as const
+const REDIRECT_DELAY_MS = 2000
+
 function buildStatusUrl(sessionId?: string): string {
   if (sessionId) {
     return `/api/verify/status?verificationSessionId=${encodeURIComponent(sessionId)}`
@@ -38,14 +52,19 @@ function buildStatusUrl(sessionId?: string): string {
   return '/api/verify/status'
 }
 
+function dispatchVerificationUpdated() {
+  if (typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('primefx:verification-updated'))
+}
+
 export function VerifyCallbackClient() {
   const t = useTranslations('verification')
   const tCommon = useTranslations('common')
+  const router = useRouter()
   const searchParams = useSearchParams()
   const queryString = searchParams.toString()
   const urlSessionId = useMemo(
     () => getVerificationSessionIdFromSearchParams(searchParams),
-    // searchParams identity changes; queryString is the stable serialized form
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [queryString]
   )
@@ -58,11 +77,13 @@ export function VerifyCallbackClient() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [queryString]
   )
-  const [loading, setLoading] = useState(true)
+  const [phase, setPhase] = useState<CallbackPhase>('checking')
   const [result, setResult] = useState<VerificationResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [profileUserId, setProfileUserId] = useState<string | undefined>()
+  const [redirectCountdown, setRedirectCountdown] = useState(2)
   const pollCancelledRef = useRef(false)
+  const redirectScheduledRef = useRef(false)
 
   useEffect(() => {
     getUserProfile()
@@ -72,21 +93,59 @@ export function VerifyCallbackClient() {
       .catch(() => {})
   }, [])
 
-  const applyVerificationResult = useCallback((payload: VerificationResult) => {
-    setResult(payload)
-    setError(null)
-    setLoading(false)
+  const resolvePhase = useCallback(
+    (payload: VerificationResult): CallbackPhase => {
+      const isApproved =
+        payload.isVerified ||
+        payload.verificationStatus === 'approved' ||
+        mapDiditCallbackStatusToVerificationStatus(callbackStatus) === 'approved'
 
-    if (
-      payload.isVerified ||
-      payload.verificationStatus === 'approved' ||
-      payload.verificationStatus === 'declined' ||
-      payload.verificationStatus === 'expired' ||
-      payload.sessionNotFound
-    ) {
-      clearStoredDiditSessionId()
-    }
-  }, [])
+      if (isApproved) return 'success'
+
+      if (
+        payload.verificationStatus === 'declined' ||
+        mapDiditCallbackStatusToVerificationStatus(callbackStatus) === 'declined'
+      ) {
+        return 'declined'
+      }
+
+      if (
+        payload.sessionNotFound ||
+        payload.verificationStatus === 'expired' ||
+        mapDiditCallbackStatusToVerificationStatus(callbackStatus) === 'expired'
+      ) {
+        return 'expired'
+      }
+
+      if (payload.pending) return 'review'
+      return 'review'
+    },
+    [callbackStatus]
+  )
+
+  const applyVerificationResult = useCallback(
+    (payload: VerificationResult) => {
+      setResult(payload)
+      setError(null)
+      const nextPhase = resolvePhase(payload)
+      setPhase(nextPhase)
+
+      if (
+        payload.isVerified ||
+        payload.verificationStatus === 'approved' ||
+        payload.verificationStatus === 'declined' ||
+        payload.verificationStatus === 'expired' ||
+        payload.sessionNotFound
+      ) {
+        clearStoredDiditSessionId()
+      }
+
+      if (payload.isVerified || payload.verificationStatus === 'approved') {
+        dispatchVerificationUpdated()
+      }
+    },
+    [resolvePhase]
+  )
 
   useUserVerificationRealtime({
     userId: profileUserId,
@@ -101,7 +160,7 @@ export function VerifyCallbackClient() {
         pending:
           !update.isVerified &&
           !isTerminalDiditStatus(update.diditStatus) &&
-          update.verificationStatus === 'pending',
+          update.verificationStatus !== 'approved',
         source: 'realtime',
       })
     },
@@ -110,7 +169,7 @@ export function VerifyCallbackClient() {
   const statusCheckFailedMessage = t('statusCheckFailed')
 
   useEffect(() => {
-    setLoading(true)
+    setPhase('checking')
     setError(null)
     setResult(null)
     pollCancelledRef.current = false
@@ -133,17 +192,14 @@ export function VerifyCallbackClient() {
 
         applyVerificationResult(payload)
 
-        if (payload.pending && attempts < 8 && !pollCancelledRef.current) {
+        if (payload.pending && attempts < 12 && !pollCancelledRef.current) {
           attempts += 1
-          window.setTimeout(poll, 2500)
-          return
+          window.setTimeout(poll, 2000)
         }
-
-        setLoading(false)
       } catch (err) {
         if (cancelled || pollCancelledRef.current) return
         setError(err instanceof Error ? err.message : statusCheckFailedMessage)
-        setLoading(false)
+        setPhase('error')
       }
     }
 
@@ -154,94 +210,163 @@ export function VerifyCallbackClient() {
     }
   }, [effectiveSessionId, statusCheckFailedMessage, applyVerificationResult])
 
-  if (loading) {
+  useEffect(() => {
+    if (phase !== 'success' || redirectScheduledRef.current) return
+
+    redirectScheduledRef.current = true
+    setPhase('redirecting')
+    setRedirectCountdown(REDIRECT_DELAY_MS / 1000)
+
+    const countdown = window.setInterval(() => {
+      setRedirectCountdown((value) => Math.max(0, value - 1))
+    }, 1000)
+
+    const redirect = window.setTimeout(() => {
+      router.push('/dashboard')
+    }, REDIRECT_DELAY_MS)
+
+    return () => {
+      window.clearInterval(countdown)
+      window.clearTimeout(redirect)
+    }
+  }, [phase, router])
+
+  const shellClass =
+    'mx-auto flex min-h-[70vh] w-full max-w-lg flex-col items-center justify-center px-4 py-10 text-center'
+
+  if (phase === 'checking') {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-        <Loader2 className="h-10 w-10 animate-spin text-[#0052ff]" />
-        <h1 className="mt-6 text-2xl font-bold text-gray-900">{t('checkingStatus')}</h1>
-        <p className="mt-2 max-w-md text-sm text-gray-500">{t('pleaseWait')}</p>
+      <div className={shellClass}>
+        <div className="w-full rounded-2xl border border-border bg-card p-8 shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
+            <Loader2 className="h-8 w-8 animate-spin text-[#0052ff]" />
+          </div>
+          <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">
+            {t('callbackCheckingTitle')}
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{t('callbackCheckingDescription')}</p>
+          <div className="mt-6 flex items-center justify-center gap-2 text-xs font-medium text-[#0052ff]">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-[#0052ff]" />
+            {t('callbackSyncing')}
+          </div>
+        </div>
       </div>
     )
   }
 
-  if (error) {
+  if (phase === 'error') {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-        <AlertCircle className="h-10 w-10 text-red-500" />
-        <h1 className="mt-6 text-2xl font-bold text-gray-900">{t('checkFailedTitle')}</h1>
-        <p className="mt-2 max-w-md text-sm text-gray-500">{error}</p>
-        <Link
-          href="/verify"
-          className="mt-6 rounded-lg bg-[#0052ff] px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          {t('backToVerification')}
-        </Link>
+      <div className={shellClass}>
+        <div className="w-full rounded-2xl border border-red-200 bg-card p-8 shadow-sm">
+          <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+          <h1 className="mt-6 text-2xl font-bold text-foreground">{t('checkFailedTitle')}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          <Link
+            href="/verify"
+            className="mt-6 inline-flex rounded-xl bg-[#0052ff] px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            {t('backToVerification')}
+          </Link>
+        </div>
       </div>
     )
   }
 
-  const isApproved =
-    result?.isVerified ||
-    result?.verificationStatus === 'approved' ||
-    mapDiditCallbackStatusToVerificationStatus(callbackStatus) === 'approved'
-  const isDeclined =
-    result?.verificationStatus === 'declined' ||
-    mapDiditCallbackStatusToVerificationStatus(callbackStatus) === 'declined'
-  const isExpired =
-    result?.sessionNotFound ||
-    result?.verificationStatus === 'expired' ||
-    mapDiditCallbackStatusToVerificationStatus(callbackStatus) === 'expired'
+  if (phase === 'success' || phase === 'redirecting') {
+    return (
+      <div className={shellClass}>
+        <div className="w-full overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-card to-card p-8 shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-md">
+            <CheckCircle2 className="h-8 w-8" />
+          </div>
+          <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">
+            {t('callbackSuccessTitle')}
+          </h1>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            {t('callbackSuccessDescription')}
+          </p>
 
-  const message = isApproved
-    ? t('approvedMessage')
-    : isDeclined
-      ? t('declinedMessage')
-      : isExpired
-        ? result?.sessionNotFound
-          ? t('sessionNotFoundMessage')
-          : t('expiredMessage')
-        : t('reviewMessage')
+          <div className="mt-6 rounded-xl border border-emerald-200/70 bg-white/80 p-4 text-left">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800">
+              {t('unlockedFeaturesTitle')}
+            </p>
+            <ul className="mt-3 space-y-2">
+              {UNLOCK_FEATURES.map((feature) => (
+                <li key={feature} className="flex items-center gap-2 text-sm text-emerald-900">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+                  {t(`unlock.${feature}`)}
+                </li>
+              ))}
+            </ul>
+          </div>
 
-  const title = isApproved
-    ? t('identityVerified')
-    : isDeclined
-      ? t('verificationDeclined')
-      : isExpired
-        ? result?.sessionNotFound
-          ? t('sessionNotFoundTitle')
-          : t('verificationExpired')
-        : t('verificationInReview')
+          <div className="mt-6 flex items-center justify-center gap-2 text-sm font-medium text-[#0052ff]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {t('callbackRedirecting', { seconds: redirectCountdown })}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const isDeclined = phase === 'declined'
+  const isExpired = phase === 'expired'
+
+  const title = isDeclined
+    ? t('verificationDeclined')
+    : isExpired
+      ? result?.sessionNotFound
+        ? t('sessionNotFoundTitle')
+        : t('verificationExpired')
+      : t('verificationInReview')
+
+  const message = isDeclined
+    ? t('declinedMessage')
+    : isExpired
+      ? result?.sessionNotFound
+        ? t('sessionNotFoundMessage')
+        : t('expiredMessage')
+      : t('reviewMessage')
 
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-4 text-center">
-      {isApproved ? (
-        <CheckCircle2 className="h-12 w-12 text-emerald-500" />
-      ) : isDeclined ? (
-        <AlertCircle className="h-12 w-12 text-red-500" />
-      ) : isExpired ? (
-        <AlertCircle className="h-12 w-12 text-amber-500" />
-      ) : (
-        <Clock className="h-12 w-12 text-amber-500" />
-      )}
+    <div className={shellClass}>
+      <div
+        className={cn(
+          'w-full rounded-2xl border bg-card p-8 shadow-sm',
+          isDeclined ? 'border-red-200' : 'border-amber-200'
+        )}
+      >
+        {isDeclined ? (
+          <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
+        ) : (
+          <Clock className="mx-auto h-12 w-12 text-amber-500" />
+        )}
 
-      <h1 className="mt-6 text-2xl font-bold text-gray-900">{title}</h1>
-      <p className="mt-2 max-w-md text-sm text-gray-500">{message}</p>
+        <h1 className="mt-6 text-2xl font-bold text-foreground">{title}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
 
-      <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-        {!isApproved ? (
-          <VerifyIdentityButton
-            userId={profileUserId}
-            verificationStatus={
-              isExpired ? 'expired' : (result?.verificationStatus ?? 'pending')
-            }
-          />
+        {!isDeclined ? (
+          <div className="mt-5 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+            <ShieldCheck className="h-4 w-4 text-[#0052ff]" />
+            {t('bulletAutoUpdate')}
+          </div>
         ) : null}
-        <Link
-          href="/dashboard"
-          className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-        >
-          {tCommon('goToDashboard')}
-        </Link>
+
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+          {isDeclined || isExpired ? (
+            <VerifyIdentityButton
+              userId={profileUserId}
+              verificationStatus={isExpired ? 'expired' : (result?.verificationStatus ?? 'pending')}
+            />
+          ) : null}
+          <Link
+            href={isDeclined || isExpired ? '/profile' : '/dashboard'}
+            className="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-secondary"
+          >
+            {tCommon('goToDashboard')}
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+        </div>
       </div>
     </div>
   )

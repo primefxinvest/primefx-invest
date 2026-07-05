@@ -135,6 +135,7 @@ export async function createDiditVerificationSession(input: {
       workflow_id: workflowId,
       vendor_data: input.userId,
       callback: getVerificationCallbackUrl(),
+      callback_method: 'both',
       metadata: {
         user_id: input.userId,
         ...(input.email ? { email: input.email } : {}),

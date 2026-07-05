@@ -8,11 +8,9 @@ import {
   CheckCircle,
   Edit2,
   Shield,
-  AlertCircle,
   ChevronRight,
 } from 'lucide-react'
 import EditProfileModal from '@/components/profile/EditProfileModal'
-import { VerifyIdentityButton } from '@/components/VerifyIdentityButton'
 import { DiditVerificationPanel } from '@/components/verification/DiditVerificationPanel'
 import { UserTransferIdsCard } from '@/components/profile/UserTransferIdsCard'
 import { ErrorState } from '@/components/shared/data-state'
@@ -22,8 +20,9 @@ import { ScrollTable } from '@/components/shared/ScrollTable'
 import { cardSurfaceClass } from '@/lib/layout/surfaces'
 import { pageStackClass, sectionStackClass } from '@/lib/layout/spacing'
 import { getProfileActivity, getUserProfile, logProfileActivity } from '@/lib/profile/actions'
-import type { ProfileActivity, UserProfile } from '@/lib/profile/types'
+import type { ProfileActivity, UserProfile, UserVerificationStatus } from '@/lib/profile/types'
 import { getCurrentUser } from '@/lib/supabase'
+import { useUserVerificationRealtime } from '@/lib/hooks/useVerificationRealtime'
 import { cn } from '@/lib/utils'
 
 function detectDevice() {
@@ -37,7 +36,6 @@ function detectDevice() {
 
 export default function ProfilePage() {
   const t = useTranslations('profile')
-  const tVerification = useTranslations('verification')
   const tCommon = useTranslations('common')
   const tSettings = useTranslations('settings')
   const locale = useLocale()
@@ -98,6 +96,30 @@ export default function ProfilePage() {
     }
   }, [loadProfile])
 
+  useUserVerificationRealtime({
+    userId: profile?.id,
+    onUpdate: (update) => {
+      setProfile((current) => {
+        if (!current) return current
+
+        const verificationStatus = update.verificationStatus as UserVerificationStatus
+        const isVerified = update.isVerified || verificationStatus === 'approved'
+
+        return {
+          ...current,
+          isVerified,
+          verificationStatus,
+          kycStatus: isVerified
+            ? 'Verified'
+            : verificationStatus === 'declined'
+              ? 'Rejected'
+              : 'Pending',
+          verifiedAt: isVerified && !current.verifiedAt ? new Date().toISOString() : current.verifiedAt,
+        }
+      })
+    },
+  })
+
   if (loading) {
     return <ProfileSkeleton />
   }
@@ -112,7 +134,6 @@ export default function ProfilePage() {
     )
   }
 
-  const isVerified = profile.isVerified || profile.kycStatus === 'Verified'
 
   return (
     <div className={cn('min-w-0', pageStackClass)}>
@@ -146,91 +167,50 @@ export default function ProfilePage() {
         </div>
       </section>
 
-      <section aria-label="Identity and security" className={sectionStackClass}>
-        <SectionHeading>Identity & security</SectionHeading>
-        <div className={cardSurfaceClass}>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div
-              className={cn(
-                'rounded-xl border p-4',
-                isVerified ? 'border-emerald-200 bg-emerald-50/50' : 'border-amber-200 bg-amber-50/50'
-              )}
-            >
-              <div className="flex items-start gap-3">
-                {isVerified ? (
-                  <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600" />
-                ) : (
-                  <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground">{t('kycVerification')}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{t('kycVerificationStatus')}</p>
-                  <span
-                    className={cn(
-                      'mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                      isVerified
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : profile.kycStatus === 'Rejected'
-                          ? 'bg-red-100 text-red-700'
-                          : 'bg-amber-100 text-amber-700'
-                    )}
-                  >
-                    {profile.kycStatus}
-                  </span>
-                </div>
-              </div>
-              {!isVerified ? (
-                <div className="mt-3 pl-8">
-                  <VerifyIdentityButton
-                    userId={profile.id}
-                    isVerified={profile.isVerified}
-                    verificationStatus={profile.verificationStatus}
-                    size="sm"
-                  />
-                </div>
-              ) : null}
-            </div>
+      <section aria-label="Identity verification" className={sectionStackClass}>
+        <DiditVerificationPanel profile={profile} />
+      </section>
 
-            <div
-              className={cn(
-                'rounded-xl border p-4',
-                profile.twoFactorEnabled ? 'border-blue-200 bg-blue-50/50' : 'border-border bg-background'
-              )}
-            >
-              <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 shrink-0 text-blue-600" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-foreground">{tSettings('twoFactor')}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {profile.twoFactorEnabled
-                      ? tSettings('twoFactorActive')
-                      : tSettings('twoFactorInactive')}
-                  </p>
-                  <span
-                    className={cn(
-                      'mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold',
-                      profile.twoFactorEnabled
-                        ? 'bg-blue-100 text-blue-700'
-                        : 'bg-gray-100 text-gray-600'
-                    )}
-                  >
-                    {profile.twoFactorEnabled ? tSettings('active') : tSettings('off')}
-                  </span>
-                </div>
+      <section aria-label="Security" className={sectionStackClass}>
+        <SectionHeading>Security</SectionHeading>
+        <div className={cardSurfaceClass}>
+          <div
+            className={cn(
+              'rounded-xl border p-4',
+              profile.twoFactorEnabled ? 'border-blue-200 bg-blue-50/50' : 'border-border bg-background'
+            )}
+          >
+            <div className="flex items-start gap-3">
+              <Shield className="h-5 w-5 shrink-0 text-blue-600" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground">{tSettings('twoFactor')}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {profile.twoFactorEnabled
+                    ? tSettings('twoFactorActive')
+                    : tSettings('twoFactorInactive')}
+                </p>
+                <span
+                  className={cn(
+                    'mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold',
+                    profile.twoFactorEnabled
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-gray-100 text-gray-600'
+                  )}
+                >
+                  {profile.twoFactorEnabled ? tSettings('active') : tSettings('off')}
+                </span>
               </div>
-              <Link
-                href="/settings"
-                className="mt-3 flex items-center gap-1 pl-8 text-xs font-semibold text-primary hover:underline"
-              >
-                Manage security
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
             </div>
+            <Link
+              href="/settings"
+              className="mt-3 flex items-center gap-1 pl-8 text-xs font-semibold text-primary hover:underline"
+            >
+              Manage security
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
           </div>
         </div>
       </section>
-
-      <DiditVerificationPanel profile={profile} />
 
       <UserTransferIdsCard userId={profile.id} />
 

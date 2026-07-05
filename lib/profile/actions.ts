@@ -19,6 +19,8 @@ const emptyProfile: UserProfile = {
   kycStatus: 'Pending',
   isVerified: false,
   verificationStatus: 'pending',
+  verifiedAt: null,
+  kycRejectionReason: null,
   twoFactorEnabled: false,
   memberSince: '—',
   emailVerified: false,
@@ -161,12 +163,21 @@ export async function getUserProfile(): Promise<UserProfile> {
   const verificationRaw = String(
     (dbUser?.verification_status as string | undefined) ?? 'pending'
   ).toLowerCase()
-  const verificationStatus =
+  const verificationStatus: UserProfile['verificationStatus'] =
     verificationRaw === 'approved' ||
     verificationRaw === 'declined' ||
-    verificationRaw === 'expired'
+    verificationRaw === 'expired' ||
+    verificationRaw === 'pending_review' ||
+    verificationRaw === 'in_progress' ||
+    verificationRaw === 'abandoned'
       ? verificationRaw
       : 'pending'
+
+  const verifiedAtRaw = dbUser?.verified_at as string | undefined
+  const verifiedAt = verifiedAtRaw ?? null
+
+  const kycRejectionReason =
+    (dbUser?.kyc_rejection_reason as string | undefined)?.trim() || null
 
   const kycStatus: UserProfile['kycStatus'] = isVerified
     ? 'Verified'
@@ -211,6 +222,8 @@ export async function getUserProfile(): Promise<UserProfile> {
     kycStatus,
     isVerified,
     verificationStatus,
+    verifiedAt,
+    kycRejectionReason,
     twoFactorEnabled: mfaStatus.enabled,
     memberSince: formatMemberSince(
       (dbUser?.created_at as string | undefined) ?? authUser.created_at

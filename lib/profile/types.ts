@@ -1,3 +1,12 @@
+export type UserVerificationStatus =
+  | 'pending'
+  | 'approved'
+  | 'declined'
+  | 'expired'
+  | 'pending_review'
+  | 'in_progress'
+  | 'abandoned'
+
 export interface UserProfile {
   id: string
   fullName: string
@@ -9,7 +18,9 @@ export interface UserProfile {
   tier: string
   kycStatus: 'Verified' | 'Pending' | 'Rejected'
   isVerified: boolean
-  verificationStatus: 'pending' | 'approved' | 'declined' | 'expired'
+  verificationStatus: UserVerificationStatus
+  verifiedAt: string | null
+  kycRejectionReason: string | null
   twoFactorEnabled: boolean
   memberSince: string
   emailVerified: boolean
