@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { DashboardSectionHeader } from '@/components/dashboard/DashboardSectionHeader'
 import { dashboardCardClass } from '@/lib/layout/surfaces'
+import { cn } from '@/lib/utils'
 
 const actionHrefs = [
   '/invest',
@@ -21,16 +22,19 @@ const actionHrefs = [
   '/wallet/transfer',
   '/primeai',
   '/academy',
-]
-const actionIcons = [TrendingUp, Download, Upload, Send, Zap, BookOpen]
+] as const
+
+const actionIcons = [TrendingUp, Download, Upload, Send, Zap, BookOpen] as const
+
+/** PrimeFx brand palette only — blue, purple, orange, green */
 const actionColors = [
-  'bg-primary',
-  'bg-emerald-500',
-  'bg-orange-500',
-  'bg-purple-500',
-  'bg-indigo-500',
-  'bg-teal-600',
-]
+  'bg-primary text-primary-foreground',
+  'bg-[#10b981] text-white',
+  'bg-[#f97316] text-white',
+  'bg-[#7c3aed] text-white',
+  'bg-primary text-primary-foreground',
+  'bg-[#7c3aed] text-white',
+] as const
 
 function DashboardQuickActions() {
   const t = useTranslations('dashboard')
@@ -50,16 +54,24 @@ function DashboardQuickActions() {
             <Link
               key={label}
               href={href}
-              className="flex flex-col items-center rounded-xl border border-border bg-muted/30 px-2 py-3 text-center transition-colors hover:border-border hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:px-3 sm:py-3.5"
+              className={cn(
+                'group flex min-h-[4.75rem] flex-col items-center justify-center rounded-xl border border-border bg-muted/20 px-2 py-3 text-center transition-all',
+                'hover:border-primary/20 hover:bg-card hover:shadow-sm',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+                'active:scale-[0.98]'
+              )}
             >
               <div
-                className={`mb-2 flex h-10 w-10 items-center justify-center rounded-xl text-white shadow-sm ${actionColors[index]}`}
+                className={cn(
+                  'mb-2 flex h-10 w-10 items-center justify-center rounded-xl shadow-sm transition-transform group-hover:scale-105',
+                  actionColors[index]
+                )}
                 aria-hidden
               >
                 <Icon className="h-[18px] w-[18px]" />
               </div>
               <p className="text-xs font-semibold text-foreground">{label}</p>
-              <p className="mt-0.5 hidden text-[10px] text-muted-foreground sm:block">{description}</p>
+              <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">{description}</p>
             </Link>
           )
         })}

@@ -24,20 +24,20 @@ function useRiskLabel(t: ReturnType<typeof useTranslations<'dashboard'>>) {
 function getPlanStyle(plan: { popular?: boolean; riskLevel: string }) {
   if (plan.popular) {
     return {
-      riskClass: 'bg-red-100 text-red-600',
-      borderClass: 'border-[#0052ff] ring-2 ring-[#0052ff]/30',
+      riskClass: 'bg-[#7c3aed]/10 text-[#7c3aed]',
+      borderClass: 'border-primary ring-2 ring-primary/20',
     }
   }
   if (plan.riskLevel === 'Low') {
-    return { riskClass: 'bg-emerald-100 text-emerald-700', borderClass: 'border-emerald-200' }
+    return { riskClass: 'bg-emerald-50 text-emerald-700', borderClass: 'border-emerald-200' }
   }
   if (plan.riskLevel === 'Medium') {
-    return { riskClass: 'bg-orange-100 text-orange-700', borderClass: 'border-orange-200' }
+    return { riskClass: 'bg-orange-50 text-orange-700', borderClass: 'border-orange-200' }
   }
   if (plan.riskLevel === 'High' || plan.riskLevel === 'Very High') {
-    return { riskClass: 'bg-purple-100 text-purple-700', borderClass: 'border-purple-200' }
+    return { riskClass: 'bg-[#7c3aed]/10 text-[#7c3aed]', borderClass: 'border-[#7c3aed]/30' }
   }
-  return { riskClass: 'bg-red-100 text-red-600', borderClass: 'border-red-200' }
+  return { riskClass: 'bg-muted text-muted-foreground', borderClass: 'border-border' }
 }
 
 export default function DashboardPlansCarousel() {
@@ -64,7 +64,7 @@ export default function DashboardPlansCarousel() {
         action={
           <Link
             href="/invest"
-            className="flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+            className="inline-flex min-h-11 items-center gap-0.5 text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg px-1"
           >
             {t('viewAllPlans')}
             <ChevronRight className="h-3.5 w-3.5" aria-hidden />
@@ -85,90 +85,147 @@ export default function DashboardPlansCarousel() {
           emptyTitle={t('noPlansTitle')}
           emptyDescription={t('noPlansDesc')}
           emptyAction={
-            <Link href="/invest" className="text-sm font-semibold text-primary hover:underline">
+            <Link
+              href="/invest"
+              className="inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline"
+            >
               {t('viewInvestPage')}
             </Link>
           }
           skeleton={<PlanCardsSkeleton />}
           compact
         >
-        <>
-          <div
-            ref={scrollRef}
-            className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain px-1 pb-2 scrollbar-hide md:gap-3"
-            role="list"
-            aria-label={t('topPlans')}
-            onScroll={(e) => {
-              const container = e.currentTarget
-              const cardWidth = container.firstElementChild?.clientWidth ?? container.offsetWidth
-              const index = Math.round(container.scrollLeft / (cardWidth + 16))
-              setActiveIndex(Math.min(Math.max(index, 0), (plans?.length ?? 1) - 1))
-            }}
-          >
-            {plans?.map((plan) => {
-              const style = getPlanStyle(plan)
-              return (
-                <div
+          <>
+            {/* Mobile: vertical stack — no horizontal scroll */}
+            <div className="space-y-3 md:hidden" role="list" aria-label={t('topPlans')}>
+              {plans?.map((plan) => {
+                const style = getPlanStyle(plan)
+                return (
+                  <PlanCard
+                    key={plan.id}
+                    plan={plan}
+                    style={style}
+                    riskLabel={riskLabel(plan)}
+                    t={t}
+                    className="w-full"
+                  />
+                )
+              })}
+            </div>
+
+            {/* Tablet+: horizontal carousel */}
+            <div
+              ref={scrollRef}
+              className="hidden snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-2 scrollbar-hide md:flex"
+              role="list"
+              aria-label={t('topPlans')}
+              onScroll={(e) => {
+                const container = e.currentTarget
+                const cardWidth = container.firstElementChild?.clientWidth ?? container.offsetWidth
+                const index = Math.round(container.scrollLeft / (cardWidth + 16))
+                setActiveIndex(Math.min(Math.max(index, 0), (plans?.length ?? 1) - 1))
+              }}
+            >
+              {plans?.map((plan) => {
+                const style = getPlanStyle(plan)
+                return (
+                  <PlanCard
+                    key={plan.id}
+                    plan={plan}
+                    style={style}
+                    riskLabel={riskLabel(plan)}
+                    t={t}
+                    className="w-[min(220px,40vw)] shrink-0 snap-start"
+                  />
+                )
+              })}
+            </div>
+
+            <div className="mt-4 hidden justify-center gap-1 md:flex">
+              {plans?.map((plan, idx) => (
+                <button
                   key={plan.id}
-                  role="listitem"
-                  className={cn(
-                    'relative w-[calc(100%-0.5rem)] flex-shrink-0 snap-center rounded-xl border bg-card p-4 sm:w-[min(220px,78vw)] md:min-w-[200px] md:snap-start md:w-auto',
-                    style.borderClass,
-                    plan.popular && 'bg-purple-50/30'
-                  )}
+                  type="button"
+                  onClick={() => scrollToIndex(idx)}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full"
+                  aria-label={t('goToPlan', { name: plan.name })}
                 >
-                  {plan.popular && (
-                    <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 rounded-full bg-purple-600 px-2.5 py-0.5 text-[9px] font-bold text-white">
-                      {t('mostPopular')}
-                    </span>
-                  )}
-
-                  <h3 className="text-sm font-bold text-foreground">{plan.name}</h3>
-                  <p className="mt-1.5 text-lg font-bold text-foreground">{plan.weeklyRoi}</p>
-                  <p className="text-[10px] text-muted-foreground">{plan.weeklyRoiLabel}</p>
-
                   <span
                     className={cn(
-                      'mt-3 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold',
-                      style.riskClass
+                      'block h-1.5 rounded-full transition-all',
+                      activeIndex === idx ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/30'
                     )}
-                  >
-                    {riskLabel(plan)}
-                  </span>
-
-                  <p className="mt-3 text-[11px] text-gray-500">
-                    {t('minShort')}{' '}
-                    <span className="font-semibold text-gray-800">{plan.minInvestment}</span>
-                  </p>
-
-                  <Link
-                    href={`/invest?plan=${plan.id}`}
-                    className="mt-4 block w-full rounded-lg bg-primary py-2 text-center text-[11px] font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-                  >
-                    {t('investNow')}
-                  </Link>
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="mt-4 flex justify-center gap-1.5">
-            {plans?.map((plan, idx) => (
-              <button
-                key={plan.id}
-                type="button"
-                onClick={() => scrollToIndex(idx)}
-                className={cn(
-                  'h-1.5 rounded-full transition-all',
-                  activeIndex === idx ? 'w-4 bg-primary' : 'w-1.5 bg-muted-foreground/30'
-                )}
-                aria-label={t('goToPlan', { name: plan.name })}
-              />
-            ))}
-          </div>
-        </>
+                  />
+                </button>
+              ))}
+            </div>
+          </>
         </AsyncState>
       </div>
     </section>
+  )
+}
+
+function PlanCard({
+  plan,
+  style,
+  riskLabel,
+  t,
+  className,
+}: {
+  plan: {
+    id: string
+    name: string
+    weeklyRoi: string
+    weeklyRoiLabel: string
+    minInvestment: string
+    popular?: boolean
+  }
+  style: { riskClass: string; borderClass: string }
+  riskLabel: string
+  t: ReturnType<typeof useTranslations<'dashboard'>>
+  className?: string
+}) {
+  return (
+    <div
+      role="listitem"
+      className={cn(
+        'relative rounded-xl border bg-card p-4 shadow-sm',
+        style.borderClass,
+        plan.popular && 'bg-[#7c3aed]/5',
+        className
+      )}
+    >
+      {plan.popular ? (
+        <span className="absolute -top-2.5 left-4 rounded-full bg-[#7c3aed] px-2.5 py-0.5 text-[10px] font-bold text-white">
+          {t('mostPopular')}
+        </span>
+      ) : null}
+
+      <h3 className="text-sm font-bold text-foreground">{plan.name}</h3>
+      <p className="mt-1.5 text-xl font-bold text-foreground">{plan.weeklyRoi}</p>
+      <p className="text-xs text-muted-foreground">{plan.weeklyRoiLabel}</p>
+
+      <span
+        className={cn(
+          'mt-3 inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold',
+          style.riskClass
+        )}
+      >
+        {riskLabel}
+      </span>
+
+      <p className="mt-3 text-xs text-muted-foreground">
+        {t('minShort')}{' '}
+        <span className="font-semibold text-foreground">{plan.minInvestment}</span>
+      </p>
+
+      <Link
+        href={`/invest?plan=${plan.id}`}
+        className="mt-4 flex min-h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      >
+        {t('investNow')}
+      </Link>
+    </div>
   )
 }

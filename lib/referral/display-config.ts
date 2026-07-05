@@ -3,7 +3,7 @@
  * Does not affect backend calculations or payout logic.
  */
 
-export const REFERRAL_DISPLAY_INVESTMENT_COMMISSION = '1.5%'
+export const REFERRAL_DISPLAY_INVESTMENT_COMMISSION = '3%'
 
 export const REFERRAL_DISPLAY_PROFIT_SHARE = [
   { level: 1, label: 'L1', rate: '3%' },

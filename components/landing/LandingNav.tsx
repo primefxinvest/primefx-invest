@@ -13,7 +13,6 @@ const GUEST_PROTECTED_NAV_ROUTES = [
   '/invest',
   '/academy',
   '/market-insights',
-  '/community',
   '/support',
 ] as const
 
@@ -86,7 +85,6 @@ export default function LandingNav() {
     { href: '/about', label: t('aboutUs') },
     { href: '/academy', label: t('academy') },
     { href: '/market-insights', label: t('marketInsights') },
-    { href: '/community', label: t('community') },
     { href: '/support', label: t('support') },
   ]
 

@@ -1,18 +1,56 @@
 'use client'
 
 import { Link } from '@/i18n/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
-import { BookOpen, Share2, Shield, Trophy } from 'lucide-react'
+import { BookOpen, ChevronRight, Share2, Shield, Trophy } from 'lucide-react'
 import { StatusCardGrid, statusCardSurfaceClass } from '@/components/shared/status-cards'
 import { getMfaStatus, type MfaStatus } from '@/lib/auth/mfa'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import type { LearningProgress, ReferralData, RewardsData } from '@/lib/data/types'
+import { cn } from '@/lib/utils'
 
 interface DashboardStatusCardsProps {
   rewards?: RewardsData | null
   referral?: ReferralData | null
   learning?: LearningProgress | null
+}
+
+function InsightCard({
+  icon,
+  iconBg,
+  title,
+  children,
+  href,
+  linkLabel,
+}: {
+  icon: ReactNode
+  iconBg: string
+  title: string
+  children: ReactNode
+  href?: string
+  linkLabel?: string
+}) {
+  return (
+    <div className={cn(statusCardSurfaceClass, 'flex h-full flex-col')}>
+      <div className="mb-3 flex items-center gap-2.5">
+        <div className={cn('flex h-9 w-9 items-center justify-center rounded-xl', iconBg)}>
+          {icon}
+        </div>
+        <h3 className="text-xs font-semibold text-foreground sm:text-sm">{title}</h3>
+      </div>
+      <div className="flex-1">{children}</div>
+      {href && linkLabel ? (
+        <Link
+          href={href}
+          className="mt-3 inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-primary hover:underline"
+        >
+          {linkLabel}
+          <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+        </Link>
+      ) : null}
+    </div>
+  )
 }
 
 export default function DashboardStatusCards({
@@ -43,97 +81,70 @@ export default function DashboardStatusCards({
   const securityItemsComplete = (mfaStatus.enabled ? 1 : 0) + (kycVerified ? 1 : 0)
 
   return (
-    <StatusCardGrid columns={4}>
-      <div className={statusCardSurfaceClass}>
-        <div className="mb-3 flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-50">
-            <Trophy className="h-4 w-4 text-orange-500" />
-          </div>
-          <h3 className="text-xs font-bold text-gray-900">{t('rewardsProgress')}</h3>
-        </div>
-        <p className="text-base font-bold text-gray-900">{rewards?.currentTier ?? 'Bronze Level'}</p>
-        <p className="mt-0.5 text-[10px] text-gray-500">{rewards?.points ?? '0 / 500 XP'}</p>
-        <p className="mt-1 text-[10px] text-gray-400">{rewards?.nextLevel ?? 'Next: Silver Level'}</p>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100">
+    <StatusCardGrid columns={4} className="grid-cols-2 xl:grid-cols-4">
+      <InsightCard
+        icon={<Trophy className="h-4 w-4 text-orange-500" aria-hidden />}
+        iconBg="bg-orange-50"
+        title={t('rewardsProgress')}
+        href="/rewards"
+        linkLabel={t('viewDetails')}
+      >
+        <p className="text-lg font-bold text-foreground">{rewards?.currentTier ?? 'Bronze Level'}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{rewards?.points ?? '0 / 500 XP'}</p>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-orange-500 transition-all"
+            className="h-full rounded-full bg-[#f97316] transition-all"
             style={{ width: `${rewards?.progress ?? 0}%` }}
           />
         </div>
-      </div>
+      </InsightCard>
 
-      <div className={statusCardSurfaceClass}>
-        <div className="mb-3 flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50">
-            <Share2 className="h-4 w-4 text-emerald-600" />
-          </div>
-          <h3 className="text-xs font-bold text-gray-900">{t('referralEarnings')}</h3>
-        </div>
-        <p className="text-base font-bold text-emerald-600">{referral?.totalEarnings ?? '$0.00'}</p>
-        <p className="mt-0.5 text-[10px] text-gray-500">{t('totalEarnings')}</p>
-        <p className="mt-2 text-[10px] text-gray-500">
+      <InsightCard
+        icon={<Share2 className="h-4 w-4 text-emerald-600" aria-hidden />}
+        iconBg="bg-emerald-50"
+        title={t('referralEarnings')}
+        href="/referral"
+        linkLabel={t('viewDetails')}
+      >
+        <p className="text-lg font-bold text-emerald-600">{referral?.totalEarnings ?? '$0.00'}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t('totalEarnings')}</p>
+        <p className="mt-1 text-xs text-muted-foreground">
           {t('totalReferrals', { count: referral?.totalReferrals ?? 0 })}
         </p>
-        <Link
-          href="/referral"
-          className="mt-3 inline-block text-[11px] font-semibold text-[#0052ff] hover:underline"
-        >
-          {t('viewDetails')}
-        </Link>
-      </div>
+      </InsightCard>
 
-      <div className={statusCardSurfaceClass}>
-        <div className="mb-3 flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
-            <BookOpen className="h-4 w-4 text-[#0052ff]" />
-          </div>
-          <h3 className="text-xs font-bold text-gray-900">{t('learningProgress')}</h3>
-        </div>
-        <p className="text-base font-bold text-emerald-600">{learning?.completed ?? 0}%</p>
-        <p className="mt-0.5 text-[10px] text-gray-500">{t('overallProgress')}</p>
-        <p className="mt-2 text-[10px] text-gray-500">
-          {learning?.coursesCompleted ?? 0} {learning?.label ?? t('coursesCompleted')}
-        </p>
-        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-100">
+      <InsightCard
+        icon={<BookOpen className="h-4 w-4 text-primary" aria-hidden />}
+        iconBg="bg-primary/10"
+        title={t('learningProgress')}
+        href="/academy"
+        linkLabel={t('continueLearning')}
+      >
+        <p className="text-lg font-bold text-emerald-600">{learning?.completed ?? 0}%</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t('overallProgress')}</p>
+        <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
           <div
-            className="h-full rounded-full bg-emerald-500"
+            className="h-full rounded-full bg-emerald-500 transition-all"
             style={{ width: `${learning?.completed ?? 0}%` }}
           />
         </div>
-        <Link
-          href="/academy"
-          className="mt-3 inline-block text-[11px] font-semibold text-[#0052ff] hover:underline"
-        >
-          {t('continueLearning')}
-        </Link>
-      </div>
+      </InsightCard>
 
-      <div className={statusCardSurfaceClass}>
-        <div className="mb-3 flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-50">
-            <Shield className="h-4 w-4 text-emerald-500" />
-          </div>
-          <h3 className="text-xs font-bold text-gray-900">{t('securityStatus')}</h3>
-        </div>
-        <p className="text-base font-bold text-gray-900">
-          {securityItemsComplete}/2
-        </p>
-        <ul className="mt-2 space-y-1 text-[11px] text-gray-500">
+      <InsightCard
+        icon={<Shield className="h-4 w-4 text-emerald-600" aria-hidden />}
+        iconBg="bg-emerald-50"
+        title={t('securityStatus')}
+        href="/settings"
+        linkLabel={t('viewDetails')}
+      >
+        <p className="text-lg font-bold text-foreground">{securityItemsComplete}/2</p>
+        <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
           <li>
-            {tSettings('twoFactor')}:{' '}
-            {mfaStatus.enabled ? tSettings('active') : tSettings('off')}
+            {tSettings('twoFactor')}: {mfaStatus.enabled ? tSettings('active') : tSettings('off')}
           </li>
-          <li>
-            KYC: {kycVerified ? tSettings('active') : kycAccess.status}
-          </li>
+          <li>KYC: {kycVerified ? tSettings('active') : kycAccess.status}</li>
         </ul>
-        <Link
-          href="/settings"
-          className="mt-3 inline-block text-[11px] font-semibold text-[#0052ff] hover:underline"
-        >
-          {t('viewDetails')}
-        </Link>
-      </div>
+      </InsightCard>
     </StatusCardGrid>
   )
 }

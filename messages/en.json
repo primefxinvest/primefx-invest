@@ -206,6 +206,7 @@
     "rewards": "Rewards",
     "community": "Community",
     "referral": "Referral",
+    "referralEarn": "Referral & Earn",
     "marketInsights": "Market Insights",
     "support": "Support",
     "notifications": "Notifications",
@@ -762,6 +763,10 @@
   "dashboard": {
     "welcome": "Welcome back, {name}!",
     "overviewSubtitle": "Here's your investment overview for today.",
+    "portfolioHero": "Portfolio overview",
+    "portfolioHeroLabel": "Total Portfolio Value",
+    "insightsTitle": "Insights & Progress",
+    "deposit": "Deposit",
     "currentBalance": "Current Balance",
     "totalInvested": "Total Invested",
     "currentValue": "Current Value",

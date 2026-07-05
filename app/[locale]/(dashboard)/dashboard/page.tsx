@@ -3,8 +3,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
-import { Calendar } from 'lucide-react'
-import { InvestorKpiCards } from '@/components/shared/kpi'
 import { PortfolioChart, AssetAllocationChart } from '@/components/shared/Charts.lazy'
 import {
   DashboardMarketSection,
@@ -13,10 +11,11 @@ import {
   DashboardRecentTransactions,
   DashboardSecondarySectionsDeferred,
 } from '@/components/dashboard/Dashboard.lazy'
+import { DashboardPortfolioHero } from '@/components/dashboard/DashboardPortfolioHero'
 import { DashboardSectionHeader } from '@/components/dashboard/DashboardSectionHeader'
 import { CustomSelect } from '@/components/ui/custom-select'
 import { AsyncState } from '@/components/shared/data-state'
-import { ChartCardSkeleton, MetricCardsSkeleton } from '@/components/shared/skeletons'
+import { ChartCardSkeleton } from '@/components/shared/skeletons'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { useDashboardCore } from '@/lib/hooks/useDashboardCore'
@@ -24,7 +23,7 @@ import { useUserWalletRealtime } from '@/lib/hooks/useTransactionsRealtime'
 import type { PortfolioChartPeriod } from '@/lib/data/portfolio-performance'
 import { formatDate } from '@/lib/data/format'
 import { pageStackClass, pageHeaderGapClass, gridGapClass } from '@/lib/layout/spacing'
-import { dashboardCardClass, dashboardMutedTextClass } from '@/lib/layout/surfaces'
+import { dashboardCardClass } from '@/lib/layout/surfaces'
 import { CHART_HEIGHT_AREA, CHART_HEIGHT_DONUT, CHART_SKELETON_AREA_CLASS } from '@/lib/layout/charts'
 import { cn } from '@/lib/utils'
 
@@ -64,45 +63,38 @@ export default function DashboardPage() {
     setTodayLabel(formatDate(new Date().toISOString()))
   }, [])
 
+  const firstName = user.name.split(' ')[0] ?? user.name
+
   return (
     <div className={cn('min-w-0', pageStackClass)}>
       <header
-        className={cn('flex flex-col sm:flex-row sm:items-center sm:justify-between', pageHeaderGapClass)}
+        className={cn('flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between', pageHeaderGapClass)}
       >
         <div className="min-w-0">
-          <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-            {t('welcome', { name: user.name.split(' ')[0] })}
+          <p className="text-xs font-medium text-muted-foreground">
+            {todayLabel ? (
+              <time dateTime={new Date().toISOString().slice(0, 10)} suppressHydrationWarning>
+                {todayLabel}
+              </time>
+            ) : (
+              '—'
+            )}
+          </p>
+          <h1 className="mt-0.5 text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+            {t('welcome', { name: firstName })}
           </h1>
-          <p className={cn('mt-1', dashboardMutedTextClass)}>{t('overviewSubtitle')}</p>
-        </div>
-        <div
-          className="flex w-fit shrink-0 items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 shadow-sm"
-          aria-label={todayLabel ?? undefined}
-        >
-          <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <time
-            className="text-sm font-medium text-foreground"
-            dateTime={todayLabel ? new Date().toISOString().slice(0, 10) : undefined}
-            suppressHydrationWarning
-          >
-            {todayLabel ?? '—'}
-          </time>
         </div>
       </header>
 
-      <section aria-labelledby="dashboard-kpi-heading">
-        <h2 id="dashboard-kpi-heading" className="sr-only">
-          {t('overviewSubtitle')}
-        </h2>
-        <AsyncState
-          loading={loading}
-          error={error}
-          onRetry={reload}
-          skeleton={<MetricCardsSkeleton count={5} />}
-        >
-          <InvestorKpiCards variant="dashboard" metrics={metrics} wallet={wallet} />
+      {loading ? (
+        <DashboardPortfolioHero loading />
+      ) : error ? (
+        <AsyncState loading={false} error={error} onRetry={reload} skeleton={null}>
+          {null}
         </AsyncState>
-      </section>
+      ) : (
+        <DashboardPortfolioHero metrics={metrics} wallet={wallet} />
+      )}
 
       <section
         aria-labelledby="dashboard-charts-heading"
@@ -121,7 +113,7 @@ export default function DashboardPage() {
                 onValueChange={(value) => setSelectedPeriod(value as keyof typeof PERIOD_KEYS)}
                 size="sm"
                 className="min-w-0 w-auto"
-                triggerClassName="border-0 bg-transparent px-1 shadow-none hover:bg-transparent focus-visible:border-transparent focus-visible:ring-0 text-muted-foreground font-medium"
+                triggerClassName="min-h-11 border-0 bg-transparent px-2 shadow-none hover:bg-muted/50 focus-visible:border-transparent focus-visible:ring-0 text-muted-foreground font-medium"
                 options={periodOptions}
                 placeholder={t('period')}
               />
@@ -137,7 +129,10 @@ export default function DashboardPage() {
               emptyTitle={t('noPerformanceTitle')}
               emptyDescription={t('noPerformanceDesc')}
               emptyAction={
-                <Link href="/invest" className="text-sm font-semibold text-primary hover:underline">
+                <Link
+                  href="/invest"
+                  className="inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline"
+                >
                   {t('explorePlans')}
                 </Link>
               }
@@ -155,7 +150,7 @@ export default function DashboardPage() {
             action={
               <Link
                 href="/portfolio"
-                className="text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded"
+                className="inline-flex min-h-11 items-center text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg px-1"
               >
                 {t('viewAll')}
               </Link>
@@ -171,7 +166,10 @@ export default function DashboardPage() {
               emptyTitle={t('noAllocationTitle')}
               emptyDescription={t('noAllocationDesc')}
               emptyAction={
-                <Link href="/invest" className="text-sm font-semibold text-primary hover:underline">
+                <Link
+                  href="/invest"
+                  className="inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline"
+                >
                   {t('startInvesting')}
                 </Link>
               }
@@ -189,18 +187,20 @@ export default function DashboardPage() {
             >
               <>
                 <AssetAllocationChart data={allocation ?? []} height={CHART_HEIGHT_DONUT} />
-                <ul className="mt-4 space-y-2" aria-label={t('assetAllocation')}>
+                <ul className="mt-4 space-y-2.5" aria-label={t('assetAllocation')}>
                   {allocation?.map((asset) => (
-                    <li key={asset.name} className="flex items-center justify-between text-xs">
+                    <li key={asset.name} className="flex items-center justify-between text-sm">
                       <div className="flex min-w-0 items-center gap-2">
                         <span
-                          className="h-2 w-2 shrink-0 rounded-full"
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
                           style={{ backgroundColor: asset.color }}
                           aria-hidden
                         />
                         <span className="truncate text-muted-foreground">{asset.name}</span>
                       </div>
-                      <span className="shrink-0 font-semibold text-foreground">{asset.value}%</span>
+                      <span className="shrink-0 font-semibold tabular-nums text-foreground">
+                        {asset.value}%
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -221,8 +221,8 @@ export default function DashboardPage() {
         </h2>
 
         <div className="min-w-0 space-y-6 xl:col-span-2">
-          <DashboardPlansCarousel />
           <DashboardRecentTransactions />
+          <DashboardPlansCarousel />
         </div>
 
         <div className="min-w-0 self-start">
@@ -230,9 +230,9 @@ export default function DashboardPage() {
         </div>
       </section>
 
-      <section aria-labelledby="dashboard-rewards-heading">
-        <h2 id="dashboard-rewards-heading" className="sr-only">
-          {t('rewardsProgress')}
+      <section aria-labelledby="dashboard-insights-heading">
+        <h2 id="dashboard-insights-heading" className="mb-4 text-sm font-semibold text-foreground">
+          {t('insightsTitle')}
         </h2>
         <DashboardSecondarySectionsDeferred />
       </section>

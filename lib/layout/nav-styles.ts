@@ -2,7 +2,7 @@
 export const NAV_ITEM_BASE =
   'flex w-full min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors duration-200'
 
-export const NAV_ITEM_ACTIVE = 'bg-[#0052ff] text-white shadow-sm'
+export const NAV_ITEM_ACTIVE = 'bg-primary text-primary-foreground shadow-sm'
 
 export const NAV_ITEM_INACTIVE = 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
 
@@ -12,7 +12,7 @@ export const NAV_ICON_SLOT =
 export const NAV_SUB_ITEM_BASE =
   'flex w-full min-h-10 items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-colors duration-200'
 
-export const NAV_SUB_ITEM_ACTIVE = 'bg-blue-50 text-[#0052ff] font-semibold'
+export const NAV_SUB_ITEM_ACTIVE = 'bg-primary/10 text-primary font-semibold'
 
 export const NAV_SUB_ITEM_INACTIVE = 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
 

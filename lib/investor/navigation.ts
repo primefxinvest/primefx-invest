@@ -11,11 +11,10 @@ export const INVESTOR_NAV_ITEMS: InvestorNavItem[] = [
   { href: '/invest', label: 'Invest' },
   { href: '/portfolio', label: 'Portfolio' },
   { href: '/wallet', label: 'Wallet' },
+  { href: '/referral', label: 'Referral & Earn' },
   { href: '/primeai', label: 'PrimeAI' },
   { href: '/academy', label: 'Academy' },
   { href: '/rewards', label: 'Rewards' },
-  { href: '/community', label: 'Community' },
-  { href: '/referral', label: 'Referral Center' },
   { href: '/market-insights', label: 'Market Insights', requiredTier: 'growth' },
   { href: '/support', label: 'Support' },
 ]

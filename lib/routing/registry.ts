@@ -21,7 +21,6 @@ export const LOCALE_APP_ROUTES = [
   '/academy',
   '/academy/[courseId]',
   '/rewards',
-  '/community',
   '/referral',
   '/market-insights',
   '/support',
@@ -38,7 +37,6 @@ export const LANDING_NAV_ROUTES = [
   '/about',
   '/academy',
   '/market-insights',
-  '/community',
   '/support',
 ] as const
 
@@ -65,7 +63,6 @@ export const AUTHENTICATED_APP_ROUTES = [
   '/primeai',
   '/academy',
   '/rewards',
-  '/community',
   '/referral',
   '/market-insights',
   '/support',

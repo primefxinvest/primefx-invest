@@ -25,27 +25,27 @@ const typeStyles: Record<
 > = {
   Deposit: {
     icon: ArrowDownLeft,
-    iconBg: 'bg-emerald-100',
+    iconBg: 'bg-emerald-50',
     iconColor: 'text-emerald-600',
   },
   Profit: {
     icon: ArrowUpRight,
-    iconBg: 'bg-emerald-100',
+    iconBg: 'bg-emerald-50',
     iconColor: 'text-emerald-600',
   },
   Withdraw: {
     icon: ArrowUpRight,
-    iconBg: 'bg-red-100',
+    iconBg: 'bg-red-50',
     iconColor: 'text-red-600',
   },
   Transfer: {
     icon: ArrowUpRight,
-    iconBg: 'bg-blue-100',
-    iconColor: 'text-blue-600',
+    iconBg: 'bg-primary/10',
+    iconColor: 'text-primary',
   },
   Bonus: {
     icon: Gift,
-    iconBg: 'bg-orange-100',
+    iconBg: 'bg-orange-50',
     iconColor: 'text-orange-600',
   },
 }
@@ -60,33 +60,36 @@ export default function DashboardRecentTransactions() {
 
   return (
     <div className={dashboardCardClass}>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className={dashboardSectionTitleClass}>{t('recentTransactions')}</h2>
         <Link
           href="/transactions"
-          className="flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline"
+          className="inline-flex min-h-11 items-center gap-0.5 text-xs font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg px-1"
         >
           {t('viewAll')}
           <ChevronRight className="h-3.5 w-3.5" />
         </Link>
       </div>
 
-          <AsyncState
-            loading={loading && !transactions?.length}
-            error={error}
-            onRetry={reload}
-            isEmpty={!transactions?.length}
+      <AsyncState
+        loading={loading && !transactions?.length}
+        error={error}
+        onRetry={reload}
+        isEmpty={!transactions?.length}
         emptyTitle={t('noTransactionsTitle')}
         emptyDescription={t('noTransactionsDesc')}
         emptyAction={
-          <Link href="/wallet" className="text-sm font-semibold text-primary hover:underline">
+          <Link
+            href="/wallet"
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-primary hover:underline"
+          >
             {t('goToWallet')}
           </Link>
         }
         skeleton={<ListSkeleton rows={4} />}
         compact
       >
-        <div className="space-y-2">
+        <ul className="divide-y divide-border" aria-label={t('recentTransactions')}>
           {transactions?.map((tx) => {
             const style = typeStyles[tx.type] ?? typeStyles.Deposit
             const labelKey = typeKeys[tx.type] ?? 'txDeposit'
@@ -94,39 +97,38 @@ export default function DashboardRecentTransactions() {
             const isPositive = tx.amount.startsWith('+')
 
             return (
-              <div
-                key={tx.id}
-                className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2.5"
-              >
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className={cn(
-                      'flex h-8 w-8 items-center justify-center rounded-full',
-                      style.iconBg
-                    )}
-                  >
-                    <Icon className={cn('h-3.5 w-3.5', style.iconColor)} />
+              <li key={tx.id}>
+                <div className="flex min-h-[3.25rem] items-center justify-between gap-3 py-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div
+                      className={cn(
+                        'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
+                        style.iconBg
+                      )}
+                    >
+                      <Icon className={cn('h-4 w-4', style.iconColor)} aria-hidden />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">{t(labelKey)}</p>
+                      <p className="text-xs text-muted-foreground">{tx.date}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">{t(labelKey)}</p>
-                    <p className="text-[10px] text-muted-foreground">{tx.date}</p>
+                  <div className="shrink-0 text-right">
+                    <p
+                      className={cn(
+                        'text-sm font-bold tabular-nums',
+                        isPositive ? 'text-emerald-600' : 'text-red-600'
+                      )}
+                    >
+                      {tx.amount}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{tx.status}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p
-                    className={cn(
-                      'text-xs font-bold',
-                      isPositive ? 'text-emerald-600' : 'text-red-600'
-                    )}
-                  >
-                    {tx.amount}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground">{tx.status}</p>
-                </div>
-              </div>
+              </li>
             )
           })}
-        </div>
+        </ul>
       </AsyncState>
     </div>
   )

@@ -20,7 +20,6 @@ export const PROTECTED_ROUTE_PREFIXES = [
   '/primeai',
   '/academy',
   '/rewards',
-  '/community',
   '/referral',
   '/market-insights',
   '/support',

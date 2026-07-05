@@ -57,7 +57,6 @@ export default async function LandingFooter() {
               </li>
               <LandingFooterProtectedLinks
                 academyLabel={tNav('academy')}
-                communityLabel={tNav('community')}
                 className="transition-colors hover:text-gray-900"
               />
             </ul>

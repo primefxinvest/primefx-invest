@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode } from 'react'
+import { ReactNode, Suspense } from 'react'
 import MfaSessionGuard from '@/components/auth/MfaSessionGuard'
 import { NotificationPushListener } from '@/components/notifications/NotificationPushListener'
 import MobileBottomNav from '@/components/shared/MobileBottomNav'
@@ -21,7 +21,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
     <MobileNavProvider>
       <SkipLink />
       <div className="min-h-screen bg-background">
-        <Sidebar />
+        <Suspense fallback={null}>
+          <Sidebar />
+        </Suspense>
         <Navbar />
         <main
           id="main-content"

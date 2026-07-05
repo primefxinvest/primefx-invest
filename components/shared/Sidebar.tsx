@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Link, usePathname } from '@/i18n/navigation'
 import { logout } from '@/lib/auth/logout'
@@ -16,7 +17,6 @@ import {
   Zap,
   BookOpen,
   Trophy,
-  Users,
   Share2,
   BarChart3,
   MessageSquare,
@@ -41,6 +41,12 @@ import {
   isWalletSectionActive,
   WALLET_NAV_ITEMS,
 } from '@/lib/wallet/navigation'
+import {
+  isReferralRoute,
+  isReferralSectionActive,
+  parseReferralSection,
+  REFERRAL_SECTIONS,
+} from '@/lib/referral/navigation'
 import { useReferralProgramEnabled } from '@/lib/hooks/useReferralProgramEnabled'
 import { fetchNotifications } from '@/lib/data/queries'
 import { CACHE_KEYS } from '@/lib/data/cache-keys'
@@ -58,6 +64,10 @@ import {
   NAV_WALLET_SUBMENU_CLASS,
 } from '@/lib/layout/nav-styles'
 
+const REFERRAL_SUB_ITEM_ACTIVE =
+  'bg-orange-50 text-orange-600 font-semibold border-l-2 border-orange-500'
+const REFERRAL_SUB_ITEM_INACTIVE = 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+
 const navIconMap = {
   '/dashboard': Home,
   '/invest': TrendingUp,
@@ -66,7 +76,6 @@ const navIconMap = {
   '/primeai': Zap,
   '/academy': BookOpen,
   '/rewards': Trophy,
-  '/community': Users,
   '/referral': Share2,
   '/market-insights': BarChart3,
   '/support': MessageSquare,
@@ -88,7 +97,6 @@ const SIDEBAR_LABEL_KEYS: Record<string, string> = {
   '/primeai': 'primeai',
   '/academy': 'academy',
   '/rewards': 'rewards',
-  '/community': 'community',
   '/referral': 'referral',
   '/market-insights': 'marketInsights',
   '/support': 'support',
@@ -116,13 +124,20 @@ function subNavItemClass(active: boolean) {
   return cn(NAV_SUB_ITEM_BASE, active ? NAV_SUB_ITEM_ACTIVE : NAV_SUB_ITEM_INACTIVE)
 }
 
+function referralSubNavItemClass(active: boolean) {
+  return cn(NAV_SUB_ITEM_BASE, active ? REFERRAL_SUB_ITEM_ACTIVE : REFERRAL_SUB_ITEM_INACTIVE)
+}
+
 export default function Sidebar() {
   const t = useTranslations('sidebar')
   const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const referralSection = parseReferralSection(searchParams.get('section'))
   const { open, close } = useMobileNav()
   const asideRef = useRef<HTMLElement>(null)
   const [loggingOut, setLoggingOut] = useState(false)
   const [walletOpen, setWalletOpen] = useState(() => isWalletSectionActive(pathname))
+  const [referralOpen, setReferralOpen] = useState(() => isReferralRoute(pathname))
   const { tierKey } = useInvestorTier()
   const { canAccess, loading: referralProgramLoading } = useReferralProgramEnabled()
   const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [], undefined, {
@@ -137,6 +152,12 @@ export default function Sidebar() {
   useEffect(() => {
     if (isWalletSectionActive(pathname)) {
       setWalletOpen(true)
+    }
+  }, [pathname])
+
+  useEffect(() => {
+    if (isReferralRoute(pathname)) {
+      setReferralOpen(true)
     }
   }, [pathname])
 
@@ -351,13 +372,86 @@ export default function Sidebar() {
                               <span
                                 className={cn(
                                   'h-1.5 w-1.5 shrink-0 rounded-full',
-                                  subActive ? 'bg-[#0052ff]' : 'bg-transparent'
+                                  subActive ? 'bg-primary' : 'bg-transparent'
                                 )}
                                 aria-hidden
                               />
                               <span className={NAV_LABEL_CLASS}>
                                 {t(WALLET_SUB_LABEL_KEYS[subItem.href] as 'overview')}
                               </span>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    ) : null}
+                  </div>
+                )
+              }
+
+              if (item.href === '/referral') {
+                const referralActive = isReferralRoute(pathname)
+
+                return (
+                  <div key={item.href} className="space-y-1">
+                    <Link
+                      href="/referral"
+                      title={t('referralEarn')}
+                      aria-current={referralActive ? 'page' : undefined}
+                      className={cn(navItemClass(referralActive), 'hidden md:flex lg:hidden')}
+                    >
+                      <span className={NAV_ICON_SLOT}>
+                        <Share2 />
+                      </span>
+                      <span className="sr-only">{t('referralEarn')}</span>
+                    </Link>
+
+                    <button
+                      type="button"
+                      id="sidebar-referral-toggle"
+                      aria-expanded={referralOpen}
+                      aria-controls="sidebar-referral-submenu"
+                      onClick={() => setReferralOpen((current) => !current)}
+                      className={cn(
+                        navItemClass(referralActive),
+                        'max-md:flex md:hidden lg:flex',
+                        referralActive && !referralOpen ? 'bg-orange-50 text-orange-700 shadow-none hover:bg-orange-100' : undefined
+                      )}
+                    >
+                      <span className={NAV_ICON_SLOT}>
+                        <Share2 />
+                      </span>
+                      <span className={cn(NAV_LABEL_CLASS, 'text-left')}>{t('referralEarn')}</span>
+                      {referralOpen ? (
+                        <ChevronDown className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 shrink-0 opacity-80" aria-hidden />
+                      )}
+                    </button>
+
+                    {referralOpen ? (
+                      <div
+                        id="sidebar-referral-submenu"
+                        role="group"
+                        aria-labelledby="sidebar-referral-toggle"
+                        className={NAV_WALLET_SUBMENU_CLASS}
+                      >
+                        {REFERRAL_SECTIONS.map((subItem) => {
+                          const subActive = referralActive && isReferralSectionActive(referralSection, subItem.key)
+                          return (
+                            <Link
+                              key={subItem.key}
+                              href={subItem.href}
+                              aria-current={subActive ? 'page' : undefined}
+                              className={referralSubNavItemClass(subActive)}
+                            >
+                              <span
+                                className={cn(
+                                  'h-1.5 w-1.5 shrink-0 rounded-full',
+                                  subActive ? 'bg-orange-500' : 'bg-transparent'
+                                )}
+                                aria-hidden
+                              />
+                              <span className={NAV_LABEL_CLASS}>{subItem.label}</span>
                             </Link>
                           )
                         })}
