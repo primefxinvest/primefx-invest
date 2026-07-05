@@ -5,7 +5,9 @@ import { createUserNotification, createUserNotificationOnce } from '@/lib/notifi
 import { syncUserVerificationFromDidit } from '@/lib/didit/verification-sync'
 import { upsertVerificationSession } from '@/lib/didit/verification-sessions'
 import type { DiditWebhookEnvelope } from '@/lib/didit/webhook-types'
+import { logDiditWebhookAudit } from '@/lib/didit/webhook-audit-log'
 import { markDiditWebhookProcessed } from '@/lib/didit/webhook-log'
+import { normalizeDiditStatus } from '@/lib/didit/status-maps'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -59,15 +61,43 @@ async function handleSessionEvent(event: DiditWebhookEnvelope) {
   const sessionId = event.session_id ?? event.business_session_id ?? null
 
   if (event.webhook_type === 'status.updated' && event.status) {
-    await syncUserVerificationFromDidit({
+    const diditStatus = normalizeDiditStatus(event.status)
+    const synced = await syncUserVerificationFromDidit({
       userId,
       sessionId,
-      diditStatus: event.status,
+      diditStatus,
       decision: event.decision ?? null,
       resubmitInfo: event.resubmit_info ?? null,
     })
 
-    if (event.status === 'Abandoned') {
+    if (synced.isVerified) {
+      logDiditWebhookAudit('VERIFICATION_APPROVED', {
+        eventId: event.event_id,
+        userId,
+        sessionId,
+        verificationStatus: synced.verificationStatus,
+        kycStatus: synced.kycStatus,
+      })
+    } else if (synced.verificationStatus === 'declined') {
+      logDiditWebhookAudit('VERIFICATION_DECLINED', {
+        eventId: event.event_id,
+        userId,
+        sessionId,
+        verificationStatus: synced.verificationStatus,
+        kycStatus: synced.kycStatus,
+      })
+    } else {
+      logDiditWebhookAudit('DATABASE_UPDATED', {
+        eventId: event.event_id,
+        userId,
+        sessionId,
+        diditStatus,
+        verificationStatus: synced.verificationStatus,
+        kycStatus: synced.kycStatus,
+      })
+    }
+
+    if (diditStatus === 'Abandoned') {
       await createUserNotificationOnce({
         userId,
         dedupeKey: `kyc_abandoned:${sessionId ?? event.event_id}`,
@@ -76,7 +106,7 @@ async function handleSessionEvent(event: DiditWebhookEnvelope) {
         type: 'security',
         metadata: { event: 'kyc_abandoned', sessionId },
       })
-    } else if (event.status === 'Expired' || event.status === 'KYC Expired') {
+    } else if (diditStatus === 'Expired' || diditStatus === 'KYC Expired') {
       await createUserNotificationOnce({
         userId,
         dedupeKey: `kyc_expired:${sessionId ?? event.event_id}`,
@@ -85,7 +115,7 @@ async function handleSessionEvent(event: DiditWebhookEnvelope) {
         type: 'security',
         metadata: { event: 'kyc_expired', sessionId },
       })
-    } else if (event.status === 'Resubmitted') {
+    } else if (diditStatus === 'Resubmitted') {
       await createUserNotificationOnce({
         userId,
         dedupeKey: `kyc_resubmitted:${sessionId ?? event.event_id}`,
@@ -124,13 +154,24 @@ async function handleSessionEvent(event: DiditWebhookEnvelope) {
       .eq('user_id', userId)
 
     if (event.status) {
-      await syncUserVerificationFromDidit({
+      const diditStatus = normalizeDiditStatus(event.status)
+      const synced = await syncUserVerificationFromDidit({
         userId,
         sessionId,
-        diditStatus: event.status,
+        diditStatus,
         decision: event.decision ?? null,
         resubmitInfo: event.resubmit_info ?? null,
         notify: false,
+      })
+
+      logDiditWebhookAudit('DATABASE_UPDATED', {
+        eventId: event.event_id,
+        userId,
+        sessionId,
+        webhookType: 'data.updated',
+        diditStatus,
+        verificationStatus: synced.verificationStatus,
+        kycStatus: synced.kycStatus,
       })
     }
   }
@@ -208,7 +249,10 @@ export async function processDiditWebhookEvent(event: DiditWebhookEnvelope) {
         await handleTransactionEvent(event)
         break
       default:
-        console.info('[didit-webhook] unhandled webhook_type', event.webhook_type)
+        logDiditWebhookAudit('UNHANDLED_WEBHOOK_TYPE', {
+          eventId: event.event_id,
+          webhookType: event.webhook_type,
+        })
     }
 
     await markDiditWebhookProcessed(event.event_id)

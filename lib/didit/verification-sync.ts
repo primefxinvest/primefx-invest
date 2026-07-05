@@ -10,6 +10,7 @@ import {
 import {
   mapDiditStatusToKycStatus,
   mapDiditStatusToVerificationStatus,
+  normalizeDiditStatus,
   type UserVerificationStatus,
 } from '@/lib/didit/status-maps'
 import { logSecurityAudit } from '@/lib/security/security-audit'
@@ -40,8 +41,9 @@ export async function syncUserVerificationFromDidit(input: {
   const previousVerificationStatus =
     (currentUser?.verification_status as UserVerificationStatus | undefined) ?? 'pending'
 
-  const verificationStatus = mapDiditStatusToVerificationStatus(input.diditStatus)
-  const kycStatus = mapDiditStatusToKycStatus(input.diditStatus)
+  const diditStatus = normalizeDiditStatus(input.diditStatus)
+  const verificationStatus = mapDiditStatusToVerificationStatus(diditStatus)
+  const kycStatus = mapDiditStatusToKycStatus(diditStatus)
   const kycStatusChanged = previousKycStatus !== kycStatus
   const verificationStatusChanged = previousVerificationStatus !== verificationStatus
   const now = new Date().toISOString()
@@ -51,9 +53,7 @@ export async function syncUserVerificationFromDidit(input: {
     is_verified: isVerified,
     verification_status: verificationStatus,
     kyc_status: kycStatus,
-    kyc_verification_detail: (input.diditStatus ?? 'pending')
-      .toLowerCase()
-      .replace(/\s+/g, '_'),
+    kyc_verification_detail: diditStatus.toLowerCase().replace(/\s+/g, '_'),
     updated_at: now,
   }
 
@@ -70,7 +70,7 @@ export async function syncUserVerificationFromDidit(input: {
     await upsertVerificationSession({
       sessionId: input.sessionId,
       vendorData: input.userId,
-      status: input.diditStatus ?? 'In Progress',
+      status: diditStatus,
       decision: input.decision ?? null,
       userId: input.userId,
     })

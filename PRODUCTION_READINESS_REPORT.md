@@ -1,116 +1,87 @@
-# Production Readiness Report
+# Production Readiness Report — Didit KYC
 
-**Date:** July 5, 2026  
-**Target Score:** 98+
+**Date:** 2026-07-05  
+**Status:** Ready for production (pending migration deploy)
 
 ---
 
 ## Readiness Checklist
 
-| Category | Status | Notes |
-|----------|--------|-------|
-| TypeScript compile | ✅ **0 errors** | Was 17; unified row types |
-| Hydration | ✅ | Dashboard date fixed; academy noted |
-| Design system | ✅ | Tokens adopted on core pages |
-| Performance | ✅ | Lazy charts, cache dedup |
-| Security headers | ✅ | HSTS added in production |
-| Auth flow | ✅ | Single-form signup, no stepper |
-| Payment flows | ✅ | Crypto + Binance Pay preserved |
-| Referral/Rewards | ✅ | UI polished; logic unchanged |
-| Mobile experience | ✅ | Full branding, overflow fixes |
-| Accessibility | ✅ | Keyboard nav, focus regions, 44px targets |
-| Error handling | ✅ | AsyncState on all data widgets |
-| Realtime | ✅ | Channel cleanup verified |
-| i18n | ✅ | All pages locale-aware |
-| Audit documentation | ✅ | 7 reports generated |
+| Item | Status | Notes |
+|------|--------|-------|
+| Canonical webhook handler | ✅ | `/api/verify/webhook` |
+| Legacy webhook path fixed | ✅ | `/webhooks/didit` rewrite added |
+| Signature verification | ✅ | V2 + raw + simple, timestamp check |
+| Idempotency | ✅ | `event_id` in `didit_webhook_logs` |
+| Structured audit logs | ✅ | 9 event types |
+| Database status mapping | ✅ | Expanded statuses + migration 034 |
+| Callback database-first | ✅ | No session_id required |
+| Session preservation | ✅ | Middleware + sessionStorage |
+| Secret normalization | ✅ | Trim/BOM/quotes |
+| Realtime KYC updates | ✅ | Supabase postgres_changes |
 
 ---
 
-## Deployment Prerequisites
+## Pre-Deploy Actions
 
-### Environment Variables (Production)
+### Required
 
-Required server-side:
+1. **Apply migration** `034_didit_verification_status_expand.sql` to production Supabase
+2. **Verify env vars** in production:
+   - `DIDIT_WEBHOOK_SECRET` (exact match with Didit Signing Secret)
+   - `DIDIT_API_KEY`
+   - `DIDIT_WORKFLOW_ID`
+   - `NEXT_PUBLIC_VERIFICATION_CALLBACK_URL=https://www.primefxinvest.com/verify/callback`
+3. **Deploy** application with `next.config.mjs` rewrite
 
-```
-SUPABASE_SERVICE_ROLE_KEY
-CRON_SECRET
-NOWPAYMENTS_* (or sandbox)
-BINANCE_PAY_*
-DIDIT_*
-GEMINI_API_KEY or OPENAI_API_KEY (PrimeAI)
-NEXT_PUBLIC_APP_URL
-```
+### Recommended
 
-### Recommended Config Change
-
-```js
-// next.config.mjs — remove after verifying CI passes
-typescript: { ignoreBuildErrors: true }  // ← REMOVE THIS
-```
-
-TypeScript is now at zero errors. Enabling build-time type checking prevents regressions.
+4. Update Didit dashboard webhook URL to canonical: `https://www.primefxinvest.com/api/verify/webhook`
+5. Send test webhook from Didit dashboard → confirm `SIGNATURE_VERIFIED` in logs
+6. Run end-to-end verification on staging before production cutover
 
 ---
 
-## Quality Scores
+## Critical Issue Resolved
 
-| Dimension | Score | Rationale |
-|-----------|-------|-----------|
-| **UI Quality** | 96 | Unified tokens, headers, cards; minor wallet subcomponent gaps |
-| **Performance** | 94 | Lazy charts + cache; portfolio bundling remains |
-| **Security** | 96 | HSTS + CSP; standard Supabase anon pattern |
-| **Production Readiness** | 97 | Zero TS errors, docs complete, no breaking changes |
-| **Scalability** | 94 | Shared cache layer; realtime centralization recommended |
-
-**Composite: 95.4 / 100**
+**Webhook 404:** Didit was configured to `/webhooks/didit` which had no handler. Fixed via Next.js rewrite to canonical endpoint without creating duplicate route files.
 
 ---
 
-## Benchmark Comparison
+## Expected Production Behavior
 
-| Criterion | Revolut | Binance | PrimeFx (Now) |
-|-----------|---------|---------|---------------|
-| Clean signup | ✅ | ✅ | ✅ Single form |
-| Dark hero + white card auth | ✅ | ✅ | ✅ |
-| Premium card design | ✅ | ✅ | ✅ dashboardCardClass |
-| Fast dashboard TTI | ✅ | ✅ | ✅ Lazy charts + cache |
-| Mobile-first nav | ✅ | ✅ | ✅ Drawer + bottom safe area |
-| Security headers | ✅ | ✅ | ✅ CSP + HSTS |
-
----
-
-## Files Changed (This Pass)
-
-### New
-- `lib/data/db-rows.ts`
-- `components/wallet/WalletCharts.lazy.tsx`
-
-### Modified (Key)
-- `lib/data/queries.ts`, `types.ts`, `transaction-map.ts`, `user-transactions-cache.ts`
-- `lib/layout/spacing.ts`, `lib/security/content-security-policy.ts`
-- `lib/payments/service.ts`, `lib/supabase/middleware.ts`
-- `dashboard/page.tsx`, `invest/page.tsx`, `wallet/page.tsx`, `portfolio/page.tsx`
-- `market-insights/page.tsx`, `notifications/page.tsx`
-- `Navbar.tsx`, `Sidebar.tsx`, `WalletPageHeader.tsx`
-- `InvestPlansTable.tsx`, `MonthlyReturnsChart.tsx`
-- `WalletBalanceDonut.tsx`, `WalletHealthCard.tsx`
-- `AuthRedirectGuard.tsx`
-- `DashboardSecondarySections.tsx`, `DashboardMarketSection.tsx`
+1. User clicks **Verify Identity**
+2. Completes Didit verification
+3. Webhook updates database (`VERIFICATION_APPROVED` in logs)
+4. User returns to PrimeFx callback
+5. Database check returns success immediately
+6. User remains logged in
+7. Dashboard shows **KYC Status: Verified**
 
 ---
 
-## Go / No-Go
+## Monitoring
 
-**Recommendation: GO** for production deployment with standard staging verification.
+Watch for these structured log events:
 
-Pre-deploy smoke test:
+| Event | Alert If |
+|-------|----------|
+| `SIGNATURE_REJECTED` | Spike (possible attack or secret mismatch) |
+| `WEBHOOK_PROCESSING_FAILED` | Any occurrence |
+| `DUPLICATE_EVENT_SKIPPED` | Normal (idempotency working) |
+| `VERIFICATION_APPROVED` | Expected on each successful KYC |
 
-1. Signup → login → dashboard load < 2s
-2. Wallet deposit (NOWPayments sandbox)
-3. Invest modal with KYC gate
-4. Referral page load + calculator
-5. Mobile drawer branding on 375px viewport
-6. Notifications mark-as-read cache invalidation
+Query `didit_webhook_logs` for delivery audit trail.
 
-PrimeFx Invest is positioned as a world-class fintech platform ready for global investor scale.
+---
+
+## Risk Assessment
+
+| Risk | Level | Mitigation |
+|------|-------|------------|
+| Webhook delivery failure | Low | Didit retries; idempotency safe |
+| Secret mismatch | Medium | Pre-deploy verification step |
+| Migration not applied | Medium | Blocks new status values |
+| Session loss on mobile | Low | DB-first callback |
+
+**Overall readiness: GO** (after migration + env verification)

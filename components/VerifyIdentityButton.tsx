@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { CheckCircle2, Loader2, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { storeDiditSessionId } from '@/lib/didit/callback-session'
 
 type VerifyIdentityButtonProps = {
   userId?: string
@@ -55,10 +56,18 @@ export function VerifyIdentityButton({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userId ? { userId } : {}),
       })
-      const payload = (await response.json()) as { url?: string; error?: string }
+      const payload = (await response.json()) as {
+        url?: string
+        sessionId?: string
+        error?: string
+      }
 
       if (!response.ok || !payload.url) {
         throw new Error(payload.error ?? 'Could not start verification')
+      }
+
+      if (payload.sessionId) {
+        storeDiditSessionId(payload.sessionId)
       }
 
       window.location.href = payload.url

@@ -16,7 +16,11 @@ import {
   mapDiditStatusToVerificationStatus,
   syncUserVerificationFromDidit,
 } from '@/lib/didit/verification-sync'
-import { upsertVerificationSession } from '@/lib/didit/verification-sessions'
+import {
+  getVerificationSessionBySessionId,
+  upsertVerificationSession,
+} from '@/lib/didit/verification-sessions'
+import { isUserVerifiedInProfile } from '@/lib/investor/kyc'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { assertDiditSessionOwnedByUser } from '@/lib/security/kyc-session-guard'
@@ -24,6 +28,64 @@ import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rat
 import { logSecurityAudit } from '@/lib/security/security-audit'
 
 export const runtime = 'nodejs'
+
+type UserVerificationProfile = {
+  didit_session_id: string | null
+  is_verified: boolean | null
+  verification_status: string | null
+  kyc_status: string | null
+}
+
+const TERMINAL_DIDIT_STATUSES = ['Approved', 'Declined', 'Expired', 'KYC Expired']
+
+function mapVerificationStatusToDiditStatus(
+  verificationStatus: string | null | undefined
+): string {
+  switch (String(verificationStatus ?? '').toLowerCase()) {
+    case 'approved':
+      return 'Approved'
+    case 'declined':
+      return 'Declined'
+    case 'expired':
+      return 'Expired'
+    case 'pending_review':
+      return 'In Review'
+    case 'in_progress':
+      return 'In Progress'
+    case 'abandoned':
+      return 'Abandoned'
+    default:
+      return 'In Progress'
+  }
+}
+
+async function buildDatabaseStatusResponse(input: {
+  profile: UserVerificationProfile
+  sessionId?: string
+  pending?: boolean
+}) {
+  const { profile, sessionId, pending } = input
+  const resolvedSessionId = sessionId ?? profile.didit_session_id ?? ''
+  const verificationStatus = String(profile.verification_status ?? 'pending').toLowerCase()
+
+  let diditStatus = mapVerificationStatusToDiditStatus(profile.verification_status)
+  if (resolvedSessionId) {
+    const storedSession = await getVerificationSessionBySessionId(resolvedSessionId)
+    if (storedSession?.status) {
+      diditStatus = storedSession.status
+    }
+  }
+
+  return NextResponse.json({
+    sessionId: resolvedSessionId,
+    diditStatus,
+    verificationStatus,
+    isVerified: isUserVerifiedInProfile(profile),
+    kycStatus: profile.kyc_status ?? 'Pending',
+    source: 'database',
+    ...(pending ? { pending: true } : {}),
+  })
+}
 
 export async function GET(request: Request) {
   const supabase = await createServerSupabaseClient()
@@ -45,21 +107,47 @@ export async function GET(request: Request) {
     throw err
   }
 
-  const sessionId = getVerificationSessionIdFromSearchParams(new URL(request.url).searchParams)
-  if (!sessionId) {
-    return NextResponse.json({ error: 'session_id is required' }, { status: 400 })
-  }
-
   const adminDb = createAdminSupabaseClient()
   if (!adminDb) {
     return NextResponse.json({ error: 'Verification service is not configured.' }, { status: 503 })
   }
+
+  const querySessionId = getVerificationSessionIdFromSearchParams(
+    new URL(request.url).searchParams
+  )
 
   const { data: profile } = await adminDb
     .from('users')
     .select('didit_session_id, is_verified, verification_status, kyc_status')
     .eq('id', user.id)
     .maybeSingle()
+
+  const userProfile = (profile ?? {
+    didit_session_id: null,
+    is_verified: false,
+    verification_status: 'pending',
+    kyc_status: 'Pending',
+  }) as UserVerificationProfile
+
+  // Source of truth: webhook-synced database status takes priority over callback params.
+  if (isUserVerifiedInProfile(userProfile)) {
+    return buildDatabaseStatusResponse({
+      profile: userProfile,
+      sessionId: querySessionId || userProfile.didit_session_id || undefined,
+    })
+  }
+
+  const terminalVerificationStatus = ['declined', 'expired'].includes(
+    String(userProfile.verification_status ?? '').toLowerCase()
+  )
+  if (terminalVerificationStatus && !querySessionId) {
+    return buildDatabaseStatusResponse({ profile: userProfile })
+  }
+
+  const sessionId = querySessionId || userProfile.didit_session_id || ''
+  if (!sessionId) {
+    return buildDatabaseStatusResponse({ profile: userProfile, pending: true })
+  }
 
   try {
     const apiResponse = await fetchDiditSessionDecision(sessionId)
@@ -71,6 +159,14 @@ export async function GET(request: Request) {
     })
 
     if (!ownership.ok) {
+      // Webhook may have already approved the user while callback carries a stale session id.
+      if (isUserVerifiedInProfile(userProfile)) {
+        return buildDatabaseStatusResponse({
+          profile: userProfile,
+          sessionId,
+        })
+      }
+
       await logSecurityAudit({
         eventType: 'kyc.session_ownership_denied',
         userId: user.id,
@@ -93,30 +189,30 @@ export async function GET(request: Request) {
       userId: user.id,
     })
 
-    if (profile?.didit_session_id !== sessionId) {
+    if (userProfile.didit_session_id !== sessionId) {
       await adminDb
         .from('users')
         .update({ didit_session_id: sessionId })
         .eq('id', user.id)
     }
 
-    const terminalStatuses = ['Approved', 'Declined', 'Expired', 'KYC Expired']
     const mappedVerificationStatus = mapDiditStatusToVerificationStatus(diditStatus)
 
     if (
-      terminalStatuses.includes(diditStatus) &&
-      profile?.verification_status === mappedVerificationStatus
+      TERMINAL_DIDIT_STATUSES.includes(diditStatus) &&
+      userProfile.verification_status === mappedVerificationStatus
     ) {
       return NextResponse.json({
         sessionId,
         diditStatus,
         verificationStatus: mappedVerificationStatus,
-        isVerified: Boolean(profile?.is_verified),
-        kycStatus: profile?.kyc_status ?? 'Pending',
+        isVerified: Boolean(userProfile.is_verified),
+        kycStatus: userProfile.kyc_status ?? 'Pending',
+        source: 'database',
       })
     }
 
-    if (terminalStatuses.includes(diditStatus)) {
+    if (TERMINAL_DIDIT_STATUSES.includes(diditStatus)) {
       const synced = await syncUserVerificationFromDidit({
         userId: user.id,
         sessionId,
@@ -141,6 +237,7 @@ export async function GET(request: Request) {
         verificationStatus: synced.verificationStatus,
         isVerified: synced.isVerified,
         kycStatus: synced.kycStatus,
+        source: 'didit_api',
       })
     }
 
@@ -148,11 +245,11 @@ export async function GET(request: Request) {
       sessionId,
       diditStatus,
       verificationStatus:
-        profile?.verification_status ??
-        mapDiditStatusToVerificationStatus(diditStatus),
-      isVerified: Boolean(profile?.is_verified),
-      kycStatus: profile?.kyc_status ?? 'Pending',
+        userProfile.verification_status ?? mapDiditStatusToVerificationStatus(diditStatus),
+      isVerified: Boolean(userProfile.is_verified),
+      kycStatus: userProfile.kyc_status ?? 'Pending',
       pending: true,
+      source: 'didit_api',
     })
   } catch (err) {
     if (isDiditSessionNotFoundError(err)) {
@@ -166,9 +263,10 @@ export async function GET(request: Request) {
         diditStatus: 'Expired',
         verificationStatus: 'expired',
         isVerified: false,
-        kycStatus: profile?.kyc_status ?? 'Pending',
+        kycStatus: userProfile.kyc_status ?? 'Pending',
         sessionNotFound: true,
         message: getDiditSessionNotFoundUserMessage(),
+        source: 'didit_api',
       })
     }
 

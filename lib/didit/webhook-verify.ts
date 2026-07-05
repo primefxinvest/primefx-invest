@@ -6,11 +6,11 @@ import { canonicalJsonStringify } from '@/lib/didit/webhook-canonical'
 import type { DiditSignatureMethod, DiditWebhookEnvelope } from '@/lib/didit/webhook-types'
 
 function safeEqualHex(expected: string, received: string): boolean {
+  const a = expected.trim().toLowerCase()
+  const b = received.trim().toLowerCase()
+  if (a.length !== b.length) return false
   try {
-    const a = Buffer.from(expected, 'utf8')
-    const b = Buffer.from(received, 'utf8')
-    if (a.length !== b.length) return false
-    return timingSafeEqual(a, b)
+    return timingSafeEqual(Buffer.from(a, 'utf8'), Buffer.from(b, 'utf8'))
   } catch {
     return false
   }
@@ -78,25 +78,40 @@ export type DiditVerificationResult =
   | { ok: true; method: DiditSignatureMethod; parsed: DiditWebhookEnvelope }
   | { ok: false; reason: string; parsed?: DiditWebhookEnvelope }
 
+function parseWebhookBody(rawBody: string): DiditWebhookEnvelope | null {
+  try {
+    return JSON.parse(rawBody) as DiditWebhookEnvelope
+  } catch {
+    return null
+  }
+}
+
 export function verifyDiditWebhook(input: DiditVerificationInput): DiditVerificationResult {
   if (!isDiditTimestampFresh(input.timestampHeader)) {
     return { ok: false, reason: 'Timestamp outside allowed window' }
   }
 
-  if (input.signatureRaw && verifyDiditRawSignature(input.rawBody, input.signatureRaw, input.secret)) {
-    let parsed: DiditWebhookEnvelope
-    try {
-      parsed = JSON.parse(input.rawBody) as DiditWebhookEnvelope
-    } catch {
-      return { ok: false, reason: 'Invalid JSON body' }
-    }
-    return { ok: true, method: 'raw', parsed }
+  const hasSignature = Boolean(
+    input.signatureRaw || input.signatureV2 || input.signatureSimple
+  )
+  if (!hasSignature) {
+    return { ok: false, reason: 'Missing signature header' }
   }
 
-  let parsed: DiditWebhookEnvelope
-  try {
-    parsed = JSON.parse(input.rawBody) as DiditWebhookEnvelope
-  } catch {
+  // X-Signature (raw body): verify before any JSON parsing.
+  if (input.signatureRaw) {
+    if (verifyDiditRawSignature(input.rawBody, input.signatureRaw, input.secret)) {
+      const parsed = parseWebhookBody(input.rawBody)
+      if (!parsed) {
+        return { ok: false, reason: 'Invalid JSON body' }
+      }
+      return { ok: true, method: 'raw', parsed }
+    }
+  }
+
+  // X-Signature-V2 and X-Signature-Simple require canonical parsed payload.
+  const parsed = parseWebhookBody(input.rawBody)
+  if (!parsed) {
     return { ok: false, reason: 'Invalid JSON body' }
   }
 

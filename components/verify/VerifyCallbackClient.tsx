@@ -12,6 +12,10 @@ import {
   getVerificationSessionIdFromSearchParams,
   mapDiditCallbackStatusToVerificationStatus,
 } from '@/lib/didit/callback-params'
+import {
+  clearStoredDiditSessionId,
+  resolveCallbackSessionId,
+} from '@/lib/didit/callback-session'
 import { isTerminalDiditStatus } from '@/lib/didit/status-maps'
 import { useUserVerificationRealtime } from '@/lib/hooks/useVerificationRealtime'
 
@@ -24,6 +28,14 @@ type VerificationResult = {
   sessionNotFound?: boolean
   message?: string
   error?: string
+  source?: string
+}
+
+function buildStatusUrl(sessionId?: string): string {
+  if (sessionId) {
+    return `/api/verify/status?verificationSessionId=${encodeURIComponent(sessionId)}`
+  }
+  return '/api/verify/status'
 }
 
 export function VerifyCallbackClient() {
@@ -31,11 +43,15 @@ export function VerifyCallbackClient() {
   const tCommon = useTranslations('common')
   const searchParams = useSearchParams()
   const queryString = searchParams.toString()
-  const sessionId = useMemo(
+  const urlSessionId = useMemo(
     () => getVerificationSessionIdFromSearchParams(searchParams),
     // searchParams identity changes; queryString is the stable serialized form
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [queryString]
+  )
+  const effectiveSessionId = useMemo(
+    () => resolveCallbackSessionId(urlSessionId),
+    [urlSessionId]
   )
   const callbackStatus = useMemo(
     () => getDiditCallbackStatus(searchParams),
@@ -60,15 +76,25 @@ export function VerifyCallbackClient() {
     setResult(payload)
     setError(null)
     setLoading(false)
+
+    if (
+      payload.isVerified ||
+      payload.verificationStatus === 'approved' ||
+      payload.verificationStatus === 'declined' ||
+      payload.verificationStatus === 'expired' ||
+      payload.sessionNotFound
+    ) {
+      clearStoredDiditSessionId()
+    }
   }, [])
 
   useUserVerificationRealtime({
     userId: profileUserId,
-    sessionId: sessionId || undefined,
+    sessionId: effectiveSessionId || undefined,
     onUpdate: (update) => {
       pollCancelledRef.current = true
       applyVerificationResult({
-        sessionId: update.sessionId ?? sessionId ?? '',
+        sessionId: update.sessionId ?? effectiveSessionId ?? '',
         diditStatus: update.diditStatus ?? update.verificationStatus,
         verificationStatus: update.verificationStatus,
         isVerified: update.isVerified,
@@ -76,21 +102,14 @@ export function VerifyCallbackClient() {
           !update.isVerified &&
           !isTerminalDiditStatus(update.diditStatus) &&
           update.verificationStatus === 'pending',
+        source: 'realtime',
       })
     },
   })
 
-  const missingSessionIdMessage = t('missingSessionId')
   const statusCheckFailedMessage = t('statusCheckFailed')
 
   useEffect(() => {
-    if (!sessionId) {
-      setError(missingSessionIdMessage)
-      setLoading(false)
-      setResult(null)
-      return
-    }
-
     setLoading(true)
     setError(null)
     setResult(null)
@@ -103,9 +122,7 @@ export function VerifyCallbackClient() {
       if (pollCancelledRef.current || cancelled) return
 
       try {
-        const response = await fetch(
-          `/api/verify/status?verificationSessionId=${encodeURIComponent(sessionId)}`
-        )
+        const response = await fetch(buildStatusUrl(effectiveSessionId || undefined))
         const payload = (await response.json()) as VerificationResult & { error?: string }
 
         if (!response.ok) {
@@ -135,7 +152,7 @@ export function VerifyCallbackClient() {
     return () => {
       cancelled = true
     }
-  }, [sessionId, missingSessionIdMessage, statusCheckFailedMessage, applyVerificationResult])
+  }, [effectiveSessionId, statusCheckFailedMessage, applyVerificationResult])
 
   if (loading) {
     return (

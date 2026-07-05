@@ -15,6 +15,16 @@ import { getSupabaseAnonKey, getSupabaseUrl } from './config'
 const SESSION_IDLE_COOKIE = 'primefx_last_activity'
 const SESSION_IDLE_MS = INVESTOR_RULES.security.sessionTimeoutMinutes * 60 * 1000
 
+function isVerifyCallbackRoute(pathname: string): boolean {
+  return pathname === '/verify/callback' || pathname.startsWith('/verify/callback/')
+}
+
+/** Preserve query string so Didit callback params survive login redirects. */
+function buildProtectedRedirectTarget(request: NextRequest, pathname: string): string {
+  const search = request.nextUrl.search
+  return search ? `${pathname}${search}` : pathname
+}
+
 async function enforceSessionIdleTimeout(
   request: NextRequest,
   response: NextResponse,
@@ -29,6 +39,19 @@ async function enforceSessionIdleTimeout(
   }
 
   const now = Date.now()
+
+  // Returning from external Didit redirect — do not sign out for idle timeout.
+  if (isVerifyCallbackRoute(pathname)) {
+    response.cookies.set(SESSION_IDLE_COOKIE, String(now), {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: Math.ceil(SESSION_IDLE_MS / 1000) + 60,
+    })
+    return { response, activeUser }
+  }
+
   const lastActivityRaw = request.cookies.get(SESSION_IDLE_COOKIE)?.value
   const lastActivity = lastActivityRaw ? Number.parseInt(lastActivityRaw, 10) : NaN
 
@@ -39,7 +62,7 @@ async function enforceSessionIdleTimeout(
     if (isProtectedRoute(pathname) || isMfaVerifyRoute(pathname)) {
       const loginUrl = request.nextUrl.clone()
       loginUrl.pathname = localizePath('/login', locale)
-      loginUrl.searchParams.set('redirect', pathname)
+      loginUrl.searchParams.set('redirect', buildProtectedRedirectTarget(request, pathname))
       loginUrl.searchParams.set('reason', 'session_expired')
       const redirect = NextResponse.redirect(loginUrl)
       redirect.cookies.delete(SESSION_IDLE_COOKIE)
@@ -198,7 +221,7 @@ export async function updateSession(request: NextRequest, intlResponse?: NextRes
 
     if (isProtectedRoute(pathname)) {
 
-      loginUrl.searchParams.set('redirect', pathname)
+      loginUrl.searchParams.set('redirect', buildProtectedRedirectTarget(request, pathname))
 
     }
 

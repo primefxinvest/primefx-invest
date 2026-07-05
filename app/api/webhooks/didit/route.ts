@@ -2,7 +2,7 @@ import { handleDiditWebhookRequest } from '@/lib/didit/webhook-handler'
 
 export const runtime = 'nodejs'
 
-/** @deprecated Prefer /api/verify/webhook — kept for existing Didit destination URLs */
+/** @deprecated Alias for /api/verify/webhook — canonical handler is /api/verify/webhook */
 export async function POST(request: Request) {
   return handleDiditWebhookRequest(request)
 }

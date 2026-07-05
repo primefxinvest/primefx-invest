@@ -42,3 +42,9 @@ export function getVerificationCallbackUrl(): string {
   const appUrl = normalizeEnv(process.env.NEXT_PUBLIC_APP_URL) || 'http://localhost:3000'
   return `${appUrl.replace(/\/$/, '')}/verify/callback`
 }
+
+/** Canonical Didit webhook URL (register in Didit dashboard). */
+export function getDiditWebhookUrl(): string {
+  const appUrl = normalizeEnv(process.env.NEXT_PUBLIC_APP_URL) || 'http://localhost:3000'
+  return `${appUrl.replace(/\/$/, '')}/api/verify/webhook`
+}

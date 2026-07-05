@@ -23,6 +23,16 @@ export type KycProfileFields = {
   verification_status?: string | null
 }
 
+/** True when webhook or sync has marked the user as fully verified. */
+export function isUserVerifiedInProfile(data: KycProfileFields | null): boolean {
+  if (!data) return false
+  return Boolean(
+    data.is_verified ||
+      String(data.verification_status).toLowerCase() === 'approved' ||
+      String(data.kyc_status).toLowerCase() === 'verified'
+  )
+}
+
 /** Resolves the effective KYC status from all verification fields (Didit + legacy). */
 export function resolveEffectiveKycStatus(data: KycProfileFields | null): string | null {
   if (!data) return null

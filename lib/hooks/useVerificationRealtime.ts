@@ -102,7 +102,10 @@ export function useUserVerificationRealtime(input: {
           const normalizedStatus =
             verificationStatus === 'approved' ||
             verificationStatus === 'declined' ||
-            verificationStatus === 'expired'
+            verificationStatus === 'expired' ||
+            verificationStatus === 'pending_review' ||
+            verificationStatus === 'in_progress' ||
+            verificationStatus === 'abandoned'
               ? verificationStatus
               : 'pending'
 
