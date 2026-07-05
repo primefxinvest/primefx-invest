@@ -9,6 +9,12 @@ import { requireActiveAccountForFinancialAction } from '@/lib/security/require-a
 import { notifyTransferCompleted } from '@/lib/notifications/service'
 import { logFinancialAudit } from '@/lib/payments/financial-audit'
 import { toTransferUserError } from '@/lib/wallet/transfer-errors'
+import {
+  executeTransferViaDirectUpdate,
+  executeTransferViaLegacyRpc,
+  executeTransferViaRpc,
+  isRecoverableTransferInfraError,
+} from '@/lib/wallet/transfer-executor'
 
 const MIN_TRANSFER = 5
 const MAX_TRANSFER = 10_000
@@ -19,6 +25,39 @@ function getDb() {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for wallet operations.')
   }
   return db
+}
+
+async function postTransferSideEffects(input: {
+  senderId: string
+  recipientId: string
+  referenceId: string
+  senderTotal: number
+  recipientAmount: number
+}) {
+  try {
+    await logFinancialAudit({
+      eventType: 'wallet.debit',
+      userId: input.senderId,
+      referenceId: input.referenceId,
+      amountUsd: input.senderTotal,
+      metadata: { type: 'p2p_transfer', recipientId: input.recipientId },
+    })
+    await logFinancialAudit({
+      eventType: 'wallet.credit',
+      userId: input.recipientId,
+      referenceId: input.referenceId,
+      amountUsd: input.recipientAmount,
+      metadata: { type: 'p2p_transfer', senderId: input.senderId },
+    })
+    await notifyTransferCompleted(
+      input.senderId,
+      input.recipientId,
+      input.recipientAmount,
+      input.referenceId
+    )
+  } catch (notifyErr) {
+    console.error('[Transfer] Post-transfer notify/audit failed (transfer succeeded):', notifyErr)
+  }
 }
 
 export async function executeWalletTransfer(input: {
@@ -64,49 +103,93 @@ export async function executeWalletTransfer(input: {
     ? `Received $${recipientAmount.toFixed(2)} from ${input.senderLabel} — ${note}`
     : `Received $${recipientAmount.toFixed(2)} from ${input.senderLabel}`
 
-  const db = getDb()
+  let db
+  try {
+    db = getDb()
+  } catch (err) {
+    console.error('[Transfer] Admin Supabase client unavailable:', err)
+    return { success: false, error: toTransferUserError('SUPABASE_SERVICE_ROLE_KEY missing') }
+  }
 
-  const { data, error } = await db.rpc('execute_atomic_wallet_transfer', {
-    p_sender_id: input.senderId,
-    p_recipient_id: input.recipientId,
-    p_recipient_amount: recipientAmount,
-    p_fee_amount: fee,
-    p_reference_id: referenceId,
-    p_sender_description: senderDescription,
-    p_recipient_description: recipientDescription,
+  const payload = {
+    senderId: input.senderId,
+    recipientId: input.recipientId,
+    recipientAmount,
+    fee,
+    senderTotal,
+    referenceId,
+    senderDescription,
+    recipientDescription,
+  }
+
+  console.log('[Transfer] Starting transfer', {
+    referenceId,
+    senderId: input.senderId,
+    recipientId: input.recipientId,
+    recipientAmount,
+    fee,
+    senderTotal,
   })
 
-  if (error) {
+  const { data, error } = await executeTransferViaRpc(db, payload)
+
+  if (!error && data) {
+    console.log('[Transfer] Completed via execute_atomic_wallet_transfer', referenceId)
+    await postTransferSideEffects({
+      senderId: input.senderId,
+      recipientId: input.recipientId,
+      referenceId,
+      senderTotal,
+      recipientAmount,
+    })
+    return { success: true, referenceId }
+  }
+
+  if (error && !isRecoverableTransferInfraError(error.message)) {
     console.error('[Transfer] execute_atomic_wallet_transfer failed:', error.message)
     return { success: false, error: toTransferUserError(error.message) }
   }
 
-  if (!data) {
-    console.error('[Transfer] execute_atomic_wallet_transfer returned no data')
-    return { success: false, error: toTransferUserError(null) }
-  }
+  console.warn('[Transfer] Atomic RPC unavailable, trying legacy debit/credit RPCs')
 
   try {
-    await logFinancialAudit({
-      eventType: 'wallet.debit',
-      userId: input.senderId,
+    await executeTransferViaLegacyRpc(db, payload)
+    console.log('[Transfer] Completed via legacy atomic debit/credit RPCs', referenceId)
+    await postTransferSideEffects({
+      senderId: input.senderId,
+      recipientId: input.recipientId,
       referenceId,
-      amountUsd: senderTotal,
-      metadata: { type: 'p2p_transfer', recipientId: input.recipientId },
+      senderTotal,
+      recipientAmount,
     })
-    await logFinancialAudit({
-      eventType: 'wallet.credit',
-      userId: input.recipientId,
-      referenceId,
-      amountUsd: recipientAmount,
-      metadata: { type: 'p2p_transfer', senderId: input.senderId },
-    })
-    await notifyTransferCompleted(input.senderId, input.recipientId, recipientAmount, referenceId)
-  } catch (notifyErr) {
-    console.error('[Transfer] Post-transfer notify/audit failed (transfer succeeded):', notifyErr)
+    return { success: true, referenceId }
+  } catch (legacyErr) {
+    const legacyMessage = legacyErr instanceof Error ? legacyErr.message : String(legacyErr)
+    console.warn('[Transfer] Legacy RPC path failed:', legacyMessage)
+
+    if (!isRecoverableTransferInfraError(legacyMessage)) {
+      return { success: false, error: toTransferUserError(legacyMessage) }
+    }
   }
 
-  return { success: true, referenceId }
+  console.warn('[Transfer] Using direct wallet update fallback (apply migration 032 for full atomicity)')
+
+  try {
+    await executeTransferViaDirectUpdate(db, payload)
+    console.log('[Transfer] Completed via direct wallet update fallback', referenceId)
+    await postTransferSideEffects({
+      senderId: input.senderId,
+      recipientId: input.recipientId,
+      referenceId,
+      senderTotal,
+      recipientAmount,
+    })
+    return { success: true, referenceId }
+  } catch (directErr) {
+    const directMessage = directErr instanceof Error ? directErr.message : String(directErr)
+    console.error('[Transfer] Direct update fallback failed:', directMessage)
+    return { success: false, error: toTransferUserError(directMessage) }
+  }
 }
 
 export async function recordManualBankDeposit(input: {

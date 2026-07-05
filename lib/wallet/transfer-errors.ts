@@ -32,6 +32,10 @@ export function toTransferUserError(raw: string | undefined | null): string {
     return 'Insufficient available balance for this transfer.'
   }
 
+  if (upper.includes('CONCURRENT_UPDATE')) {
+    return 'Transfer could not complete due to a concurrent update. Please try again.'
+  }
+
   if (upper.includes('RECIPIENT_WALLET_NOT_FOUND')) {
     return 'Recipient wallet is not set up yet. Ask them to complete account setup.'
   }
@@ -60,8 +64,28 @@ export function toTransferUserError(raw: string | undefined | null): string {
     return message
   }
 
+  if (lower.includes('transaction pin') || lower.includes('two-factor authentication')) {
+    return message
+  }
+
+  if (lower.includes('authorization required')) {
+    return message
+  }
+
+  if (lower.includes('signed in')) {
+    return message
+  }
+
   if (lower.includes('rate limit')) {
     return message
+  }
+
+  if (lower.includes('duplicate key') || lower.includes('unique constraint')) {
+    return 'This transfer may have already been processed. Check your transaction history.'
+  }
+
+  if (lower.includes('wallet not found')) {
+    return 'Recipient wallet is not set up yet. Ask them to complete account setup.'
   }
 
   return TRANSFER_UNAVAILABLE
