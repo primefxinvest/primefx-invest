@@ -13,7 +13,7 @@ export const PRIMEAI_WELCOME_MESSAGE: UIMessage = {
   parts: [
     {
       type: 'text',
-      text: "Hello! I'm PrimeAI, your personal investment assistant. I can help you analyze portfolios, discuss investment strategies, answer market questions, and provide personalized financial advice. How can I help you today?",
+      text: "Hello, I'm PrimeAI.\n\nI'm here to help you analyze portfolios, discover opportunities, understand risks, compare investment plans and make better financial decisions.\n\nHow can I help you today?",
     },
   ],
 }

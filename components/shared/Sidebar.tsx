@@ -234,7 +234,7 @@ export default function Sidebar() {
           open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
-        <div className="flex h-[3.75rem] shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-4">
+        <div className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-gray-200 px-4 lg:px-5">
           <Logo
             href="/dashboard"
             sizeKey="mobileDrawer"

@@ -3,7 +3,7 @@
 import { memo } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
-import { ArrowUpRight, TrendingUp, Wallet } from 'lucide-react'
+import { Wallet } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { InvestorKpiMetrics, InvestorKpiWallet } from '@/components/shared/kpi/InvestorKpiCards'
 import { trendColorFromPercentage } from '@/components/shared/kpi'
@@ -20,23 +20,37 @@ function StatCell({
   value,
   trend,
   trendSuffix,
+  emphasis = false,
 }: {
   label: string
   value: string
   trend?: string
   trendSuffix?: string
+  emphasis?: boolean
 }) {
   const trendColor = trendColorFromPercentage(trend)
   return (
-    <div className="min-w-0 flex-1 px-3 py-3 first:pl-0 last:pr-0 sm:px-4 sm:py-0">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400 sm:text-xs">
+    <div className="min-w-0 flex-1 px-3 py-3 first:pl-0 last:pr-0 sm:px-5 sm:py-0 sm:first:pl-0 sm:last:pr-0">
+      <p
+        className={cn(
+          'font-semibold uppercase tracking-[0.06em] text-slate-400',
+          emphasis ? 'text-[11px] sm:text-xs' : 'text-[10px] sm:text-[11px]'
+        )}
+      >
         {label}
       </p>
-      <p className="mt-1 truncate text-base font-bold text-white sm:text-lg">{value}</p>
+      <p
+        className={cn(
+          'mt-1.5 truncate font-bold tabular-nums text-white',
+          emphasis ? 'text-lg sm:text-xl' : 'text-sm font-semibold sm:text-base'
+        )}
+      >
+        {value}
+      </p>
       {trend ? (
         <p
           className={cn(
-            'mt-0.5 text-xs font-semibold',
+            'mt-1 text-[11px] font-semibold sm:text-xs',
             trendColor === 'green' && 'text-emerald-400',
             trendColor === 'red' && 'text-red-400',
             trendColor === 'muted' && 'text-slate-400'
@@ -60,9 +74,9 @@ function DashboardPortfolioHeroInner({ metrics, wallet, loading }: DashboardPort
         aria-busy="true"
         aria-label={t('portfolioHero')}
       >
-        <Skeleton className="h-4 w-32 bg-white/10" />
-        <Skeleton className="mt-3 h-10 w-48 bg-white/10" />
-        <div className="mt-6 grid grid-cols-2 gap-4 border-t border-white/10 pt-5 sm:grid-cols-4">
+        <Skeleton className="h-3.5 w-28 bg-white/10" />
+        <Skeleton className="mt-4 h-12 w-56 bg-white/10 sm:h-14 sm:w-64" />
+        <div className="mt-7 grid grid-cols-2 gap-4 border-t border-white/10 pt-6 sm:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton key={i} className="h-14 bg-white/10" />
           ))}
@@ -75,12 +89,10 @@ function DashboardPortfolioHeroInner({ metrics, wallet, loading }: DashboardPort
     )
   }
 
-  const valueTrend = metrics?.trends?.[1]?.percentage
-
   return (
     <section
       aria-label={t('portfolioHero')}
-      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-[#0f172a] to-slate-900 p-5 shadow-xl sm:p-6 lg:p-7"
+      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-[#0f172a] to-slate-900 p-5 shadow-xl sm:p-6 lg:p-8"
     >
       <div
         className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-primary/20 blur-3xl"
@@ -91,29 +103,22 @@ function DashboardPortfolioHeroInner({ metrics, wallet, loading }: DashboardPort
         aria-hidden
       />
 
-      <div className="relative flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20 text-primary">
-              <TrendingUp className="h-4 w-4" aria-hidden />
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-primary/20 text-primary">
+              <Wallet className="h-4 w-4" aria-hidden />
             </span>
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              {t('portfolioHeroLabel')}
+            <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-slate-400 sm:text-xs">
+              {t('currentBalance')}
             </p>
           </div>
 
-          <p className="mt-3 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-[2.5rem]">
-            {metrics?.currentValue ?? '$0.00'}
+          <p className="mt-4 text-4xl font-bold tabular-nums tracking-tight text-white sm:text-[2.75rem] lg:text-5xl lg:leading-none">
+            {wallet?.availableBalance ?? '$0.00'}
           </p>
 
-          {valueTrend ? (
-            <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-400">
-              <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-              {valueTrend} {t('fromLastMonth')}
-            </p>
-          ) : (
-            <p className="mt-2 text-sm text-slate-400">{t('overviewSubtitle')}</p>
-          )}
+          <p className="mt-2.5 text-sm leading-relaxed text-slate-400">{t('overviewSubtitle')}</p>
         </div>
 
         <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
@@ -133,10 +138,13 @@ function DashboardPortfolioHeroInner({ metrics, wallet, loading }: DashboardPort
         </div>
       </div>
 
-      <div className="relative mt-6 grid grid-cols-2 divide-white/10 border-t border-white/10 pt-5 sm:grid-cols-4 sm:divide-x">
+      <div className="relative mt-7 grid grid-cols-2 gap-y-5 border-t border-white/10 pt-6 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-white/10">
         <StatCell
-          label={t('currentBalance')}
-          value={wallet?.availableBalance ?? '$0.00'}
+          label={t('portfolioHeroLabel')}
+          value={metrics?.currentValue ?? '$0.00'}
+          trend={metrics?.trends?.[1]?.percentage}
+          trendSuffix={t('fromLastMonth')}
+          emphasis
         />
         <StatCell
           label={t('totalInvested')}

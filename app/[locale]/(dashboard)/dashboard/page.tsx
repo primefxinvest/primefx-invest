@@ -7,6 +7,7 @@ import { PortfolioChart, AssetAllocationChart } from '@/components/shared/Charts
 import {
   DashboardMarketSection,
   DashboardPlansCarousel,
+  DashboardPrimeAIWidget,
   DashboardQuickActions,
   DashboardRecentTransactions,
   DashboardSecondarySectionsDeferred,
@@ -220,14 +221,24 @@ export default function DashboardPage() {
           {t('recentTransactions')}
         </h2>
 
-        <div className="min-w-0 space-y-6 xl:col-span-2">
+        <div className="min-w-0 xl:col-span-2">
           <DashboardRecentTransactions />
-          <DashboardPlansCarousel />
         </div>
 
         <div className="min-w-0 self-start">
           <DashboardMarketSection />
         </div>
+      </section>
+
+      <section
+        aria-labelledby="dashboard-plans-primeai-heading"
+        className={cn('grid w-full grid-cols-1 items-stretch gap-4 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-5', gridGapClass)}
+      >
+        <h2 id="dashboard-plans-primeai-heading" className="sr-only">
+          {t('topPlans')}
+        </h2>
+        <DashboardPlansCarousel className="min-w-0" />
+        <DashboardPrimeAIWidget className="min-w-0" />
       </section>
 
       <section aria-labelledby="dashboard-insights-heading">

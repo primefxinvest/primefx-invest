@@ -19,12 +19,24 @@ interface LogoProps {
 
 function textScaleForMark(markSize: number) {
   if (markSize >= 44) {
-    return { brand: 'text-[15px]', tagline: 'text-[10px]', tracking: 'tracking-[0.14em]' }
+    return {
+      brand: 'text-[16px] font-extrabold tracking-[-0.02em]',
+      tagline: 'text-[10px] font-bold tracking-[0.22em]',
+      stack: 'gap-px',
+    }
   }
   if (markSize >= 36) {
-    return { brand: 'text-[14px]', tagline: 'text-[9px]', tracking: 'tracking-[0.16em]' }
+    return {
+      brand: 'text-[15px] font-extrabold tracking-[-0.02em]',
+      tagline: 'text-[9px] font-bold tracking-[0.2em]',
+      stack: 'gap-px',
+    }
   }
-  return { brand: 'text-[13px]', tagline: 'text-[8px]', tracking: 'tracking-[0.18em]' }
+  return {
+    brand: 'text-[13px] font-bold tracking-[-0.01em]',
+    tagline: 'text-[8px] font-semibold tracking-[0.18em]',
+    stack: 'gap-0',
+  }
 }
 
 export default function Logo({
@@ -39,7 +51,7 @@ export default function Logo({
 }: LogoProps) {
   const markSize = size ?? (sizeKey ? LOGO_SIZES[sizeKey] : LOGO_SIZES.sidebarFull)
   const textScale = textScaleForMark(markSize)
-  const gapClass = markSize >= 40 ? 'gap-3' : 'gap-2.5'
+  const gapClass = markSize >= 40 ? 'gap-3.5' : markSize >= 36 ? 'gap-3' : 'gap-2.5'
   const onDark = variant === 'onDark'
   const retinaSize = markSize * 2
 
@@ -58,10 +70,10 @@ export default function Logo({
         draggable={false}
       />
       {showText ? (
-        <div className="flex min-w-0 flex-col justify-center gap-0.5 leading-none">
+        <div className={cn('flex min-w-0 flex-col justify-center leading-none', textScale.stack)}>
           <span
             className={cn(
-              'block truncate font-bold tracking-tight antialiased',
+              'block truncate antialiased',
               textScale.brand,
               onDark ? 'text-white' : 'text-gray-900'
             )}
@@ -70,9 +82,8 @@ export default function Logo({
           </span>
           <span
             className={cn(
-              'block font-semibold uppercase antialiased',
+              'block uppercase antialiased',
               textScale.tagline,
-              textScale.tracking,
               onDark ? 'text-[#60a5fa]' : 'text-[#0052ff]'
             )}
           >

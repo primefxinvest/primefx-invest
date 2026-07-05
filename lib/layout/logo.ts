@@ -3,9 +3,9 @@ export const LOGO_SIZES = {
   /** Sidebar icon rail (tablet) */
   sidebarIcon: 32,
   /** Sidebar with wordmark (desktop) */
-  sidebarFull: 36,
+  sidebarFull: 38,
   /** Mobile drawer header */
-  mobileDrawer: 36,
+  mobileDrawer: 38,
   /** Landing / marketing nav */
   marketing: 36,
   /** Dashboard top bar (when shown) */

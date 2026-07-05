@@ -298,3 +298,27 @@
     transform: translateX(100%);
   }
 }
+
+@keyframes plan-carousel-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.plan-carousel-track {
+  animation: plan-carousel-scroll var(--carousel-duration, 18s) linear infinite;
+  will-change: transform;
+}
+
+.plan-carousel-track[data-paused='true'] {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .plan-carousel-track {
+    animation: none;
+  }
+}

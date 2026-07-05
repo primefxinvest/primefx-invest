@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { ChartCardSkeleton, MetricCardsSkeleton, PlanCardsSkeleton } from '@/components/shared/skeletons'
+import { ChartCardSkeleton, MetricCardsSkeleton, PlanCardsSkeleton, PrimeAIWidgetSkeleton } from '@/components/shared/skeletons'
 import { ListSkeleton } from '@/components/shared/skeletons'
 
 export const DashboardPlansCarousel = dynamic(
@@ -52,5 +52,13 @@ export const DashboardSecondarySectionsDeferred = dynamic(
   {
     ssr: false,
     loading: () => <MetricCardsSkeleton count={2} />,
+  }
+)
+
+export const DashboardPrimeAIWidget = dynamic(
+  () => import('@/components/dashboard/PrimeAIWidget'),
+  {
+    ssr: false,
+    loading: () => <PrimeAIWidgetSkeleton />,
   }
 )

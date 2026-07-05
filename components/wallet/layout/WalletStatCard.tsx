@@ -17,7 +17,7 @@ export function WalletStatCard({
   trend?: { text: string; positive?: boolean }
 }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="flex h-full min-h-[7.5rem] flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-md sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm text-gray-500">{label}</p>

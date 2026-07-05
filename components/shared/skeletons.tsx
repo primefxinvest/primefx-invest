@@ -138,6 +138,39 @@ export function PlanCardsSkeleton({ count = 3 }: { count?: number }) {
   )
 }
 
+export function PrimeAIWidgetSkeleton() {
+  return (
+    <div
+      className="flex h-full min-h-[520px] flex-col rounded-xl border border-border bg-card p-4 shadow-sm sm:p-5"
+      aria-busy="true"
+      aria-label="Loading PrimeAI Assistant"
+    >
+      <div className="flex items-start gap-3">
+        <Skeleton className="h-10 w-10 shrink-0 rounded-xl" delay={0} />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-4 w-36" delay={60} />
+          <Skeleton className="h-3 w-48" delay={90} />
+        </div>
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 rounded-lg" delay={staggerDelay(i, 50)} />
+        ))}
+      </div>
+      <div className="mt-5 space-y-2.5">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-4 w-full" delay={staggerDelay(i, 70)} />
+        ))}
+      </div>
+      <div className="mt-auto grid grid-cols-2 gap-2 pt-5">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-9 rounded-lg" delay={staggerDelay(i, 90)} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function ProfileSkeleton() {
   return (
     <div className="space-y-8">

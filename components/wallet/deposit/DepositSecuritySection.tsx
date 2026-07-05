@@ -6,24 +6,24 @@ import { dashboardCardClass } from '@/lib/layout/surfaces'
 import { cn } from '@/lib/utils'
 
 const SECURITY_ITEMS = [
-  'securityWebhook',
+  'securitySecureProcessing',
+  'securityAutoConfirm',
+  'securityWalletCredit',
   'securityFraud',
-  'securityWallet',
-  'securityProcessing',
 ] as const
 
 export function DepositSecuritySection() {
   const t = useTranslations('wallet.deposit')
 
   return (
-    <div className={cn(dashboardCardClass, 'border-emerald-200/60 bg-emerald-50/30')}>
+    <div className={cn(dashboardCardClass, 'border-emerald-200/60 bg-emerald-50/40 shadow-sm')}>
       <div className="flex items-center gap-2.5">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
           <Shield className="h-4 w-4" aria-hidden />
         </span>
         <h2 className="text-sm font-semibold text-foreground sm:text-base">{t('securityTitle')}</h2>
       </div>
-      <ul className="mt-4 space-y-2.5">
+      <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
         {SECURITY_ITEMS.map((key) => (
           <li key={key} className="flex items-start gap-2 text-sm text-foreground">
             <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
