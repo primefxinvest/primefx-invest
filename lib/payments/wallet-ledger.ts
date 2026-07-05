@@ -24,7 +24,10 @@ async function rpcWalletOp(
     p_amount: amountUsd,
   })
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    console.error(`[Wallet] RPC ${fn} failed:`, error.message)
+    throw new Error(error.message)
+  }
 
   await logFinancialAudit({
     eventType: auditEvent,

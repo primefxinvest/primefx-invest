@@ -18,6 +18,7 @@ import {
   type TransactionStepUpCredentials,
 } from '@/lib/security/transaction-protection'
 import type { TransferRecipientMethod } from '@/lib/wallet/types'
+import { toTransferUserError } from '@/lib/wallet/transfer-errors'
 import { notifyDepositCreated, notifyWithdrawalSubmitted } from '@/lib/notifications/service'
 
 async function requireUser() {
@@ -108,9 +109,10 @@ export async function submitWalletTransfer(
 
   if (result.success) {
     revalidateWalletPaths()
+    return result
   }
 
-  return result
+  return { success: false as const, error: toTransferUserError(result.error) }
 }
 
 export async function submitBankDeposit(input: { amountUsd: number; note?: string }) {

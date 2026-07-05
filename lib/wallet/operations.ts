@@ -1,17 +1,14 @@
 import 'server-only'
 
 import { generatePaymentReference } from '@/lib/payments/reference'
-import {
-  assertSufficientBalance,
-  creditInvestorWallet,
-  debitInvestorWallet,
-} from '@/lib/payments/wallet-ledger'
-import { calculateP2pTransferFee, recordPlatformFee } from '@/lib/payments/fees'
+import { calculateP2pTransferFee } from '@/lib/payments/fees'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
 import { notifyTransferCompleted } from '@/lib/notifications/service'
+import { logFinancialAudit } from '@/lib/payments/financial-audit'
+import { toTransferUserError } from '@/lib/wallet/transfer-errors'
 
 const MIN_TRANSFER = 5
 const MAX_TRANSFER = 10_000
@@ -22,26 +19,6 @@ function getDb() {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for wallet operations.')
   }
   return db
-}
-
-async function createCompletedTransaction(input: {
-  userId: string
-  type: string
-  amount: number
-  description: string
-  referenceId: string
-}) {
-  const db = getDb()
-  const { error } = await db.from('transactions').insert({
-    user_id: input.userId,
-    type: input.type,
-    amount: input.amount,
-    status: 'Completed',
-    description: input.description,
-    reference_id: `${input.referenceId}-${input.type}`,
-  })
-
-  if (error) throw new Error(error.message)
 }
 
 export async function executeWalletTransfer(input: {
@@ -76,74 +53,57 @@ export async function executeWalletTransfer(input: {
     return { success: false, error: kyc.error }
   }
 
-  try {
-    await assertSufficientBalance(input.senderId, senderTotal)
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Insufficient available balance.',
-    }
-  }
-
   const referenceId = generatePaymentReference('transfer')
   const note = input.message?.trim()
 
-  try {
-    await debitInvestorWallet(input.senderId, senderTotal)
-  } catch (err) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Failed to debit wallet.',
-    }
+  const senderDescription = note
+    ? `Sent $${recipientAmount.toFixed(2)} to ${input.recipientLabel} (fee $${fee.toFixed(2)}) — ${note}`
+    : `Sent $${recipientAmount.toFixed(2)} to ${input.recipientLabel} (fee $${fee.toFixed(2)})`
+
+  const recipientDescription = note
+    ? `Received $${recipientAmount.toFixed(2)} from ${input.senderLabel} — ${note}`
+    : `Received $${recipientAmount.toFixed(2)} from ${input.senderLabel}`
+
+  const db = getDb()
+
+  const { data, error } = await db.rpc('execute_atomic_wallet_transfer', {
+    p_sender_id: input.senderId,
+    p_recipient_id: input.recipientId,
+    p_recipient_amount: recipientAmount,
+    p_fee_amount: fee,
+    p_reference_id: referenceId,
+    p_sender_description: senderDescription,
+    p_recipient_description: recipientDescription,
+  })
+
+  if (error) {
+    console.error('[Transfer] execute_atomic_wallet_transfer failed:', error.message)
+    return { success: false, error: toTransferUserError(error.message) }
+  }
+
+  if (!data) {
+    console.error('[Transfer] execute_atomic_wallet_transfer returned no data')
+    return { success: false, error: toTransferUserError(null) }
   }
 
   try {
-    await creditInvestorWallet(input.recipientId, recipientAmount)
-  } catch (err) {
-    await creditInvestorWallet(input.senderId, senderTotal)
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Failed to credit recipient wallet.',
-    }
-  }
-
-  try {
-    await createCompletedTransaction({
+    await logFinancialAudit({
+      eventType: 'wallet.debit',
       userId: input.senderId,
-      type: 'transfer_sent',
-      amount: senderTotal,
-      description: note
-        ? `Sent $${recipientAmount.toFixed(2)} to ${input.recipientLabel} (fee $${fee.toFixed(2)}) — ${note}`
-        : `Sent $${recipientAmount.toFixed(2)} to ${input.recipientLabel} (fee $${fee.toFixed(2)})`,
       referenceId,
+      amountUsd: senderTotal,
+      metadata: { type: 'p2p_transfer', recipientId: input.recipientId },
     })
-
-    await createCompletedTransaction({
+    await logFinancialAudit({
+      eventType: 'wallet.credit',
       userId: input.recipientId,
-      type: 'transfer_received',
-      amount: recipientAmount,
-      description: note
-        ? `Received $${recipientAmount.toFixed(2)} from ${input.senderLabel} — ${note}`
-        : `Received $${recipientAmount.toFixed(2)} from ${input.senderLabel}`,
       referenceId,
+      amountUsd: recipientAmount,
+      metadata: { type: 'p2p_transfer', senderId: input.senderId },
     })
-
-    await recordPlatformFee({
-      userId: input.senderId,
-      feeType: 'p2p_transfer',
-      grossAmount: recipientAmount,
-      feeAmount: fee,
-      referenceId,
-    })
-
     await notifyTransferCompleted(input.senderId, input.recipientId, recipientAmount, referenceId)
-  } catch (err) {
-    await creditInvestorWallet(input.senderId, amount)
-    await debitInvestorWallet(input.recipientId, amount)
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Failed to record transfer.',
-    }
+  } catch (notifyErr) {
+    console.error('[Transfer] Post-transfer notify/audit failed (transfer succeeded):', notifyErr)
   }
 
   return { success: true, referenceId }

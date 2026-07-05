@@ -191,7 +191,7 @@ export function TransferPageView() {
         return
       }
       if (transferFees.senderTotal > available) {
-        toast.error(t('insufficientBalanceFee', { fee: `$${transferFees.fee.toFixed(2)}` }))
+        toast.error(t('insufficientBalanceFee', { fee: transferFees.fee.toFixed(2) }))
         return
       }
       setStep(3)
@@ -219,7 +219,10 @@ export function TransferPageView() {
         setRecipient('')
         setRecipientPreview(null)
         setMessage('')
+        reloadWallet()
+        reloadTransactions()
         router.refresh()
+        window.dispatchEvent(new Event('primefx:transactions-updated'))
       })
     }
   }
@@ -402,13 +405,13 @@ export function TransferPageView() {
                           disabled={step > 2 || pending}
                         />
                         <p className="mt-1 text-xs text-gray-500">
-                          {t('availableLimits', { available: `$${available.toFixed(2)}` })}
+                          {t('availableLimits', { available: available.toFixed(2) })}
                         </p>
                         {transferAmount >= 5 ? (
                           <p className="mt-1 text-xs text-gray-500">
                             {t('totalDebit', {
-                              total: `$${transferFees.senderTotal.toFixed(2)}`,
-                              fee: `$${transferFees.fee.toFixed(2)}`,
+                              total: transferFees.senderTotal.toFixed(2),
+                              fee: transferFees.fee.toFixed(2),
                             })}
                           </p>
                         ) : null}
@@ -444,7 +447,7 @@ export function TransferPageView() {
                     <p className="font-semibold text-gray-900">{t('reviewTransfer')}</p>
                     <p className="mt-2 text-gray-600">
                       {t('sendAmountTo', {
-                        amount: `$${Number(amount).toFixed(2)}`,
+                        amount: Number(amount).toFixed(2),
                         name: recipientPreview.fullName || recipientPreview.email,
                       })}
                     </p>
@@ -459,7 +462,7 @@ export function TransferPageView() {
                   className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0052ff] px-6 py-3.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
                 >
                   {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {step === 3 ? t('confirmTransfer') : t('continue')}
+                  {pending ? t('processing') : step === 3 ? t('confirmTransfer') : t('continue')}
                   <ArrowRight className="h-4 w-4" />
                 </button>
               </>
