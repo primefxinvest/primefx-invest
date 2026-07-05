@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter } from '@/i18n/navigation'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { syncPendingDeposits } from '@/lib/payments/actions'
 
@@ -17,6 +18,7 @@ type SyncPendingDepositsProps = {
 export function SyncPendingDeposits({ onSynced }: SyncPendingDepositsProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations('wallet.deposit')
   const onSyncedRef = useRef(onSynced)
   const attemptsRef = useRef(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -50,7 +52,7 @@ export function SyncPendingDeposits({ onSynced }: SyncPendingDepositsProps) {
         const statusHint =
           result.results.find((item) => item.providerStatus)?.message ??
           'Your payment is being confirmed with NOWPayments.'
-        toast.info('Payment received — confirming deposit', {
+        toast.info(t('waitingConfirmation'), {
           description: `${statusHint} We check status automatically every few seconds.`,
         })
       }
@@ -59,7 +61,7 @@ export function SyncPendingDeposits({ onSynced }: SyncPendingDepositsProps) {
     } catch {
       return false
     }
-  }, [fromDepositReturn, router])
+  }, [fromDepositReturn, router, t])
 
   useEffect(() => {
     attemptsRef.current = 0

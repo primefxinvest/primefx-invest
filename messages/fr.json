@@ -153,15 +153,18 @@
     "bulletAutoUpdate": "Nous mettons à jour votre compte automatiquement lorsque la vérification est terminée."
   },
   "primeaiChat": {
-    "unavailableTitle": "PrimeAI est temporairement indisponible",
-    "unavailableMessage": "Connexion impossible pour le moment. Réessayez dans quelques minutes.",
-    "requestFailed": "Impossible de traiter votre demande. Veuillez réessayer."
+    "unavailableTitle": "PrimeAI est actuellement indisponible",
+    "unavailableMessage": "Veuillez réessayer dans quelques instants.",
+    "requestFailed": "Impossible de traiter votre demande. Veuillez réessayer dans quelques instants."
   },
   "primeaiPage": {
     "title": "PrimeAI",
     "subtitle": "Votre copilote personnel d'investissement IA.",
     "statusOnline": "En ligne",
     "statusThinking": "Réflexion…",
+    "loadingConnecting": "Connexion à PrimeAI…",
+    "loadingAnalyzing": "Analyse de la demande…",
+    "loadingGenerating": "Génération d'insights d'investissement…",
     "chatLabel": "Conversation PrimeAI",
     "typingLabel": "Analyse des plans d'investissement disponibles…",
     "inputPlaceholder": "Demandez n'importe quoi à PrimeAI sur l'investissement…",
@@ -564,6 +567,9 @@
     "kycInvestmentRequired": "Complétez le KYC avant d'investir.",
     "kycBlockRejected": "Votre vérification d'identité a été rejetée. Vous ne pouvez pas {action} tant que le KYC n'est pas approuvé. Contactez le support ou soumettez à nouveau vos documents.",
     "kycBlockRequired": "La vérification d'identité est requise avant de pouvoir {action}. Complétez le KYC et attendez l'approbation.",
+    "kycFetchErrorTitle": "Impossible de charger le statut de vérification",
+    "kycFetchErrorDescription": "Nous n'avons pas pu confirmer votre statut d'identité. Les dépôts sont suspendus jusqu'à vérification de votre compte.",
+    "kycRetryVerify": "Relancer la vérification",
     "kycActionDeposit": "effectuer des dépôts",
     "kycActionWithdrawal": "retirer des fonds",
     "kycActionInvestment": "investir",
@@ -1211,7 +1217,17 @@
       "nowPaymentsConfigHint": "Ajoutez NOWPAYMENTS_API_KEY et NOWPAYMENTS_IPN_SECRET à votre environnement.",
       "binancePayConfigError": "Binance Pay n'est pas configuré",
       "binancePayConfigHint": "Ajoutez les identifiants BINANCEPAY_* à votre environnement.",
-      "paymentCreated": "Paiement créé",
+      "creatingPayment": "Création du paiement…",
+      "creatingInvoice": "Création de la facture…",
+      "redirecting": "Redirection vers le paiement…",
+      "waitingConfirmation": "En attente de confirmation du paiement…",
+      "retryDeposit": "Réessayer",
+      "kycCheckingButton": "Vérification en cours…",
+      "kycFetchError": "Impossible de vérifier votre statut d'identité. Vérifiez votre connexion et réessayez.",
+      "kycRetryVerify": "Relancer la vérification",
+      "networkError": "Erreur de connexion",
+      "networkErrorHint": "Vérifiez votre connexion et réessayez.",
+      "paymentCreated": "Paiement créé — redirection…",
       "depositFailed": "Échec du dépôt"
     },
     "withdraw": {

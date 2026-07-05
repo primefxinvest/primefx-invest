@@ -18,7 +18,7 @@ import { MetricCardsSkeleton } from '@/components/shared/skeletons'
 import { useWalletPageData } from '@/lib/hooks/useWalletPageData'
 import { SyncPendingDeposits } from '@/components/wallet/SyncPendingDeposits'
 import type { PaymentProviderOptions } from '@/lib/payments/types'
-import { pageStackClass, gridGapClass, sectionStackClass } from '@/lib/layout/spacing'
+import { pageStackClass, sectionStackClass } from '@/lib/layout/spacing'
 import { cn } from '@/lib/utils'
 
 type DepositPageViewProps = {
@@ -44,9 +44,7 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
     }
   }, [transactions])
 
-  const isProcessing = flow.pending || flow.step === 'redirecting'
-  const processingLabel =
-    flow.step === 'redirecting' ? t('redirecting') : t('creatingPayment')
+  const errorRetryHandler = flow.kyc.fetchError ? flow.handleRetryKyc : flow.handleContinue
 
   return (
     <div className={cn('min-w-0 pb-24 md:pb-0', pageStackClass)}>
@@ -77,8 +75,9 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
         errorTitle={t('loadWalletError')}
         skeleton={<MetricCardsSkeleton count={4} />}
       >
-        <div className={cn('grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4', gridGapClass)}>
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
           <WalletStatCard
+            compact
             label={tBalances('available')}
             value={wallet?.availableBalance ?? '$0.00'}
             subtext={tBalances('usdWallet')}
@@ -86,6 +85,7 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
             iconClassName="bg-blue-50 text-[#0052ff]"
           />
           <WalletStatCard
+            compact
             label={t('totalDeposited')}
             value={wallet?.totalBalance ?? '$0.00'}
             subtext={tBalances('allTime')}
@@ -93,6 +93,7 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
             iconClassName="bg-emerald-50 text-emerald-600"
           />
           <WalletStatCard
+            compact
             label={t('pendingDeposits')}
             value={`$${pendingDeposits.reduce((s, tx) => s + Math.abs(tx.amountValue), 0).toFixed(2)}`}
             subtext={`${pendingDeposits.length} ${pendingDeposits.length === 1 ? t('transaction') : t('transactions')}`}
@@ -100,6 +101,7 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
             iconClassName="bg-amber-50 text-amber-600"
           />
           <WalletStatCard
+            compact
             label={t('monthDeposits')}
             value={`$${monthDeposits.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
             subtext={`${monthDeposits.count} ${t('transactions')}`}
@@ -109,29 +111,31 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
         </div>
       </AsyncState>
 
-      <DepositTrustBadges />
-
       <div className={cn('mx-auto max-w-lg', sectionStackClass)}>
         <DepositAmountCard
           amount={flow.amount}
           onAmountChange={flow.setAmount}
           onDeposit={flow.handleContinue}
-          isProcessing={isProcessing}
-          processingLabel={processingLabel}
+          isProcessing={flow.pending}
+          processingLabel={flow.processingLabel}
           amountError={flow.amountError}
           configError={!flow.nowPaymentsEnabled ? t('nowPaymentsNotConfigured') : null}
-          depositDisabled={!flow.nowPaymentsEnabled}
+          depositDisabled={flow.depositBlocked}
+          kycLoading={flow.kyc.loading}
+          kycCheckingLabel={t('kycCheckingButton')}
         />
 
         {flow.flowError ? (
           <DepositErrorBanner
             message={flow.flowError}
-            onRetry={flow.handleContinue}
-            retryLabel={t('retryDeposit')}
+            onRetry={errorRetryHandler}
+            retryLabel={flow.kyc.fetchError ? t('kycRetryVerify') : t('retryDeposit')}
           />
         ) : null}
 
         <DepositSecuritySection />
+
+        <DepositTrustBadges className="pt-1" />
       </div>
     </div>
   )

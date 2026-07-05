@@ -7,6 +7,7 @@ import type { ReferralListItem } from '@/lib/referral/analytics'
 import { REFERRAL_PROFIT_SHARE_LEVELS, formatReferralRate } from '@/lib/referral/program-config'
 import { buildDailyEarningsTimeline } from '@/lib/referral/earnings-chart'
 import { getReferralNetworkDescendants } from '@/lib/referral/network'
+import { buildReferralLink } from '@/lib/referral/share'
 import { getSiteUrl } from '@/lib/seo/site'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
@@ -145,7 +146,7 @@ export async function fetchReferralProgramOverviewServer(
   const origin = getSiteUrl()
 
   const referralData: ReferralData = {
-    referralLink: `${origin}/signup?ref=${encodeURIComponent(referralCode)}`,
+    referralLink: buildReferralLink(origin, referralCode),
     referralCode,
     totalReferrals: referralRows.length,
     totalEarnings: formatCurrency(totalEarnings),

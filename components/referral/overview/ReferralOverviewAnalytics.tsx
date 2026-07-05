@@ -53,7 +53,7 @@ function ReferralOverviewAnalyticsInner({ overview }: { overview: ReferralProgra
   const networkTotal = networkData.reduce((s, r) => s + r.value, 0) || overview.totalReferrals
 
   const dailyEarnings = overview.earningsTimeline.slice(-7).reverse()
-  const maxDaily = Math.max(...dailyEarnings.map((d) => d.earnings), 1)
+  const maxDaily = Math.max(...dailyEarnings.map((d) => d.amount), 1)
 
   const funnel = overview.funnel
 
@@ -78,7 +78,7 @@ function ReferralOverviewAnalyticsInner({ overview }: { overview: ReferralProgra
                       <Cell key={entry.name} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip content={<PieTooltipContent valueFormatter={(v) => formatCurrency(v)} />} />
+                  <Tooltip content={<PieTooltipContent />} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
@@ -266,15 +266,15 @@ function ReferralOverviewAnalyticsInner({ overview }: { overview: ReferralProgra
           <div className="mt-3 space-y-2.5">
             {dailyEarnings.length > 0 ? (
               dailyEarnings.map((day) => (
-                <div key={day.label}>
+                <div key={day.date}>
                   <div className="mb-0.5 flex justify-between text-[11px]">
-                    <span className="text-muted-foreground">{day.label}</span>
-                    <span className="font-semibold text-emerald-600">{formatCurrency(day.earnings)}</span>
+                    <span className="text-muted-foreground">{day.date}</span>
+                    <span className="font-semibold text-emerald-600">{formatCurrency(day.amount)}</span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-primary"
-                      style={{ width: `${Math.max(6, (day.earnings / maxDaily) * 100)}%` }}
+                      style={{ width: `${Math.max(6, (day.amount / maxDaily) * 100)}%` }}
                     />
                   </div>
                 </div>

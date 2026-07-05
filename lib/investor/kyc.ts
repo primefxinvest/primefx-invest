@@ -17,6 +17,24 @@ const ACTION_LABELS: Record<FinancialAction, string> = {
   payment: 'make payments',
 }
 
+export type KycProfileFields = {
+  kyc_status?: string | null
+  is_verified?: boolean | null
+  verification_status?: string | null
+}
+
+/** Resolves the effective KYC status from all verification fields (Didit + legacy). */
+export function resolveEffectiveKycStatus(data: KycProfileFields | null): string | null {
+  if (!data) return null
+  if (data.is_verified || String(data.verification_status).toLowerCase() === 'approved') {
+    return 'Verified'
+  }
+  if (String(data.verification_status).toLowerCase() === 'declined') {
+    return 'Rejected'
+  }
+  return (data.kyc_status as string | undefined) ?? null
+}
+
 export function normalizeKycStatus(status: string | null | undefined): KycStatus {
   const value = String(status ?? 'pending').toLowerCase()
   if (value === 'verified') return 'verified'

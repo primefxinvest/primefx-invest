@@ -1,17 +1,9 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
+import { ArrowDownLeft, Clock, Loader2, Wallet } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
-import {
-  ArrowRight,
-  Bitcoin,
-  CreditCard,
-  Eye,
-  EyeOff,
-  Loader2,
-  Wallet,
-} from 'lucide-react'
 import { toast } from 'sonner'
 import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
 import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
@@ -20,9 +12,8 @@ import {
   WalletHelpPanel,
   WalletLimitsPanel,
   WalletRecentPanel,
-  WalletSecurityNotice,
 } from '@/components/wallet/layout/WalletSidePanels'
-import { CustomSelect } from '@/components/ui/custom-select'
+import { WithdrawFormCard } from '@/components/wallet/withdraw/WithdrawFormCard'
 import { AsyncState } from '@/components/shared/data-state'
 import { MetricCardsSkeleton } from '@/components/shared/skeletons'
 import { useWalletPageData } from '@/lib/hooks/useWalletPageData'
@@ -37,9 +28,9 @@ import {
 import { initiateWithdrawal } from '@/lib/wallet/actions'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
-import { calculateWithdrawalFee, WITHDRAWAL_NOTICE_DAYS } from '@/lib/fees/constants'
-
-const FEE_RATE = INVESTOR_RULES.financial.withdrawalFeeRate
+import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/fees/constants'
+import { pageStackClass, sectionStackClass } from '@/lib/layout/spacing'
+import { cn } from '@/lib/utils'
 
 type WithdrawPageViewProps = {
   initialPaymentOptions: PaymentProviderOptions
@@ -63,31 +54,49 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
     transactionsError,
     reloadTransactions,
   } = useWalletPageData()
+
   const [amount, setAmount] = useState('500')
   const [currency, setCurrency] = useState(() => {
     const first = initialPaymentOptions.withdrawalCurrencies[0]?.value
-    if (first) return first
-    return DEFAULT_WITHDRAW_CURRENCY
+    return first ?? DEFAULT_WITHDRAW_CURRENCY
   })
   const [address, setAddress] = useState('')
   const [note, setNote] = useState('')
-  const [pin, setPin] = useState('')
-  const [twoFa, setTwoFa] = useState('')
-  const [showPin, setShowPin] = useState(false)
+  const [pending, startTransition] = useTransition()
+
   const currencies =
     initialPaymentOptions.withdrawalCurrencies.length > 0
       ? initialPaymentOptions.withdrawalCurrencies
       : buildWithdrawalCurrencyOptions()
   const nowPaymentsEnabled = initialPaymentOptions.nowPaymentsEnabled
-  const [pending, startTransition] = useTransition()
 
   const available = useMemo(() => {
     const match = wallet?.availableBalance?.replace(/[^0-9.-]/g, '')
     return Number(match) || 0
   }, [wallet?.availableBalance])
 
+  const pendingWithdrawals = useMemo(
+    () => transactions.filter((tx) => tx.type === 'Withdrawal' && tx.status.toLowerCase() === 'pending'),
+    [transactions]
+  )
+
+  const pendingTotal = useMemo(
+    () => pendingWithdrawals.reduce((sum, tx) => sum + Math.abs(tx.amountValue), 0),
+    [pendingWithdrawals]
+  )
+
+  const totalWithdrawn = useMemo(
+    () =>
+      transactions
+        .filter((tx) => tx.type === 'Withdrawal' && tx.status.toLowerCase() === 'completed')
+        .reduce((sum, tx) => sum + Math.abs(tx.amountValue), 0),
+    [transactions]
+  )
+
+  const withdrawableAmount = Math.max(0, available - pendingTotal)
   const amountNum = Number(amount) || 0
-  const { fee, netAmount: receive } = calculateWithdrawalFee(amountNum)
+  const minWithdrawal = INVESTOR_RULES.financial.minimumWithdrawal
+  const withdrawBlocked = kyc.loading || kyc.fetchError || !kyc.verified || !nowPaymentsEnabled
 
   const recentWithdrawals = useMemo(
     () =>
@@ -107,18 +116,15 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
     [transactions, tWallet]
   )
 
-  const pendingWithdrawals = transactions.filter(
-    (tx) => tx.type === 'Withdrawal' && tx.status.toLowerCase() === 'pending'
-  )
-
-  const totalWithdrawn = transactions
-    .filter((tx) => tx.type === 'Withdrawal' && tx.status.toLowerCase() === 'completed')
-    .reduce((sum, tx) => sum + Math.abs(tx.amountValue), 0)
-
-  const minWithdrawal = INVESTOR_RULES.financial.minimumWithdrawal
-
   const handleSubmit = () => {
-    if (!kyc.loading && !kyc.verified) {
+    if (kyc.loading) return
+
+    if (kyc.fetchError) {
+      toast.error(tDeposit('kycFetchError'))
+      return
+    }
+
+    if (!kyc.verified) {
       showKycRequiredToast({
         status: kyc.status,
         action: 'withdrawal',
@@ -135,7 +141,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
       toast.error(t('minWithdrawalError', { amount: `$${minWithdrawal.toFixed(2)}` }))
       return
     }
-    if (amountNum > available) {
+    if (amountNum > withdrawableAmount) {
       toast.error(t('exceedsBalance'))
       return
     }
@@ -162,9 +168,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
         toast.error(t('failed'), { description: result.error })
         return
       }
-      toast.success(t('submitted'), {
-        description: t('nowPaymentsProcessing'),
-      })
+      toast.success(t('submitted'), { description: t('nowPaymentsProcessing') })
       setAmount('')
       setAddress('')
       setNote('')
@@ -173,8 +177,16 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
   }
 
   return (
-    <div className="space-y-6">
-      <WalletPageHeader title={t('title')} description={t('description')} />
+    <div className={cn('min-w-0 pb-24 md:pb-0', pageStackClass)}>
+      <WalletPageHeader
+        title={t('title')}
+        description={t('description')}
+        actions={
+          <span className="inline-flex items-center rounded-lg border border-border bg-card px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">
+            {t('limitsNotice')}: {WITHDRAWAL_NOTICE_DAYS} {t('days')}
+          </span>
+        }
+      />
 
       <KycFinancialBanner />
 
@@ -185,167 +197,62 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
         errorTitle={t('loadWalletError')}
         skeleton={<MetricCardsSkeleton count={4} />}
       >
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
           <WalletStatCard
+            compact
             label={tBalances('available')}
             value={wallet?.availableBalance ?? '$0.00'}
             subtext={tBalances('usdWallet')}
             icon={Wallet}
+            iconClassName="bg-blue-50 text-[#0052ff]"
           />
           <WalletStatCard
-            label={t('withdrawableBalance')}
-            value={`$${Math.max(0, available - fee).toFixed(2)}`}
-            subtext={tBalances('afterFees')}
-            icon={CreditCard}
-            iconClassName="bg-emerald-50 text-emerald-600"
-          />
-          <WalletStatCard
+            compact
             label={t('pendingWithdrawal')}
-            value={`$${pendingWithdrawals.reduce((s, tx) => s + Math.abs(tx.amountValue), 0).toFixed(2)}`}
+            value={`$${pendingTotal.toFixed(2)}`}
             subtext={`${pendingWithdrawals.length} ${pendingWithdrawals.length === 1 ? t('request') : t('requests')}`}
-            icon={Loader2}
+            icon={Clock}
             iconClassName="bg-amber-50 text-amber-600"
           />
           <WalletStatCard
+            compact
             label={t('totalWithdrawn')}
             value={`$${totalWithdrawn.toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
             subtext={tBalances('allTime')}
-            icon={ArrowRight}
-            iconClassName="bg-orange-50 text-orange-600"
+            icon={ArrowDownLeft}
+            iconClassName="bg-emerald-50 text-emerald-600"
+          />
+          <WalletStatCard
+            compact
+            label={t('withdrawableBalance')}
+            value={`$${withdrawableAmount.toFixed(2)}`}
+            subtext={tBalances('afterFees')}
+            icon={Loader2}
+            iconClassName="bg-indigo-50 text-indigo-600"
           />
         </div>
       </AsyncState>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_340px]">
-        <div className="space-y-6">
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900">{t('withdrawDetails')}</h2>
-            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-              <div className="space-y-4">
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('cryptoCurrency')}</label>
-                  <CustomSelect
-                    value={currency}
-                    onValueChange={setCurrency}
-                    options={currencies}
-                    disabled={pending || currencies.length === 0}
-                    placeholder={t('selectCurrency')}
-                  />
-                  {!nowPaymentsEnabled ? (
-                    <p className="mt-1 text-xs text-amber-700">{t('nowPaymentsNotConfigured')}</p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('amountUsd')}</label>
-                  <input
-                    type="number"
-                    min="10"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-[#0052ff] focus:outline-none"
-                    disabled={pending}
-                  />
-                  <p className="mt-1 text-xs text-gray-500">
-                    Min: ${minWithdrawal.toFixed(2)} · Max: $5,000.00 · Available: ${available.toFixed(2)}
-                  </p>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('walletAddress')}</label>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder={t('addressPlaceholder')}
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm focus:border-[#0052ff] focus:outline-none"
-                    disabled={pending}
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium text-gray-700">{t('noteOptional')}</label>
-                  <textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    maxLength={100}
-                    rows={2}
-                    className="w-full resize-none rounded-lg border border-gray-200 px-4 py-2.5 text-sm"
-                  />
-                  <p className="mt-1 text-right text-xs text-gray-400">{note.length}/100</p>
-                </div>
-              </div>
-              <div className="rounded-xl bg-blue-50 p-5">
-                <p className="text-sm text-gray-600">{t('youWillReceive')}</p>
-                <p className="mt-1 text-3xl font-bold text-gray-900">${receive.toFixed(2)}</p>
-                <p className="mt-2 text-sm text-gray-500">
-                  {t('fee')}: ${fee.toFixed(2)} ({(FEE_RATE * 100).toFixed(1)}%)
-                </p>
-                <p className="mt-2 text-sm text-amber-700">
-                  {t('noticeRequired', { days: WITHDRAWAL_NOTICE_DAYS })}
-                </p>
-              </div>
-            </div>
-          </div>
+      <div className={cn('grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_280px]', sectionStackClass)}>
+        <WithdrawFormCard
+          amount={amount}
+          onAmountChange={setAmount}
+          currency={currency}
+          onCurrencyChange={setCurrency}
+          currencies={currencies}
+          address={address}
+          onAddressChange={setAddress}
+          note={note}
+          onNoteChange={setNote}
+          available={withdrawableAmount}
+          onSubmit={handleSubmit}
+          isProcessing={pending}
+          kycLoading={kyc.loading}
+          withdrawDisabled={withdrawBlocked}
+          nowPaymentsEnabled={nowPaymentsEnabled}
+        />
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <h2 className="text-lg font-bold text-gray-900">{t('securityVerification')}</h2>
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  {t('withdrawalPin')} <span className="font-normal text-gray-400">{t('optional')}</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPin ? 'text' : 'password'}
-                    value={pin}
-                    onChange={(e) => setPin(e.target.value)}
-                    className="w-full rounded-lg border border-gray-200 px-4 py-2.5 pr-10 text-sm"
-                    placeholder="••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPin(!showPin)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
-                  >
-                    {showPin ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">{t('twoFaCode')}</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={twoFa}
-                    onChange={(e) => setTwoFa(e.target.value)}
-                    maxLength={6}
-                    placeholder={t('twoFaPlaceholder')}
-                    className="flex-1 rounded-lg border border-gray-200 px-4 py-2.5 text-sm"
-                  />
-                  <button
-                    type="button"
-                    className="shrink-0 rounded-lg border border-gray-200 px-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                  >
-                    {t('getCode')}
-                  </button>
-                </div>
-              </div>
-            </div>
-            <div className="mt-4">
-              <WalletSecurityNotice>{t('securityNotice')}</WalletSecurityNotice>
-            </div>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={handleSubmit}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-[#0052ff] px-6 py-3.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
-            >
-              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {t('reviewWithdrawal')}
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </div>
-        </div>
-
-        <div className="space-y-4">
+        <aside className="space-y-3 xl:sticky xl:top-24 xl:self-start">
           <WalletLimitsPanel
             rules={[
               { label: t('limitsMin'), value: '$10.00' },
@@ -364,7 +271,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
             emptyDescription={t('noWithdrawalsDesc')}
           />
           <WalletHelpPanel />
-        </div>
+        </aside>
       </div>
     </div>
   )

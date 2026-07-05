@@ -4,6 +4,7 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import {
   getKycBlockReason,
+  resolveEffectiveKycStatus,
   type FinancialAction,
 } from '@/lib/investor/kyc'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
@@ -21,23 +22,6 @@ export async function loadUserKycStatus(userId: string): Promise<string | null> 
   const { data } = await supabase.from('users').select(select).eq('id', userId).maybeSingle()
 
   return resolveEffectiveKycStatus(data)
-}
-
-function resolveEffectiveKycStatus(
-  data: {
-    kyc_status?: string | null
-    is_verified?: boolean | null
-    verification_status?: string | null
-  } | null
-): string | null {
-  if (!data) return null
-  if (data.is_verified || String(data.verification_status).toLowerCase() === 'approved') {
-    return 'Verified'
-  }
-  if (String(data.verification_status).toLowerCase() === 'declined') {
-    return 'Rejected'
-  }
-  return (data.kyc_status as string | undefined) ?? null
 }
 
 function isKycRequiredForAction(action: FinancialAction): boolean {

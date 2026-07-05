@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { FinancialKycAccess } from '@/lib/investor/kyc-actions'
+import { getCachedKycAccess } from '@/lib/investor/kyc-client-cache'
 import {
-  getFinancialKycAccess,
-  type FinancialKycAccess,
-} from '@/lib/investor/kyc-actions'
+  fetchFinancialKycAccess,
+  refreshFinancialKycAccess,
+} from '@/lib/investor/kyc-client-fetch'
 
 const defaultAccess: FinancialKycAccess = {
   verified: false,
@@ -13,54 +15,51 @@ const defaultAccess: FinancialKycAccess = {
 }
 
 export function useFinancialKycAccess() {
+  const cached = getCachedKycAccess()
   const [access, setAccess] = useState<FinancialKycAccess & { loading: boolean }>({
-    ...defaultAccess,
-    loading: true,
+    ...(cached ?? defaultAccess),
+    loading: !cached,
   })
+  const fetchIdRef = useRef(0)
+
+  const loadAccess = useCallback(async (forceRefresh = false) => {
+    const fetchId = ++fetchIdRef.current
+
+    if (!forceRefresh) {
+      const cachedResult = getCachedKycAccess()
+      if (cachedResult?.verified) {
+        setAccess({ ...cachedResult, loading: false })
+        return cachedResult
+      }
+    }
+
+    setAccess((current) => ({ ...current, loading: true, fetchError: false }))
+
+    const result = forceRefresh
+      ? await refreshFinancialKycAccess()
+      : await fetchFinancialKycAccess()
+
+    if (fetchId !== fetchIdRef.current) return result
+
+    setAccess({ ...result, loading: false })
+    return result
+  }, [])
 
   useEffect(() => {
-    let active = true
-
-    getFinancialKycAccess()
-      .then((result) => {
-        if (active) {
-          setAccess({ ...result, loading: false })
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setAccess({ ...defaultAccess, loading: false })
-        }
-      })
+    void loadAccess()
 
     const refresh = () => {
-      getFinancialKycAccess()
-        .then((result) => {
-          if (active) {
-            setAccess({ ...result, loading: false })
-          }
-        })
-        .catch(() => {
-          if (active) {
-            setAccess({ ...defaultAccess, loading: false })
-          }
-        })
+      void loadAccess(true)
     }
 
     window.addEventListener('primefx:profile-updated', refresh)
 
-    const timeoutId = window.setTimeout(() => {
-      if (active) {
-        setAccess((current) => (current.loading ? { ...current, loading: false } : current))
-      }
-    }, 10_000)
-
     return () => {
-      active = false
-      window.clearTimeout(timeoutId)
       window.removeEventListener('primefx:profile-updated', refresh)
     }
-  }, [])
+  }, [loadAccess])
 
-  return access
+  const refresh = useCallback(() => loadAccess(true), [loadAccess])
+
+  return { ...access, refresh }
 }

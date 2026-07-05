@@ -37,6 +37,7 @@ import {
 import { mapDbTransactionToItem } from '@/lib/data/transaction-map'
 import type { InvestmentDbRow, TransactionDbRow } from '@/lib/data/db-rows'
 import { formatCurrency, formatDate, formatDateTime, formatPercent, formatRelativeTime, toNumber } from '@/lib/data/format'
+import { buildReferralLink } from '@/lib/referral/share'
 import type {
   AcademyCourseDetail,
   AcademyCourseItem,
@@ -602,7 +603,7 @@ export async function fetchReferralData(): Promise<ReferralData> {
     typeof window !== 'undefined' ? window.location.origin : 'https://www.primefxinvest.com'
 
   return {
-    referralLink: `${origin}/signup?ref=${encodeURIComponent(referralCode)}`,
+    referralLink: buildReferralLink(origin, referralCode),
     referralCode,
     totalReferrals: referrals?.length ?? 0,
     totalEarnings: formatCurrency(totalEarnings),

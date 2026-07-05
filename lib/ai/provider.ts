@@ -4,12 +4,13 @@ import type { LanguageModel } from 'ai'
 
 export type AiProviderName = 'gemini' | 'openai'
 
-const DEFAULT_GEMINI_CHAT_MODEL = 'gemini-2.0-flash'
-const DEFAULT_GEMINI_VISION_MODEL = 'gemini-2.0-flash'
+const DEFAULT_GEMINI_CHAT_MODEL = 'gemini-flash-latest'
+const DEFAULT_GEMINI_VISION_MODEL = 'gemini-flash-latest'
 
 export function getGeminiApiKey(): string | undefined {
   return (
     process.env.GEMINI_API_KEY?.trim() ||
+    process.env.GOOGLE_API_KEY?.trim() ||
     process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim() ||
     undefined
   )
@@ -25,7 +26,10 @@ export function getGeminiChatModelId(): string {
 
 function createGeminiProvider() {
   const apiKey = getGeminiApiKey()
-  if (!apiKey) return null
+  if (!apiKey) {
+    console.warn('[PrimeAI] Gemini API key missing — set GEMINI_API_KEY or GOOGLE_API_KEY')
+    return null
+  }
   return createGoogleGenerativeAI({ apiKey })
 }
 
@@ -54,7 +58,12 @@ export function getPrimeAiConfigError(): string {
 
 /** Safe message for API responses and UI — never mentions env vars. */
 export function getPrimeAiUnavailableUserMessage(): string {
-  return 'PrimeAI is temporarily unavailable. Please try again later.'
+  return 'PrimeAI is currently unavailable. Please try again in a few moments.'
+}
+
+export function logPrimeAiConfig() {
+  console.log('Gemini API Key exists:', Boolean(getGeminiApiKey()))
+  console.log('Gemini model:', getGeminiChatModelId())
 }
 
 export function getAiConfigError(): string {

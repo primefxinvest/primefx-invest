@@ -17,6 +17,8 @@ type DepositAmountCardProps = {
   amountError?: string | null
   configError?: string | null
   depositDisabled?: boolean
+  kycLoading?: boolean
+  kycCheckingLabel?: string
 }
 
 function sanitizeAmountInput(value: string) {
@@ -35,14 +37,23 @@ export function DepositAmountCard({
   amountError,
   configError,
   depositDisabled = false,
+  kycLoading = false,
+  kycCheckingLabel,
 }: DepositAmountCardProps) {
   const t = useTranslations('wallet.deposit')
-  const buttonDisabled = isProcessing || depositDisabled || !amount.trim()
+  const isLocked = isProcessing || kycLoading
+  const buttonDisabled = isLocked || depositDisabled || !amount.trim()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!buttonDisabled) onDeposit()
   }
+
+  const buttonLabel = kycLoading
+    ? (kycCheckingLabel ?? t('kycCheckingButton'))
+    : isProcessing
+      ? processingLabel
+      : t('depositNow')
 
   return (
     <div className={cn(dashboardCardClass, 'mx-auto w-full max-w-lg shadow-md')}>
@@ -78,14 +89,15 @@ export function DepositAmountCard({
               autoComplete="off"
               value={amount}
               onChange={(e) => onAmountChange(sanitizeAmountInput(e.target.value))}
-              readOnly={isProcessing}
+              readOnly={isLocked}
               placeholder={t('amountPlaceholder')}
               aria-invalid={Boolean(amountError)}
+              aria-busy={kycLoading}
               className={cn(
                 'relative min-h-14 w-full rounded-xl border bg-background py-3 pl-8 pr-16 text-2xl font-bold tabular-nums text-foreground transition-colors',
                 'focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20',
                 amountError ? 'border-destructive' : 'border-border',
-                isProcessing && 'opacity-60'
+                isLocked && 'opacity-60'
               )}
             />
             <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -103,12 +115,13 @@ export function DepositAmountCard({
           <button
             type="submit"
             disabled={buttonDisabled}
+            aria-busy={isLocked}
             className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isProcessing ? (
+            {isLocked ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                {processingLabel}
+                {buttonLabel}
               </>
             ) : (
               t('depositNow')

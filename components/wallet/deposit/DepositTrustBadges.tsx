@@ -28,7 +28,7 @@ export function DepositTrustBadges({ className }: { className?: string }) {
   const t = useTranslations('wallet.deposit')
 
   return (
-    <div className={cn('grid grid-cols-2 gap-2 sm:grid-cols-4', className)}>
+    <div className={cn('grid grid-cols-2 gap-2 md:grid-cols-4 md:gap-2.5', className)}>
       {TRUST_ITEMS.map(({ key, icon: Icon }) => (
         <div
           key={key}

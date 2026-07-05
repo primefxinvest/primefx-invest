@@ -99,6 +99,7 @@ function PrimeAIChatInner() {
   const user = useSessionUser()
   const [input, setInput] = useState('')
   const [pendingAction, setPendingAction] = useState<string | null>(null)
+  const [loadingPhase, setLoadingPhase] = useState<'connecting' | 'analyzing' | 'generating'>('connecting')
   const initialQuerySent = useRef(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -111,6 +112,25 @@ function PrimeAIChatInner() {
   const isLoading = status === 'submitted' || status === 'streaming'
   const userMessageCount = messages.filter((m) => m.role === 'user').length
   const showQuickActions = userMessageCount === 0 && !isLoading
+
+  const typingLabel = useMemo(() => {
+    if (loadingPhase === 'connecting') return t('loadingConnecting')
+    if (loadingPhase === 'analyzing') return t('loadingAnalyzing')
+    return t('loadingGenerating')
+  }, [loadingPhase, t])
+
+  useEffect(() => {
+    if (status === 'submitted') {
+      setLoadingPhase('connecting')
+      return
+    }
+
+    if (status === 'streaming') {
+      setLoadingPhase('analyzing')
+      const timer = window.setTimeout(() => setLoadingPhase('generating'), 1800)
+      return () => window.clearTimeout(timer)
+    }
+  }, [status])
 
   const clientError = useMemo(() => {
     if (!error) return null
@@ -222,14 +242,14 @@ function PrimeAIChatInner() {
             />
           ))}
 
-          {isLoading ? <TypingIndicator label={t('typingLabel')} /> : null}
+          {isLoading ? <TypingIndicator label={typingLabel} /> : null}
           <div ref={messagesEndRef} aria-hidden="true" />
         </div>
 
         {/* Quick action cards */}
         {showQuickActions ? (
-          <div className="border-t border-border bg-muted/20 p-4 sm:p-5">
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="border-t border-border bg-muted/20 p-2 md:p-4 lg:p-5">
+            <div className="grid grid-cols-3 gap-1.5 md:grid-cols-2 md:gap-3 lg:grid-cols-4">
               {PRIMEAI_QUICK_ACTIONS.map(({ key, icon: Icon, query }) => {
                 const isPending = pendingAction === key && isLoading
                 return (
@@ -238,19 +258,19 @@ function PrimeAIChatInner() {
                     type="button"
                     disabled={isLoading}
                     onClick={() => handleQuickAction(query, key)}
-                    className="group flex min-h-[88px] flex-col rounded-xl border border-border bg-card p-3 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md disabled:pointer-events-none disabled:opacity-60"
+                    className="group flex min-h-[4.25rem] flex-col rounded-lg border border-border bg-card p-2 text-left shadow-sm transition-all hover:border-primary/30 hover:shadow-md disabled:pointer-events-none disabled:opacity-60 md:min-h-[5.5rem] md:rounded-xl md:p-3 md:hover:-translate-y-0.5 lg:min-h-[88px]"
                   >
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-primary/15">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10 text-primary transition-colors group-hover:bg-primary/15 md:h-8 md:w-8 md:rounded-lg">
                       {isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                        <Loader2 className="h-3 w-3 animate-spin md:h-4 md:w-4" aria-hidden />
                       ) : (
-                        <Icon className="h-4 w-4" aria-hidden />
+                        <Icon className="h-3 w-3 md:h-4 md:w-4" aria-hidden />
                       )}
                     </span>
-                    <span className="mt-2 text-xs font-semibold text-foreground">
+                    <span className="mt-1 line-clamp-2 text-[10px] font-semibold leading-tight text-foreground md:mt-2 md:text-xs">
                       {t(`actions.${key}.title`)}
                     </span>
-                    <span className="mt-0.5 line-clamp-2 text-[10px] leading-snug text-muted-foreground">
+                    <span className="mt-0.5 hidden line-clamp-2 text-[10px] leading-snug text-muted-foreground md:block">
                       {t(`actions.${key}.subtitle`)}
                     </span>
                   </button>

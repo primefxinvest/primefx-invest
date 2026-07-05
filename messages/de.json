@@ -153,15 +153,18 @@
     "bulletAutoUpdate": "Wir aktualisieren Ihr Konto automatisch, wenn die Verifizierung abgeschlossen ist."
   },
   "primeaiChat": {
-    "unavailableTitle": "PrimeAI ist vorübergehend nicht verfügbar",
-    "unavailableMessage": "Verbindung derzeit nicht möglich. Bitte versuchen Sie es in einigen Minuten erneut.",
-    "requestFailed": "Ihre Anfrage konnte nicht verarbeitet werden. Bitte versuchen Sie es erneut."
+    "unavailableTitle": "PrimeAI ist derzeit nicht verfügbar",
+    "unavailableMessage": "Bitte versuchen Sie es in wenigen Augenblicken erneut.",
+    "requestFailed": "Ihre Anfrage konnte nicht abgeschlossen werden. Bitte versuchen Sie es in wenigen Augenblicken erneut."
   },
   "primeaiPage": {
     "title": "PrimeAI",
     "subtitle": "Ihr persönlicher KI-Investment-Copilot.",
     "statusOnline": "Online",
     "statusThinking": "Denkt nach…",
+    "loadingConnecting": "Verbindung zu PrimeAI…",
+    "loadingAnalyzing": "Anfrage wird analysiert…",
+    "loadingGenerating": "Investment-Einblicke werden erstellt…",
     "chatLabel": "PrimeAI-Unterhaltung",
     "typingLabel": "Verfügbare Investitionspläne werden analysiert…",
     "inputPlaceholder": "Fragen Sie PrimeAI alles über Investitionen…",
@@ -564,6 +567,9 @@
     "kycInvestmentRequired": "Schließen Sie KYC ab, bevor Sie investieren.",
     "kycBlockRejected": "Ihre Identitätsverifizierung wurde abgelehnt. Sie können {action} erst nach KYC-Freigabe. Bitte kontaktieren Sie den Support oder reichen Sie Ihre Dokumente erneut ein.",
     "kycBlockRequired": "Identitätsverifizierung ist erforderlich, bevor Sie {action} können. Schließen Sie KYC ab und warten Sie auf die Freigabe.",
+    "kycFetchErrorTitle": "Verifizierungsstatus konnte nicht geladen werden",
+    "kycFetchErrorDescription": "Ihr Identitätsstatus konnte nicht bestätigt werden. Einzahlungen sind pausiert, bis wir Ihr Konto verifizieren können.",
+    "kycRetryVerify": "Verifizierung erneut prüfen",
     "kycActionDeposit": "Einzahlungen tätigen",
     "kycActionWithdrawal": "Geld abheben",
     "kycActionInvestment": "investieren",
@@ -1211,7 +1217,17 @@
       "nowPaymentsConfigHint": "Fügen Sie NOWPAYMENTS_API_KEY und NOWPAYMENTS_IPN_SECRET zu Ihrer Umgebung hinzu.",
       "binancePayConfigError": "Binance Pay ist nicht konfiguriert",
       "binancePayConfigHint": "Fügen Sie BINANCEPAY_* Zugangsdaten zu Ihrer Umgebung hinzu.",
-      "paymentCreated": "Zahlung erstellt",
+      "creatingPayment": "Zahlung wird erstellt…",
+      "creatingInvoice": "Rechnung wird erstellt…",
+      "redirecting": "Weiterleitung zur Zahlung…",
+      "waitingConfirmation": "Warten auf Zahlungsbestätigung…",
+      "retryDeposit": "Erneut versuchen",
+      "kycCheckingButton": "Verifizierung wird geprüft…",
+      "kycFetchError": "Ihr Verifizierungsstatus konnte nicht geladen werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "kycRetryVerify": "Verifizierung erneut prüfen",
+      "networkError": "Verbindungsfehler",
+      "networkErrorHint": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+      "paymentCreated": "Zahlung erstellt — Weiterleitung…",
       "depositFailed": "Einzahlung fehlgeschlagen"
     },
     "withdraw": {

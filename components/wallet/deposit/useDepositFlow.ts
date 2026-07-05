@@ -19,6 +19,8 @@ type UseDepositFlowOptions = {
   initialPaymentOptions: PaymentProviderOptions
 }
 
+export type DepositStep = 'idle' | 'creating' | 'redirecting'
+
 export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions) {
   const t = useTranslations('wallet.deposit')
   const tCompliance = useTranslations('compliance')
@@ -27,7 +29,7 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
   const submitLockRef = useRef(false)
 
   const [amount, setAmountState] = useState('500')
-  const [step, setStep] = useState<'form' | 'redirecting'>('form')
+  const [step, setStep] = useState<DepositStep>('idle')
   const [flowError, setFlowError] = useState<string | null>(null)
   const [amountError, setAmountError] = useState<string | null>(null)
   const [pending, startTransition] = useTransition()
@@ -74,16 +76,21 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
 
   const redirectToCheckout = useCallback((url: string) => {
     setStep('redirecting')
+    toast.info(t('redirecting'))
     window.location.href = url
-  }, [])
+  }, [t])
 
   const handleContinue = useCallback(() => {
-    if (submitLockRef.current || pending) return
+    if (submitLockRef.current || pending || step !== 'idle') return
 
     setFlowError(null)
 
     if (kyc.loading) {
-      setFlowError(t('kycChecking'))
+      return
+    }
+
+    if (kyc.fetchError) {
+      setFlowError(t('kycFetchError'))
       return
     }
 
@@ -111,6 +118,8 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
     }
 
     submitLockRef.current = true
+    setStep('creating')
+    toast.info(t('creatingInvoice'))
 
     startTransition(async () => {
       try {
@@ -120,13 +129,21 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
           provider: 'now_payments',
         })
 
+        console.log('NOWPayments Response:', result)
+
         if (!result.success) {
+          setStep('idle')
           setFlowError(result.error ?? t('depositFailed'))
           toast.error(t('depositFailed'), { description: result.error })
+          submitLockRef.current = false
           return
         }
 
+        const invoiceId = result.paymentId ?? result.orderId
+        console.log('Invoice Created:', invoiceId)
+
         toast.success(t('paymentCreated'))
+
         router.refresh()
 
         if (result.checkoutUrl) {
@@ -134,16 +151,19 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
           return
         }
 
+        setStep('idle')
         setFlowError(t('depositFailed'))
+        submitLockRef.current = false
       } catch {
+        setStep('idle')
         setFlowError(t('networkError'))
         toast.error(t('networkError'), { description: t('networkErrorHint') })
-      } finally {
         submitLockRef.current = false
       }
     })
   }, [
     pending,
+    step,
     kyc,
     tCompliance,
     validateAmount,
@@ -155,6 +175,27 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
     redirectToCheckout,
   ])
 
+  const handleRetryKyc = useCallback(async () => {
+    setFlowError(null)
+    const result = await kyc.refresh()
+    if (result.fetchError) {
+      setFlowError(t('kycFetchError'))
+    }
+  }, [kyc, t])
+
+  const processingLabel =
+    step === 'redirecting'
+      ? t('redirecting')
+      : step === 'creating'
+        ? t('creatingInvoice')
+        : t('creatingPayment')
+
+  const depositBlocked =
+    kyc.loading ||
+    kyc.fetchError ||
+    !kyc.verified ||
+    !nowPaymentsEnabled
+
   return {
     amount,
     setAmount: (value: string) => {
@@ -165,8 +206,12 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
     step,
     flowError,
     amountError,
-    pending,
+    pending: pending || step !== 'idle',
+    processingLabel,
     handleContinue,
+    handleRetryKyc,
     nowPaymentsEnabled,
+    kyc,
+    depositBlocked,
   }
 }
