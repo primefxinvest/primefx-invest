@@ -3,24 +3,13 @@
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
-import {
-  EMAIL_NOT_VERIFIED_CODE,
-  EMAIL_NOT_VERIFIED_MESSAGE,
-  isEmailVerified,
-} from '@/lib/auth/require-verified-email'
+import { isEmailVerified } from '@/lib/auth/require-verified-email'
+import type {
+  EmailVerificationActionResult,
+  EmailVerificationStatus,
+} from '@/lib/auth/email-verification-types'
 
 const RESEND_COOLDOWN_SECONDS = 60
-
-export type EmailVerificationStatus = {
-  email: string
-  verified: boolean
-  lastSentAt: string | null
-  resendCooldownSeconds: number
-}
-
-export type EmailVerificationActionResult =
-  | { success: true }
-  | { success: false; error: string; code?: string; retryAfterSeconds?: number }
 
 function getEmailVerificationRedirectUrl(origin: string) {
   const url = new URL('/auth/callback', origin)
@@ -161,5 +150,3 @@ export async function recordSignupVerificationEmailSentAction(): Promise<void> {
 
   await recordVerificationEmailSent(user.id)
 }
-
-export { EMAIL_NOT_VERIFIED_CODE, EMAIL_NOT_VERIFIED_MESSAGE }

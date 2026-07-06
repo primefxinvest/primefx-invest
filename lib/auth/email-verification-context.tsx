@@ -12,10 +12,10 @@ import {
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 import { supabase } from '@/lib/supabase'
+import type { EmailVerificationStatus } from '@/lib/auth/email-verification-types'
 import {
   refreshEmailVerificationAction,
   resendVerificationEmailAction,
-  type EmailVerificationStatus,
 } from '@/lib/auth/email-verification-actions'
 import { EmailVerificationRequiredModal } from '@/components/auth/EmailVerificationRequiredModal'
 
