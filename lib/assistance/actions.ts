@@ -402,6 +402,42 @@ export async function getAssistanceSignedUrl(path: string): Promise<string | nul
   return data.signedUrl
 }
 
+export async function pollAssistanceMessages(
+  sessionId: string,
+  knownIds: string[]
+): Promise<{
+  ok: boolean
+  messages?: AssistanceMessage[]
+  error?: string
+}> {
+  const { supabase, user } = await requireAuthUser()
+  if (!user) return { ok: false, error: 'Not authenticated' }
+
+  const { data: session } = await supabase
+    .from('assistance_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!session) return { ok: false, error: 'Session not found' }
+
+  const { data: rows, error } = await supabase
+    .from('assistance_messages')
+    .select('*')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: true })
+
+  if (error) return { ok: false, error: error.message }
+
+  const known = new Set(knownIds)
+  const messages = (rows ?? [])
+    .map(mapMessage)
+    .filter((m) => !known.has(m.id))
+
+  return { ok: true, messages }
+}
+
 export async function updateAssistanceCategory(sessionId: string, category: string) {
   const { supabase, user } = await requireAuthUser()
   if (!user) return { ok: false as const, error: 'Not authenticated' }

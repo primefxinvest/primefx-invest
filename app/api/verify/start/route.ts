@@ -5,6 +5,7 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
 import { logSecurityAudit } from '@/lib/security/security-audit'
+import { requireVerifiedEmail } from '@/lib/auth/require-verified-email'
 
 export const runtime = 'nodejs'
 
@@ -17,6 +18,14 @@ export async function POST(request: Request) {
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const emailVerification = requireVerifiedEmail(user)
+  if (!emailVerification.allowed) {
+    return NextResponse.json(
+      { error: emailVerification.error, code: 'EMAIL_NOT_VERIFIED' },
+      { status: 403 }
+    )
   }
 
   try {

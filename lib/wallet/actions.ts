@@ -12,6 +12,7 @@ import {
   lookupTransferRecipient,
 } from '@/lib/wallet/transfer-lookup'
 import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
+import { requireVerifiedEmail, EMAIL_NOT_VERIFIED_CODE } from '@/lib/auth/require-verified-email'
 import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
 import {
   assertTransactionAuthorized,
@@ -172,6 +173,15 @@ export async function submitManualWithdrawal(
   const account = await requireActiveAccountForFinancialAction(user.id, 'withdrawal')
   if (!account.allowed) {
     return { success: false as const, error: account.error }
+  }
+
+  const emailVerification = requireVerifiedEmail(user)
+  if (!emailVerification.allowed) {
+    return {
+      success: false as const,
+      error: emailVerification.error,
+      code: EMAIL_NOT_VERIFIED_CODE,
+    }
   }
 
   const auth = await assertTransactionAuthorized(user.id, 'withdrawal', {

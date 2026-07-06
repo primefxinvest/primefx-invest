@@ -126,7 +126,11 @@ function bindAuthListener() {
       emit()
       return
     }
-    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+    if (event === 'TOKEN_REFRESHED') {
+      void ensureSessionLoaded()
+      return
+    }
+    if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
       invalidateSession()
     }
   })

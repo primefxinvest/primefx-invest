@@ -11,6 +11,7 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { ASSISTANCE_ATTACHMENT_BUCKET, ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_SIZE } from '@/lib/assistance/constants'
 import { ensureAssistanceStorageBucket } from '@/lib/assistance/storage'
 import { notifyAssistanceAgentReply } from '@/lib/notifications/service'
+import { insertAgentAssistanceMessage } from '@/lib/assistance/mirror-agent-reply'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -51,30 +52,27 @@ export async function adminReplyAssistanceSession(
   if (sessionError) return { success: false, error: sessionError.message }
   if (!session) return { success: false, error: 'Session not found.' }
 
-  const { data: inserted, error: insertError } = await db
+  const mirrored = await insertAgentAssistanceMessage(db, {
+    sessionId,
+    content: body,
+    agentId: context.userId,
+    agentEmail: context.email,
+    ticketId: (session.ticket_id as string) ?? undefined,
+  })
+
+  if (!mirrored.ok) {
+    return { success: false, error: mirrored.error }
+  }
+
+  const { data: inserted } = await db
     .from('assistance_messages')
-    .insert({
-      session_id: sessionId,
-      role: 'agent',
-      content: body,
-      metadata: {
-        agentId: context.userId,
-        agentName: context.email,
-        readAt: null,
-      },
-    })
     .select('*')
+    .eq('id', mirrored.messageId)
     .single()
 
-  if (insertError) return { success: false, error: insertError.message }
-
-  await db
-    .from('assistance_sessions')
-    .update({
-      assigned_agent_id: context.userId,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', sessionId)
+  if (!inserted) {
+    return { success: false, error: 'Agent message not found after insert.' }
+  }
 
   if (session.ticket_id) {
     await db.from('support_ticket_messages').insert({

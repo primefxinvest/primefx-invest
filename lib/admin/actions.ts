@@ -634,6 +634,30 @@ export async function adminReplySupportTicket(
 
   if (messageError) return { success: false, error: messageError.message }
 
+  const { insertAgentAssistanceMessage, resolveAssistanceSessionIdForTicket } = await import(
+    '@/lib/assistance/mirror-agent-reply'
+  )
+  const sessionId = await resolveAssistanceSessionIdForTicket(db, {
+    id: ticketId,
+    assistance_session_id: (ticket.assistance_session_id as string) ?? null,
+  })
+
+  if (sessionId) {
+    const mirrored = await insertAgentAssistanceMessage(db, {
+      sessionId,
+      content: body,
+      agentId: context.userId,
+      agentEmail: context.email,
+      ticketId,
+    })
+    if (!mirrored.ok) {
+      return {
+        success: false,
+        error: mirrored.error ?? 'Reply saved to ticket but failed to deliver to live chat.',
+      }
+    }
+  }
+
   const currentStatus = String(ticket.status ?? 'open').toLowerCase().replace(/-/g, '_')
   const resolvedStatus =
     nextStatus ?? (currentStatus === 'open' ? 'in_progress' : String(ticket.status))

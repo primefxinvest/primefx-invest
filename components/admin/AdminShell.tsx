@@ -98,7 +98,7 @@ export function AdminShell({ context, children }: AdminShellProps) {
               <h1 className="truncate text-lg font-bold text-foreground sm:text-2xl">Admin Portal</h1>
               {context.isBootstrap ? (
                 <p className="mt-0.5 line-clamp-2 text-xs text-amber-600 sm:line-clamp-1">
-                  Bootstrap Super Admin (set ADMIN_SUPER_EMAILS or admin_profiles)
+                  Bootstrap Super Admin (admin_profiles row pending — only fxinvestprime@gmail.com)
                 </p>
               ) : null}
             </div>

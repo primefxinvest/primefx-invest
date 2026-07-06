@@ -12,6 +12,7 @@ import {
   type MfaStatus,
 } from '@/lib/auth/mfa'
 import { getQrCodeRenderOptions } from '@/lib/auth/totp'
+import { useOptionalEmailVerification } from '@/lib/auth/email-verification-context'
 import { cn } from '@/lib/utils'
 
 interface TwoFactorModalProps {
@@ -34,6 +35,7 @@ export default function TwoFactorModal({
   const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [starting, setStarting] = useState(false)
+  const emailVerification = useOptionalEmailVerification()
 
   useEffect(() => {
     if (!open) return
@@ -44,6 +46,12 @@ export default function TwoFactorModal({
 
   useEffect(() => {
     if (!open || mode !== 'enable' || enrollment) return
+
+    if (emailVerification && !emailVerification.verified) {
+      emailVerification.requireVerifiedEmail()
+      onClose()
+      return
+    }
 
     let active = true
     setStarting(true)
@@ -61,7 +69,7 @@ export default function TwoFactorModal({
     return () => {
       active = false
     }
-  }, [open, mode, enrollment, userEmail])
+  }, [open, mode, enrollment, userEmail, emailVerification, onClose])
 
   if (!open) return null
 
@@ -108,6 +116,10 @@ export default function TwoFactorModal({
   }
 
   const handleDisable = async () => {
+    if (emailVerification && !emailVerification.requireVerifiedEmail()) {
+      return
+    }
+
     setLoading(true)
     const result = await disableMfa(code)
     setLoading(false)

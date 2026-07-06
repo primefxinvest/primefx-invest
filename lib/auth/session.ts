@@ -1,6 +1,7 @@
 import type { User } from '@supabase/supabase-js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { MFA_VERIFY_ROUTE } from '@/lib/auth/routes'
+import { isDefinitiveAuthError } from '@/lib/auth/session-policy'
 import { stripLocalePrefix } from '@/lib/i18n/pathname'
 
 export function sanitizeRedirectPath(path: string | null | undefined, fallback = '/dashboard') {
@@ -27,9 +28,13 @@ export async function getValidatedUser(supabase: SupabaseClient) {
     error,
   } = await supabase.auth.getUser()
 
-  if (error) {
+  if (error && isDefinitiveAuthError(error)) {
     await supabase.auth.signOut()
     return { user: null as User | null, invalidSession: true, error }
+  }
+
+  if (error) {
+    return { user: user ?? null, invalidSession: false, error }
   }
 
   return { user, invalidSession: false, error: null }

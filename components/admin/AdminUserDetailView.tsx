@@ -190,7 +190,7 @@ export function AdminUserDetailView({
 
       <SectionCard
         title="Referral program"
-        description="Control whether this investor can open the referral page and earn commissions."
+        description="Referral access is enabled for all investors. Commissions and payouts are tracked automatically."
       >
         <AdminReferralAccessToggle
           userId={profile.id}

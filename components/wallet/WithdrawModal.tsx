@@ -14,6 +14,8 @@ import type { PaymentProviderOptions } from '@/lib/payments/types'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { kycBlockReason, kycFallbackMessage } from '@/lib/investor/kyc-i18n'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
+import { useEmailVerification } from '@/lib/auth/email-verification-context'
+import { isEmailNotVerifiedResult } from '@/lib/auth/email-verification-client'
 
 interface WithdrawModalProps {
   open: boolean
@@ -25,6 +27,7 @@ export default function WithdrawModal({ open, onOpenChange }: WithdrawModalProps
   const tCommon = useTranslations('common')
   const tCompliance = useTranslations('compliance')
   const kyc = useFinancialKycAccess()
+  const { requireVerifiedEmail, openVerificationModal } = useEmailVerification()
   const [amount, setAmount] = useState('50')
   const [currency, setCurrency] = useState(DEFAULT_WITHDRAW_CURRENCY)
   const [address, setAddress] = useState('')
@@ -62,6 +65,8 @@ export default function WithdrawModal({ open, onOpenChange }: WithdrawModalProps
   }, [open, t])
 
   const handleSubmit = () => {
+    if (!requireVerifiedEmail()) return
+
     if (!kyc.loading && !kyc.verified) {
       showKycRequiredToast({
         status: kyc.status,
@@ -93,6 +98,9 @@ export default function WithdrawModal({ open, onOpenChange }: WithdrawModalProps
       })
 
       if (!result.success) {
+        if (isEmailNotVerifiedResult(result)) {
+          openVerificationModal()
+        }
         toast.error(t('failed'), { description: result.error })
         return
       }

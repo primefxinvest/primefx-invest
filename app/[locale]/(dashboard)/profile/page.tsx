@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import EditProfileModal from '@/components/profile/EditProfileModal'
 import { DiditVerificationPanel } from '@/components/verification/DiditVerificationPanel'
+import { EmailVerificationSection } from '@/components/profile/EmailVerificationSection'
 import { UserTransferIdsCard } from '@/components/profile/UserTransferIdsCard'
 import { ErrorState } from '@/components/shared/data-state'
 import { SectionHeading } from '@/components/shared/SectionHeading'
@@ -87,11 +88,13 @@ export default function ProfilePage() {
 
     window.addEventListener('primefx:profile-updated', handleUpdate)
     window.addEventListener('primefx:verification-updated', handleUpdate)
+    window.addEventListener('primefx:email-verified', handleUpdate)
     const handleOpenEdit = () => setEditOpen(true)
     window.addEventListener('primefx:open-edit-profile', handleOpenEdit)
     return () => {
       window.removeEventListener('primefx:profile-updated', handleUpdate)
       window.removeEventListener('primefx:verification-updated', handleUpdate)
+      window.removeEventListener('primefx:email-verified', handleUpdate)
       window.removeEventListener('primefx:open-edit-profile', handleOpenEdit)
     }
   }, [loadProfile])
@@ -213,6 +216,8 @@ export default function ProfilePage() {
       </section>
 
       <UserTransferIdsCard userId={profile.id} />
+
+      <EmailVerificationSection />
 
       <section aria-label="Personal information" className={sectionStackClass}>
         <SectionHeading>{t('personalInformation')}</SectionHeading>

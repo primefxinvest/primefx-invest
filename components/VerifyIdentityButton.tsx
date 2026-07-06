@@ -6,6 +6,8 @@ import { CheckCircle2, Loader2, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { storeDiditSessionId, storeVerifyReturnPath } from '@/lib/didit/callback-session'
+import { useOptionalEmailVerification } from '@/lib/auth/email-verification-context'
+import { EMAIL_NOT_VERIFIED_CODE } from '@/lib/auth/email-verification-client'
 
 type VerifyIdentityButtonProps = {
   userId?: string
@@ -25,6 +27,7 @@ export function VerifyIdentityButton({
   const t = useTranslations('verification')
   const tCommon = useTranslations('common')
   const [loading, setLoading] = useState(false)
+  const emailVerification = useOptionalEmailVerification()
 
   if (isVerified || verificationStatus === 'approved') {
     return (
@@ -49,6 +52,10 @@ export function VerifyIdentityButton({
         : t('verifyIdentity')
 
   const handleClick = async () => {
+    if (emailVerification && !emailVerification.requireVerifiedEmail()) {
+      return
+    }
+
     setLoading(true)
     try {
       const response = await fetch('/api/verify/start', {
@@ -60,9 +67,13 @@ export function VerifyIdentityButton({
         url?: string
         sessionId?: string
         error?: string
+        code?: string
       }
 
       if (!response.ok || !payload.url) {
+        if (payload.code === EMAIL_NOT_VERIFIED_CODE && emailVerification) {
+          emailVerification.openVerificationModal()
+        }
         throw new Error(payload.error ?? 'Could not start verification')
       }
 

@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, type MutableRefObject } from 'react'
 import { createBrowserSupabaseClient } from '@/lib/supabase/browser'
+import { pollAssistanceMessages } from '@/lib/assistance/actions'
 import type { AssistanceMessage } from '@/lib/assistance/types'
 
 type RealtimeMessage = {
@@ -12,9 +13,12 @@ type RealtimeMessage = {
   created_at: string
 }
 
+const POLL_INTERVAL_MS = 3000
+
 export function useAssistanceRealtime(
   sessionId: string | null | undefined,
-  onMessage: (message: AssistanceMessage) => void
+  onMessage: (message: AssistanceMessage) => void,
+  knownIdsRef?: MutableRefObject<Set<string>>
 ) {
   const onMessageRef = useRef(onMessage)
   onMessageRef.current = onMessage
@@ -22,7 +26,23 @@ export function useAssistanceRealtime(
   useEffect(() => {
     if (!sessionId) return
 
+    let cancelled = false
     const supabase = createBrowserSupabaseClient()
+
+    const deliver = (message: AssistanceMessage, source: 'realtime' | 'poll') => {
+      if (cancelled) return
+      if (knownIdsRef?.current.has(message.id)) return
+
+      console.log('[USER_REALTIME_EVENT_RECEIVED]', {
+        source,
+        messageId: message.id,
+        role: message.role,
+        sessionId,
+      })
+
+      onMessageRef.current(message)
+    }
+
     const channel = supabase
       .channel(`assistance:${sessionId}`)
       .on(
@@ -35,19 +55,45 @@ export function useAssistanceRealtime(
         },
         (payload) => {
           const row = payload.new as RealtimeMessage
-          onMessageRef.current({
-            id: row.id,
-            role: row.role as AssistanceMessage['role'],
-            content: row.content,
-            metadata: (row.metadata as AssistanceMessage['metadata']) ?? {},
-            createdAt: row.created_at,
-          })
+          deliver(
+            {
+              id: row.id,
+              role: row.role as AssistanceMessage['role'],
+              content: row.content,
+              metadata: (row.metadata as AssistanceMessage['metadata']) ?? {},
+              createdAt: row.created_at,
+            },
+            'realtime'
+          )
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[USER_REALTIME_EVENT_RECEIVED] subscription unhealthy', { status, sessionId })
+        }
+      })
+
+    const poll = async () => {
+      if (cancelled) return
+      const known = knownIdsRef ? Array.from(knownIdsRef.current) : []
+      const result = await pollAssistanceMessages(sessionId, known)
+      if (!result.ok || !result.messages?.length) return
+
+      for (const message of result.messages) {
+        if (message.role !== 'agent' && message.role !== 'system') continue
+        deliver(message, 'poll')
+      }
+    }
+
+    void poll()
+    const pollTimer = setInterval(() => {
+      void poll()
+    }, POLL_INTERVAL_MS)
 
     return () => {
+      cancelled = true
+      clearInterval(pollTimer)
       void supabase.removeChannel(channel)
     }
-  }, [sessionId])
+  }, [sessionId, knownIdsRef])
 }

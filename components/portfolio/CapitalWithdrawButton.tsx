@@ -7,6 +7,8 @@ import { submitCapitalWithdrawalAction } from '@/lib/invest/capital-actions'
 import { formatCurrency, formatDateTime } from '@/lib/data/format'
 import type { CapitalWithdrawalRequestItem } from '@/lib/data/types'
 import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/referral/program-config'
+import { useEmailVerification } from '@/lib/auth/email-verification-context'
+import { isEmailNotVerifiedResult } from '@/lib/auth/email-verification-client'
 import { cn } from '@/lib/utils'
 
 function formatAvailableDate(iso: string) {
@@ -39,11 +41,17 @@ export function CapitalWithdrawButton({
   onRequested?: () => void
 }) {
   const [pending, startTransition] = useTransition()
+  const { requireVerifiedEmail, openVerificationModal } = useEmailVerification()
 
   const handleClick = () => {
+    if (!requireVerifiedEmail()) return
+
     startTransition(async () => {
       const result = await submitCapitalWithdrawalAction({ investmentId })
       if (!result.success) {
+        if (isEmailNotVerifiedResult(result)) {
+          openVerificationModal()
+        }
         toast.error(result.error ?? 'Request failed')
         return
       }

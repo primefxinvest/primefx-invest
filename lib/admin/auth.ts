@@ -4,16 +4,12 @@ import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { ADMIN_TIER_LABELS } from './permissions'
-import type { AdminContext, AdminModule, AdminProfile, AdminTier } from './types'
+import type { AdminContext, AdminModule, AdminProfile } from './types'
 import { canAccessModule } from './permissions'
-
-function getBootstrapSuperEmails(): string[] {
-  const raw = process.env.ADMIN_SUPER_EMAILS ?? ''
-  return raw
-    .split(',')
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean)
-}
+import {
+  getAuthorizedBootstrapEmails,
+  isSuperAdminEmail,
+} from './super-admin'
 
 export async function getAdminContext(): Promise<AdminContext | null> {
   const supabase = await createServerSupabaseClient()
@@ -21,7 +17,7 @@ export async function getAdminContext(): Promise<AdminContext | null> {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user?.email) {
+  if (!user?.email || !isSuperAdminEmail(user.email)) {
     return null
   }
 
@@ -52,14 +48,14 @@ export async function getAdminContext(): Promise<AdminContext | null> {
     return {
       userId: user.id,
       email: user.email,
-      tier: profile.tier as AdminTier,
-      roleLabel: profile.role_label || ADMIN_TIER_LABELS[profile.tier as AdminTier],
+      tier: 1,
+      roleLabel: profile.role_label || ADMIN_TIER_LABELS[1],
       isBootstrap: false,
     }
   }
 
-  const bootstrapEmails = getBootstrapSuperEmails()
-  if (bootstrapEmails.includes(user.email.toLowerCase())) {
+  const bootstrapEmails = getAuthorizedBootstrapEmails()
+  if (bootstrapEmails.length > 0) {
     return {
       userId: user.id,
       email: user.email,
@@ -71,6 +67,8 @@ export async function getAdminContext(): Promise<AdminContext | null> {
 
   return null
 }
+
+export { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from './super-admin'
 
 export async function requireAdmin(): Promise<AdminContext> {
   const context = await getAdminContext()

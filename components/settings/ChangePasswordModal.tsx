@@ -5,6 +5,7 @@ import { Eye, EyeOff, Loader2, Lock, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { logProfileActivity } from '@/lib/profile/actions'
 import { getCurrentUser, supabase } from '@/lib/supabase'
+import { useOptionalEmailVerification } from '@/lib/auth/email-verification-context'
 
 interface ChangePasswordModalProps {
   open: boolean
@@ -24,6 +25,7 @@ export default function ChangePasswordModal({
   const [showNew, setShowNew] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const emailVerification = useOptionalEmailVerification()
 
   if (!open) return null
 
@@ -42,6 +44,10 @@ export default function ChangePasswordModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+
+    if (emailVerification && !emailVerification.requireVerifiedEmail()) {
+      return
+    }
 
     if (newPassword.length < 8) {
       setError('New password must be at least 8 characters.')

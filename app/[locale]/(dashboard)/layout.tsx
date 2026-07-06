@@ -4,6 +4,9 @@ import { getTranslations } from 'next-intl/server'
 import { getLocale } from 'next-intl/server'
 import AppLayout from '@/components/shared/AppLayout'
 import { TermsAcknowledgementBanner } from '@/components/compliance/TermsAcknowledgementBanner'
+import { EmailVerificationBanner } from '@/components/auth/EmailVerificationBanner'
+import { EmailVerificationProvider } from '@/lib/auth/email-verification-context'
+import { getEmailVerificationStatusAction } from '@/lib/auth/email-verification-actions'
 import { ReferralAccessProvider } from '@/lib/referral/access-context'
 import { getReferralAccessForUser } from '@/lib/referral/settings'
 import { getTermsAcknowledgementState } from '@/lib/terms/server'
@@ -35,16 +38,26 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   const referralAccess = await getReferralAccessForUser(user!.id)
   const termsAcknowledgement = await getTermsAcknowledgementState(user!.id)
+  const emailVerification =
+    (await getEmailVerificationStatusAction()) ?? {
+      email: user!.email ?? '',
+      verified: Boolean(user!.email_confirmed_at),
+      lastSentAt: null,
+      resendCooldownSeconds: 0,
+    }
 
   return (
     <ReferralAccessProvider access={referralAccess}>
-      <AppLayout>
-        <TermsAcknowledgementBanner
-          required={termsAcknowledgement.required}
-          version={termsAcknowledgement.version}
-        />
-        {children}
-      </AppLayout>
+      <EmailVerificationProvider initialStatus={emailVerification}>
+        <AppLayout>
+          <TermsAcknowledgementBanner
+            required={termsAcknowledgement.required}
+            version={termsAcknowledgement.version}
+          />
+          <EmailVerificationBanner />
+          {children}
+        </AppLayout>
+      </EmailVerificationProvider>
     </ReferralAccessProvider>
   )
 }

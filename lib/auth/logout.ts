@@ -1,6 +1,7 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
+import { clearRememberSessionPreference } from '@/lib/auth/remember-session-client'
 import { getLocaleFromPathname, localizePath } from '@/lib/i18n/pathname'
 import type { AppLocale } from '@/i18n/routing'
 
@@ -34,6 +35,7 @@ export async function logout(): Promise<{ success: boolean; error?: string }> {
     }
 
     clearAppSessionState()
+    clearRememberSessionPreference()
     const locale = getLocaleFromPathname(window.location.pathname) as AppLocale
     window.location.href = localizePath('/login', locale)
     return { success: true }

@@ -18,10 +18,7 @@ export async function fetchReferralProgramEnabledAction(): Promise<boolean> {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user) return false
-
-  const access = await getReferralAccessForUser(user.id)
-  return access.canAccess
+  return Boolean(user)
 }
 
 export async function fetchReferralAccessAction() {
@@ -31,7 +28,7 @@ export async function fetchReferralAccessAction() {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    return { globalEnabled: false, userEnabled: false, canAccess: false }
+    return { globalEnabled: true, userEnabled: false, canAccess: false }
   }
 
   return getReferralAccessForUser(user.id)

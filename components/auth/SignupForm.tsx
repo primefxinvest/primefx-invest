@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Gift, Loader2, Lock, Mail, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { bootstrapUserProfile } from '@/lib/auth/bootstrap-profile'
+import { recordSignupVerificationEmailSentAction } from '@/lib/auth/email-verification-actions'
 import { formatGoogleAuthError, isGoogleAuthEnabled, signInWithGoogle } from '@/lib/auth/google-oauth'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { AuthFormShell } from '@/components/auth/AuthFormShell'
@@ -115,10 +116,13 @@ function SignupForm() {
     setLoading(true)
 
     try {
+      const emailRedirectTo = `${window.location.origin}/auth/callback?redirect=/dashboard`
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo,
           data: {
             full_name: formData.name,
             investor_tier: formData.tier,
@@ -145,13 +149,21 @@ function SignupForm() {
           return
         }
 
-        if (authData.session) {
-          router.refresh()
-          router.push('/dashboard')
-          return
+        if (!authData.session) {
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: formData.email,
+            password: formData.password,
+          })
+
+          if (signInError) {
+            setError(signInError.message || t('registerFailed'))
+            return
+          }
         }
 
-        router.push('/login?registered=1')
+        void recordSignupVerificationEmailSentAction()
+        router.refresh()
+        router.push('/dashboard')
       }
     } catch {
       setError(t('registerFailed'))

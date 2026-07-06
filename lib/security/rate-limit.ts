@@ -25,6 +25,7 @@ export type RateLimitScope =
   | 'kyc:start'
   | 'kyc:status'
   | 'kyc:extract'
+  | 'email:resend'
 
 const RATE_LIMITS: Record<
   RateLimitScope,
@@ -41,6 +42,11 @@ const RATE_LIMITS: Record<
   'kyc:start': { maxHits: 5, windowSeconds: 3600, message: 'Too many verification starts. Try again later.' },
   'kyc:status': { maxHits: 120, windowSeconds: 3600, message: 'Too many verification checks. Try again later.' },
   'kyc:extract': { maxHits: 15, windowSeconds: 3600, message: 'Too many document scans. Try again later.' },
+  'email:resend': {
+    maxHits: 1,
+    windowSeconds: 60,
+    message: 'Please wait 60 seconds before requesting another verification email.',
+  },
 }
 
 export async function getRequestIp(): Promise<string> {

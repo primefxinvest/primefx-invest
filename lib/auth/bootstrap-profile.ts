@@ -44,6 +44,7 @@ export async function bootstrapUserProfile(input: {
       email: input.email,
       full_name: input.fullName,
       investor_tier: input.investorTier,
+      referral_access_enabled: true,
     },
     { onConflict: 'id' }
   )

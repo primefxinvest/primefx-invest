@@ -11,6 +11,7 @@ import { formatGoogleAuthError, isGoogleAuthEnabled, signInWithGoogle } from '@/
 import { needsMfaChallenge } from '@/lib/auth/mfa'
 import { MFA_VERIFY_ROUTE } from '@/lib/auth/routes'
 import { sanitizeRedirectPath } from '@/lib/auth/session'
+import { setRememberSessionPreference } from '@/lib/auth/remember-session-client'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { AuthFormShell } from '@/components/auth/AuthFormShell'
 import { AuthInput } from '@/components/auth/AuthInput'
@@ -32,6 +33,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState('')
+  const [rememberMe, setRememberMe] = useState(true)
 
   const resetOAuthLoading = useCallback(() => {
     setGoogleLoading(false)
@@ -122,11 +124,13 @@ function LoginForm() {
 
       const mfa = await needsMfaChallenge()
       if (mfa.required) {
+        setRememberSessionPreference(rememberMe)
         redirectToMfaVerify()
         setLoading(false)
         return
       }
 
+      setRememberSessionPreference(rememberMe)
       finishLogin()
     } catch {
       setError(t('loginFailed'))
@@ -214,6 +218,8 @@ function LoginForm() {
               type="checkbox"
               className="h-4 w-4 cursor-pointer rounded border-border"
               disabled={busy}
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
             />
             <span>{t('rememberMe')}</span>
           </label>

@@ -48,7 +48,6 @@ import {
   parseReferralSection,
   REFERRAL_SECTIONS,
 } from '@/lib/referral/navigation'
-import { useReferralProgramEnabled } from '@/lib/hooks/useReferralProgramEnabled'
 import { fetchNotifications } from '@/lib/data/queries'
 import { CACHE_KEYS } from '@/lib/data/cache-keys'
 import { SIDEBAR_WIDTH_DESKTOP_CLASS, SIDEBAR_WIDTH_MOBILE_CLASS, SIDEBAR_WIDTH_TABLET_CLASS } from '@/lib/layout/sidebar'
@@ -143,7 +142,6 @@ export default function Sidebar() {
   const [walletOpen, setWalletOpen] = useState(() => isWalletSectionActive(pathname))
   const [referralOpen, setReferralOpen] = useState(() => isReferralRoute(pathname))
   const { tierKey } = useInvestorTier()
-  const { canAccess, loading: referralProgramLoading } = useReferralProgramEnabled()
   const { data: notifications = [] } = useAsyncData(() => fetchNotifications(), [], undefined, {
     cacheKey: CACHE_KEYS.userNotifications,
   })
@@ -304,8 +302,6 @@ export default function Sidebar() {
             {INVESTOR_NAV_ITEMS.map((item) => {
               const Icon = navIconMap[item.href as keyof typeof navIconMap] ?? Home
               const tierLocked = item.requiredTier ? !canAccessRoute(tierKey, item.href) : false
-              const referralLocked =
-                item.href === '/referral' && !referralProgramLoading && !canAccess
 
               if (tierLocked) {
                 return (
@@ -323,30 +319,6 @@ export default function Sidebar() {
                     </span>
                     <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
                   </div>
-                )
-              }
-
-              if (referralLocked) {
-                const active = pathname === item.href || pathname.startsWith(`${item.href}/`)
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={active ? 'page' : undefined}
-                    className={navItemClass(
-                      active,
-                      active ? 'bg-violet-50 text-violet-700 shadow-none hover:bg-violet-100' : undefined
-                    )}
-                    title="Referral program is locked by admin"
-                  >
-                    <span className={NAV_ICON_SLOT}>
-                      <Icon />
-                    </span>
-                    <span className={NAV_LABEL_CLASS}>
-                      {t(SIDEBAR_LABEL_KEYS[item.href] as 'dashboard')}
-                    </span>
-                    <Lock className="h-3.5 w-3.5 shrink-0 text-violet-500" aria-hidden />
-                  </Link>
                 )
               }
 

@@ -4,9 +4,9 @@ import { createContext, useContext, type ReactNode } from 'react'
 import type { ReferralAccessState } from '@/lib/referral/settings'
 
 const DEFAULT_ACCESS: ReferralAccessState = {
-  globalEnabled: false,
-  userEnabled: false,
-  canAccess: false,
+  globalEnabled: true,
+  userEnabled: true,
+  canAccess: true,
 }
 
 const ReferralAccessContext = createContext<ReferralAccessState>(DEFAULT_ACCESS)

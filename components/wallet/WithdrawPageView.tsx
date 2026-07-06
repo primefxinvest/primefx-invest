@@ -19,6 +19,8 @@ import { useWalletPageData } from '@/lib/hooks/useWalletPageData'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { kycBlockReason, kycFallbackMessage } from '@/lib/investor/kyc-i18n'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
+import { useEmailVerification } from '@/lib/auth/email-verification-context'
+import { isEmailNotVerifiedResult } from '@/lib/auth/email-verification-client'
 import type { PaymentProviderOptions } from '@/lib/payments/types'
 import {
   getNetworksForAsset,
@@ -54,6 +56,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
   const tCompliance = useTranslations('compliance')
   const router = useRouter()
   const kyc = useFinancialKycAccess()
+  const { requireVerifiedEmail, openVerificationModal } = useEmailVerification()
   const {
     wallet,
     transactions,
@@ -139,6 +142,8 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
   )
 
   const handleSubmit = () => {
+    if (!requireVerifiedEmail()) return
+
     if (kyc.loading) return
 
     if (kyc.fetchError) {
@@ -191,6 +196,9 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
         address: address.trim(),
       })
       if (!result.success) {
+        if (isEmailNotVerifiedResult(result)) {
+          openVerificationModal()
+        }
         toast.error(t('failed'), { description: result.error })
         return
       }

@@ -3,8 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { getAuthenticatedEntryPath } from '@/lib/auth/session'
-
-import { INVESTOR_RULES } from '@/lib/investor/rules'
+import { isDefinitiveAuthError, isRememberSessionEnabled, REMEMBER_SESSION_COOKIE, resolveSessionIdleMs } from '@/lib/auth/session-policy'
 
 import { isAuthRoute, isMfaVerifyRoute, isProtectedRoute, MFA_VERIFY_ROUTE, requiresIdentityVerification } from '@/lib/auth/routes'
 
@@ -13,7 +12,6 @@ import { getLocaleFromPathname, localizePath, stripLocalePrefix } from '@/lib/i1
 import { getSupabaseAnonKey, getSupabaseUrl } from './config'
 
 const SESSION_IDLE_COOKIE = 'primefx_last_activity'
-const SESSION_IDLE_MS = INVESTOR_RULES.security.sessionTimeoutMinutes * 60 * 1000
 
 function isVerifyCallbackRoute(pathname: string): boolean {
   return pathname === '/verify/callback' || pathname.startsWith('/verify/callback/')
@@ -39,6 +37,10 @@ async function enforceSessionIdleTimeout(
   }
 
   const now = Date.now()
+  const rememberSession = isRememberSessionEnabled(
+    request.cookies.get(REMEMBER_SESSION_COOKIE)?.value
+  )
+  const idleMs = resolveSessionIdleMs(rememberSession)
 
   // Returning from external Didit redirect — do not sign out for idle timeout.
   if (isVerifyCallbackRoute(pathname)) {
@@ -47,7 +49,7 @@ async function enforceSessionIdleTimeout(
       sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       path: '/',
-      maxAge: Math.ceil(SESSION_IDLE_MS / 1000) + 60,
+      maxAge: Math.ceil(idleMs / 1000) + 60,
     })
     return { response, activeUser }
   }
@@ -55,7 +57,7 @@ async function enforceSessionIdleTimeout(
   const lastActivityRaw = request.cookies.get(SESSION_IDLE_COOKIE)?.value
   const lastActivity = lastActivityRaw ? Number.parseInt(lastActivityRaw, 10) : NaN
 
-  if (Number.isFinite(lastActivity) && now - lastActivity > SESSION_IDLE_MS) {
+  if (Number.isFinite(lastActivity) && now - lastActivity > idleMs) {
     await supabase.auth.signOut()
     response.cookies.delete(SESSION_IDLE_COOKIE)
 
@@ -77,7 +79,7 @@ async function enforceSessionIdleTimeout(
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/',
-    maxAge: Math.ceil(SESSION_IDLE_MS / 1000) + 60,
+    maxAge: Math.ceil(idleMs / 1000) + 60,
   })
 
   return { response, activeUser }
@@ -176,12 +178,9 @@ export async function updateSession(request: NextRequest, intlResponse?: NextRes
 
   let activeUser: { id: string } | null = user ? { id: user.id } : null
 
-  if (userError) {
-
+  if (userError && isDefinitiveAuthError(userError)) {
     await supabase.auth.signOut()
-
     activeUser = null
-
   }
 
 

@@ -7,6 +7,7 @@ import { createUserNotification } from '@/lib/notifications/service'
 import type { KycDocumentUrls, KycSubmission, KycSubmissionInput } from '@/lib/kyc/types'
 import { requiresDocumentBack } from '@/lib/kyc/upload'
 import { signKycDocumentPaths } from '@/lib/kyc/storage'
+import { requireVerifiedEmail, EMAIL_NOT_VERIFIED_CODE } from '@/lib/auth/require-verified-email'
 
 function mapRow(row: Record<string, unknown>): KycSubmission {
   return {
@@ -62,10 +63,23 @@ export async function getMyKycSubmission(): Promise<KycSubmission | null> {
 
 export async function submitKycForReview(
   input: KycSubmissionInput
-): Promise<{ success: boolean; error?: string }> {
-  const userId = await requireUserId()
+): Promise<{ success: boolean; error?: string; code?: string }> {
+  const supabase = await createServerSupabaseClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  const userId = user?.id ?? null
   if (!userId) {
     return { success: false, error: 'You must be signed in to submit KYC.' }
+  }
+
+  const emailVerification = requireVerifiedEmail(user)
+  if (!emailVerification.allowed) {
+    return {
+      success: false,
+      error: emailVerification.error,
+      code: EMAIL_NOT_VERIFIED_CODE,
+    }
   }
 
   if (!input.idType || !input.idNumber.trim() || !input.country.trim()) {

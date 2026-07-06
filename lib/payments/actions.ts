@@ -7,6 +7,7 @@ import { fetchPaymentProviderOptionsServer } from '@/lib/payments/options-server
 import { syncUserPendingDeposits } from '@/lib/payments/deposit-sync'
 import { createDepositPayment, createWithdrawalPayment } from '@/lib/payments/service'
 import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
+import { requireVerifiedEmail, EMAIL_NOT_VERIFIED_CODE } from '@/lib/auth/require-verified-email'
 import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
 import {
   assertTransactionAuthorized,
@@ -97,6 +98,11 @@ export async function initiateWithdrawal(
   const account = await requireActiveAccountForFinancialAction(user.id, 'withdrawal')
   if (!account.allowed) {
     return { success: false, error: account.error }
+  }
+
+  const emailVerification = requireVerifiedEmail(user)
+  if (!emailVerification.allowed) {
+    return { success: false, error: emailVerification.error, code: EMAIL_NOT_VERIFIED_CODE }
   }
 
   const auth = await assertTransactionAuthorized(user.id, 'withdrawal', {

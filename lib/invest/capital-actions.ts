@@ -8,6 +8,7 @@ import {
   assertTransactionAuthorized,
   type TransactionStepUpCredentials,
 } from '@/lib/security/transaction-protection'
+import { requireVerifiedEmail, EMAIL_NOT_VERIFIED_CODE } from '@/lib/auth/require-verified-email'
 
 export async function submitCapitalWithdrawalAction(
   input: {
@@ -27,6 +28,15 @@ export async function submitCapitalWithdrawalAction(
   const account = await requireActiveAccountForFinancialAction(user.id, 'payout')
   if (!account.allowed) {
     return { success: false as const, error: account.error }
+  }
+
+  const emailVerification = requireVerifiedEmail(user)
+  if (!emailVerification.allowed) {
+    return {
+      success: false as const,
+      error: emailVerification.error,
+      code: EMAIL_NOT_VERIFIED_CODE,
+    }
   }
 
   const auth = await assertTransactionAuthorized(user.id, 'payout', {

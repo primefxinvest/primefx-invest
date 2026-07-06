@@ -89,10 +89,16 @@ export function useAssistanceChat() {
     if (message.role === 'agent' || message.role === 'system') {
       setSupplementalMessages((prev) => {
         if (prev.some((m) => m.id === message.id)) return prev
-        return [
+        const next = [
           ...prev,
           { id: message.id, role: message.role, text: message.content },
         ]
+        console.log('[USER_MESSAGE_RENDERED]', {
+          messageId: message.id,
+          role: message.role,
+          totalSupplemental: next.length,
+        })
+        return next
       })
       return
     }
@@ -110,7 +116,7 @@ export function useAssistanceChat() {
     })
   }, [setMessages])
 
-  useAssistanceRealtime(session?.id, handleRealtimeMessage)
+  useAssistanceRealtime(session?.id, handleRealtimeMessage, knownMessageIdsRef)
 
   useEffect(() => {
     let cancelled = false

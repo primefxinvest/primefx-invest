@@ -12,6 +12,7 @@ import { getCurrentUser } from '@/lib/supabase'
 import { getMfaStatus, type MfaStatus } from '@/lib/auth/mfa'
 import TwoFactorModal from '@/components/settings/TwoFactorModal'
 import ChangePasswordModal from '@/components/settings/ChangePasswordModal'
+import { EmailVerificationSection } from '@/components/profile/EmailVerificationSection'
 import { CustomSelect } from '@/components/ui/custom-select'
 import {
   isPushNotificationsEnabled,
@@ -221,6 +222,8 @@ export default function SettingsPage() {
           </div>
         </div>
       </section>
+
+      <EmailVerificationSection />
 
       <section aria-label="Security settings" className="space-y-3">
         <SectionHeading>{t('security')}</SectionHeading>

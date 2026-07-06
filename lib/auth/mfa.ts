@@ -113,6 +113,13 @@ export async function startMfaEnrollment(email: string): Promise<{
     return { success: false, error: 'You must be logged in to enable 2FA.' }
   }
 
+  if (!authUser.email_confirmed_at) {
+    return {
+      success: false,
+      error: 'Please verify your email address before using this feature.',
+    }
+  }
+
   try {
     const { data, error } = await supabase.auth.mfa.enroll({
       factorType: 'totp',
@@ -201,6 +208,13 @@ export async function disableMfa(code: string): Promise<{ success: boolean; erro
   const { data: authUser } = await getCurrentUser()
   if (!authUser) {
     return { success: false, error: 'You must be logged in.' }
+  }
+
+  if (!authUser.email_confirmed_at) {
+    return {
+      success: false,
+      error: 'Please verify your email address before using this feature.',
+    }
   }
 
   const status = await getMfaStatus()

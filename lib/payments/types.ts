@@ -53,6 +53,7 @@ export interface CreateWithdrawalResult {
   availableAt?: string
   noticeDays?: number
   error?: string
+  code?: string
 }
 
 export type PaymentProviderOptions = {

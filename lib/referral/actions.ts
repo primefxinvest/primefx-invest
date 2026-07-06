@@ -5,6 +5,7 @@ import { fetchReferralProgramOverviewServer } from '@/lib/referral/overview-serv
 import { ensureUserReferralCode } from '@/lib/referral/server'
 import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
 import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
+import { requireVerifiedEmail, EMAIL_NOT_VERIFIED_CODE } from '@/lib/auth/require-verified-email'
 
 export async function ensureMyReferralCode(): Promise<string | null> {
   const supabase = await createServerSupabaseClient()
@@ -13,6 +14,11 @@ export async function ensureMyReferralCode(): Promise<string | null> {
   } = await supabase.auth.getUser()
 
   if (!user) return null
+
+  const emailVerification = requireVerifiedEmail(user)
+  if (!emailVerification.allowed) {
+    return null
+  }
 
   try {
     await enforceUserRateLimit('referral:claim', user.id)
@@ -49,6 +55,13 @@ export async function fetchReferralProgramOverviewAction() {
 
   if (!user) {
     throw new Error('Not authenticated')
+  }
+
+  const emailVerification = requireVerifiedEmail(user)
+  if (!emailVerification.allowed) {
+    const error = new Error(emailVerification.error)
+    ;(error as Error & { code?: string }).code = EMAIL_NOT_VERIFIED_CODE
+    throw error
   }
 
   const account = await requireActiveAccountForFinancialAction(user.id, 'referral')

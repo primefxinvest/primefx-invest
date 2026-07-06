@@ -17,12 +17,15 @@ import { getIdTypeLabel, requiresDocumentBack } from '@/lib/kyc/upload'
 import { updateUserProfile } from '@/lib/profile/actions'
 import type { UserProfile } from '@/lib/profile/types'
 import { getCurrentUser } from '@/lib/supabase'
+import { useOptionalEmailVerification } from '@/lib/auth/email-verification-context'
+import { EMAIL_NOT_VERIFIED_CODE } from '@/lib/auth/email-verification-client'
 import { cn } from '@/lib/utils'
 
 export function KycSubmissionPanel({ profile }: { profile: UserProfile }) {
   const [submission, setSubmission] = useState<KycSubmission | null>(null)
   const [loading, setLoading] = useState(true)
   const [pending, startTransition] = useTransition()
+  const emailVerification = useOptionalEmailVerification()
 
   const [idType, setIdType] = useState<(typeof KYC_ID_TYPES)[number]['value']>('national_id')
   const [idNumber, setIdNumber] = useState('')
@@ -177,6 +180,10 @@ export function KycSubmissionPanel({ profile }: { profile: UserProfile }) {
   }
 
   const handleSubmit = () => {
+    if (emailVerification && !emailVerification.requireVerifiedEmail()) {
+      return
+    }
+
     startTransition(async () => {
       try {
         const { data: authUser } = await getCurrentUser()
@@ -216,6 +223,9 @@ export function KycSubmissionPanel({ profile }: { profile: UserProfile }) {
         })
 
         if (!result.success) {
+          if (result.code === EMAIL_NOT_VERIFIED_CODE && emailVerification) {
+            emailVerification.openVerificationModal()
+          }
           toast.error(result.error ?? 'Failed to submit KYC.')
           return
         }
