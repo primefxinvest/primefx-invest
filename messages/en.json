@@ -192,7 +192,9 @@
     "callbackSyncing": "Syncing with PrimeFx",
     "callbackSuccessTitle": "Identity Verified Successfully",
     "callbackSuccessDescription": "Your identity has been verified successfully. Welcome to PrimeFx.",
-    "callbackRedirecting": "Redirecting to dashboard in {seconds}s…",
+    "callbackRedirecting": "Redirecting in {seconds}s…",
+    "callbackContinue": "Continue to Dashboard",
+    "callbackContinueProfile": "Continue to Profile",
     "unlock": {
       "deposits": "Deposits",
       "withdrawals": "Withdrawals",

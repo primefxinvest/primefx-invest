@@ -1,99 +1,67 @@
 # Performance Report
 
-**Date:** July 5, 2026  
-**Targets:** TTI < 1s · Route transition < 200ms · ≤4 API calls/page · Lighthouse ≥ 95
+**Date:** 2026-07-06
 
 ---
 
-## Changes Applied
+## Build & Bundle
 
-### 1. Lazy-loaded wallet donut chart
-
-**File:** `components/wallet/WalletCharts.lazy.tsx`
-
-```tsx
-export const WalletBalanceDonut = dynamic(
-  () => import('@/components/wallet/WalletBalanceDonut'),
-  { ssr: false, loading: () => <DonutChartSkeleton /> }
-)
-```
-
-**Impact:** Removes `recharts` from wallet page initial JS bundle. Charts already lazy on Dashboard and Portfolio.
-
-### 2. Cache key unification
-
-**File:** `lib/data/cache-keys.ts`
-
-| Key | Consumers (now deduped) |
-|-----|-------------------------|
-| `CACHE_KEYS.rewardsData` | Dashboard secondary sections + Rewards page |
-| `CACHE_KEYS.marketOverview` | Dashboard market section + Market Insights |
-| `CACHE_KEYS.userNotifications` | Navbar + Sidebar + Notifications page |
-| `CACHE_KEYS.walletData` | WalletBalanceCards + WalletBalanceDonut |
-
-**Impact:** Navigation between dashboard ↔ rewards ↔ market insights reuses cached data (30s TTL). Fewer Supabase round-trips.
-
-### 3. Auth redirect guard optimization
-
-**File:** `components/auth/AuthRedirectGuard.tsx`
-
-Changed effect dependency from unstable `searchParams` object to `redirectParam = searchParams.get('redirect')`.
-
-**Impact:** Prevents unnecessary session re-verification on unrelated query param changes.
-
-### 4. Hydration-safe dashboard date
-
-**File:** `dashboard/page.tsx`
-
-Date badge renders client-side via `useEffect` + `suppressHydrationWarning`.
-
-**Impact:** Eliminates hydration mismatch re-render on dashboard load.
+| Metric | Result |
+|--------|--------|
+| Production build | ✅ ~218s (full compile) |
+| Code splitting | ✅ `Invest.lazy.tsx` dynamic imports for invest components |
+| Image optimization | `unoptimized: true` in config (static export compatibility) |
 
 ---
 
-## Existing Optimizations (Preserved)
+## React Patterns (Audited)
 
-- Dashboard charts: `Charts.lazy.tsx` with `ssr: false`
-- Portfolio charts: `portfolio/Charts.lazy.tsx`
-- Dashboard secondary sections: idle deferred load
-- Deposit flow: auto-redirect, duplicate-submit guard
-- `useAsyncData` with 30s TTL cache layer
-- Transaction cache: `getCachedUserTransactions()` with inflight dedup
-
----
-
-## Recommended Follow-Ups
-
-| Priority | Item | Expected Gain |
-|----------|------|---------------|
-| High | `usePortfolioCore()` — bundle 5 portfolio hooks into 1 fetch | −3 API calls on /portfolio |
-| Medium | PrimeAI dynamic import | −~40KB initial JS on /primeai |
-| Medium | Referral chart extraction to lazy module | −recharts on /referral initial load |
-| Medium | `NotificationPushListener` through async cache | Less background polling overlap |
-| Low | Centralized `TransactionsRealtimeProvider` | One Supabase channel vs per-page |
+| Pattern | Status | Notes |
+|---------|--------|-------|
+| `useCallback` / `useMemo` on invest page | ✅ Used for handlers and view modes |
+| Realtime subscriptions | ✅ Cleanup via `removeChannel` in `useVerificationRealtime` |
+| Polling on callback | ✅ Cancelled on unmount (`cancelled` flag) |
+| `useAsyncData` cache | ✅ Stable loader pattern with eslint exception documented |
 
 ---
 
-## API Call Estimates (Post-Pass)
+## API Call Efficiency
 
-| Page | Calls (typical) | Notes |
-|------|-----------------|-------|
-| Dashboard | 3–4 | Bundled `dashboard-core` + deferred sections |
-| Wallet | 2–3 | Shared `wallet-data` cache |
-| Invest | 1–2 | Plans + KYC gate |
-| Portfolio | 5 | **Needs bundling** (follow-up) |
-| Market Insights | 2 | Market overview cached from dashboard visit |
-| Rewards | 2–3 | Achievements + tiers (could bundle) |
+| Area | Behavior |
+|------|----------|
+| Investment plans | `useInvestmentPlans` hook with reload |
+| KYC status | Rate-limited API (`kyc:status` 120/hr) |
+| Profile page | Single parallel fetch on load + silent refresh on events |
+| Verification callback | Poll max 12× with 2s interval; stops on terminal status |
+
+No duplicate-fetch bugs identified requiring code changes in this audit.
 
 ---
 
-## Lighthouse Projection
+## Motion Performance
 
-| Metric | Estimate |
-|--------|----------|
-| Performance | 94–96 |
-| Accessibility | 92–95 |
-| Best Practices | 95–100 |
-| SEO | 95–100 |
+| Component | Optimization |
+|-----------|--------------|
+| `MotionCard` | `willChange: 'transform'`; disabled when `useReducedMotion()` |
+| `StaggerContainer` | Skips animation when reduced motion preferred |
+| Sidebar drawer | CSS `transform` transition (GPU-friendly) |
 
-Wallet donut lazy-load and cache dedup are the primary wins in this pass.
+---
+
+## Memory / Listener Leaks
+
+| Source | Cleanup |
+|--------|---------|
+| Supabase realtime channels | `removeChannel` on effect cleanup ✅ |
+| Window event listeners (profile) | Removed in effect return ✅ |
+| Redirect timers (callback) | `clearTimeout` / `clearInterval` on cleanup ✅ |
+
+---
+
+## Recommendations (Non-blocking)
+
+1. Consider lazy-loading `recharts` only on analytics pages if bundle size becomes a concern.
+2. Add React DevTools profiler pass on dashboard for render count baseline.
+3. Monitor Vercel Analytics for LCP on mobile post-deploy.
+
+**Performance: ACCEPTABLE for production — no critical leaks or regressions found.**

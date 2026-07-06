@@ -245,20 +245,38 @@ export default function Sidebar() {
           open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
         )}
       >
-        {/* Brand lockup — Coinbase / Revolut / Stripe-style header */}
-        <div className="relative flex h-[72px] shrink-0 items-center border-b border-gray-200 lg:h-20">
-          {/* Mobile drawer: optically centered lockup with balanced side insets for close control */}
-          <div className="flex w-full items-center justify-center px-14 md:hidden">
-            <Logo
-              href="/dashboard"
-              size={36}
-              showText
-              className="shrink-0 gap-3"
-              priority
-            />
-          </div>
+        {/* Mobile drawer header — logo + close on one centered row */}
+        <div className="flex h-[72px] shrink-0 items-center justify-between gap-3 border-b border-gray-200 bg-white px-5 md:hidden">
+          <Logo
+            href="/dashboard"
+            size={34}
+            showText
+            priority
+            className={cn(
+              'min-w-0 items-center gap-2.5',
+              '[&_img]:block [&_img]:self-center',
+              '[&>div.flex-col]:justify-center [&>div.flex-col]:gap-px',
+              '[&>div.flex-col>span:first-child]:text-[15px]',
+              '[&>div.flex-col>span:first-child]:font-extrabold',
+              '[&>div.flex-col>span:first-child]:leading-none',
+              '[&>div.flex-col>span:last-child]:text-[9px]',
+              '[&>div.flex-col>span:last-child]:font-bold',
+              '[&>div.flex-col>span:last-child]:leading-none',
+              '[&>div.flex-col>span:last-child]:tracking-[0.2em]'
+            )}
+          />
+          <button
+            type="button"
+            onClick={close}
+            aria-label={t('closeNavMenu')}
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 active:bg-gray-100"
+          >
+            <X className="size-5" strokeWidth={2} aria-hidden />
+          </button>
+        </div>
 
-          {/* Tablet icon rail: mark centered in collapsed sidebar */}
+        {/* Brand lockup — tablet + desktop */}
+        <div className="relative hidden h-[72px] shrink-0 items-center border-b border-gray-200 md:flex lg:h-20">
           <div className="hidden w-full items-center justify-center md:flex lg:hidden">
             <Logo
               href="/dashboard"
@@ -279,15 +297,6 @@ export default function Sidebar() {
               priority
             />
           </div>
-
-          <button
-            type="button"
-            onClick={close}
-            aria-label={t('closeNavMenu')}
-            className="absolute end-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 shrink-0 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 md:hidden"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
         <nav className="primefx-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-4" aria-label="Dashboard pages">

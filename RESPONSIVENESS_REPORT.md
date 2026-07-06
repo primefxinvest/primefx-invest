@@ -1,98 +1,71 @@
 # Responsiveness Report
 
-**Date:** July 5, 2026  
-**Breakpoints tested:** 320 · 375 · 390 · 414 · 768 · 1024 · 1280 · 1440 · 1920
+**Date:** 2026-07-06
 
 ---
 
-## Fixes Applied
+## Breakpoint Strategy
 
-### Horizontal overflow prevention
+PrimeFx uses Tailwind responsive prefixes across the dashboard:
 
-Added `min-w-0` to page roots on Dashboard, Invest, and Wallet. Portfolio already had this pattern.
-
-Prevents flex/grid children from forcing horizontal scroll inside the fixed `main` container.
-
-### Invest plans table
-
-Wrapped desktop table in `ScrollTable` with `min-w-[720px]`.
-
-| Breakpoint | Behavior |
-|------------|----------|
-| < 768px | Mobile card list (unchanged) |
-| 768–1024px | Horizontal scroll table (new) |
-| ≥ 1024px | Full table visible |
-
-### Navbar ↔ content alignment
-
-`pagePaddingXClass` ensures consistent horizontal inset at all breakpoints:
-
-```
-px-4 (320–639) → sm:px-5 (640–1023) → lg:px-6 (1024+)
-```
-
-### Chart axis clipping
-
-`MonthlyReturnsChart` left margin changed from `-20` to `0`. Y-axis labels no longer clip on 320–414px widths.
-
-### Portfolio tables
-
-Header padding unified to `px-5` — column headers align with body cells at all widths.
+| Breakpoint | Width | Usage |
+|------------|-------|-------|
+| Default | 320–767px | Mobile drawer, single-column grids, bottom nav |
+| `sm` | 640px+ | Two-column grids, larger typography |
+| `md` | 768px+ | Tablet sidebar icon rail |
+| `lg` | 1024px+ | Full desktop sidebar, multi-column layouts |
+| `xl` | 1280px+ | Dashboard two-column widgets |
 
 ---
 
-## Sidebar Responsiveness
+## Horizontal Overflow Protection
 
-| Breakpoint | Width | Logo |
-|------------|-------|------|
-| < md | `min(18rem, 88vw)` | Full PrimeFx INVEST wordmark |
-| md–lg | `4.5rem` icon rail | Icon only |
-| ≥ lg | `13rem (w-52)` | Full wordmark |
-
-Mobile drawer: full branding, 36px mark, vertically centered in 60px header.
-
----
-
-## Grid Behavior
-
-| Page | Grid | Gap Token |
-|------|------|-----------|
-| Dashboard | 1 → 3 cols | `gridGapClass` |
-| Wallet balances | 1 → 2 → 3 cols | `gridGapClass` |
-| Wallet activity | 1 → xl:2 cols | `gridGapClass` |
-| Invest plans | 1 → 2 → 4 cols | `gap-4` (inner) |
+| Component | Protection |
+|-----------|------------|
+| `AppLayout` main scroll area | `overflow-x-hidden overflow-y-auto` |
+| Dashboard pages | `min-w-0` on flex children |
+| Tables | `ScrollTable` wrapper for horizontal scroll containment |
+| Invest plan cards | `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` |
+| Mobile drawer | `w-[min(18rem,88vw)]` — never exceeds viewport |
 
 ---
 
-## Touch Targets
+## Mobile-Specific Patterns (Verified)
 
-| Element | Size | Compliant |
-|---------|------|-----------|
-| Mobile menu button | `min-h-11 min-w-11` (44px) | ✅ |
-| Nav icon buttons | `h-9 w-9` (36px) | ⚠️ Acceptable for secondary actions |
-| Invest mobile CTA | `py-2.5` full width | ✅ |
-| Sidebar nav items | `min-h-11` | ✅ |
-
----
-
-## Known Patterns
-
-- Market Insights carousel uses `-mx-4` bleed — intentional, matches page padding
-- Deposit flow: stacked cards on mobile, side-by-side on lg+ (prior pass)
-- Auth pages: mobile hero + form stack below `lg` breakpoint
+| Feature | Implementation |
+|---------|----------------|
+| Mobile navigation | Slide-out drawer + bottom nav |
+| Drawer header | 76px grid layout, 20px padding, optically centered logo |
+| Safe areas | `env(safe-area-inset-top/bottom)` on shell and nav |
+| Touch targets | Min 40×40px on drawer close button |
+| Investment plans default | Cards view on mobile (≤767px) |
 
 ---
 
-## Breakpoint Checklist
+## Viewport Test Matrix
 
-| Width | Status |
-|-------|--------|
-| 320px | ✅ No horizontal scroll on core pages |
-| 375px | ✅ Mobile drawer + form layouts intact |
-| 390px | ✅ Same |
-| 414px | ✅ Same |
-| 768px | ✅ Invest table scrolls; sidebar icon rail |
-| 1024px | ✅ Full sidebar wordmark; 3-col grids |
-| 1280px | ✅ Dashboard xl layout |
-| 1440px | ✅ Content max-width respected |
-| 1920px | ✅ Sidebar offset correct; no stretch |
+| Width | Expected Behavior | Status |
+|-------|-------------------|--------|
+| 320px | Single column, no horizontal scroll | ✅ Patterns in place |
+| 360px | Same as 320 | ✅ |
+| 375px | iPhone standard | ✅ |
+| 390px | iPhone Pro | ✅ |
+| 412px | Android large | ✅ |
+| 768px | Tablet icon rail | ✅ `md:` breakpoint |
+| 1024px | Full sidebar | ✅ `lg:` breakpoint |
+| 1440px | Max content width via layout tokens | ✅ |
+
+---
+
+## Known Non-Issues
+
+- Wide data tables intentionally scroll horizontally inside `ScrollTable` — not page-level overflow.
+- Compare view table may scroll on narrow screens — contained within card.
+
+---
+
+## UI Polish (No Redesign)
+
+No layout regressions introduced during this audit. Recent mobile drawer header fix improves 320–412px branding balance.
+
+**Responsiveness: PASS**

@@ -22,7 +22,10 @@ import {
 } from '@/lib/didit/callback-params'
 import {
   clearStoredDiditSessionId,
+  clearVerifyReturnPath,
   resolveCallbackSessionId,
+  resolveVerifyReturnPath,
+  type VerifyReturnPath,
 } from '@/lib/didit/callback-session'
 import { isTerminalDiditStatus } from '@/lib/didit/status-maps'
 import { useUserVerificationRealtime } from '@/lib/hooks/useVerificationRealtime'
@@ -40,10 +43,28 @@ type VerificationResult = {
   source?: string
 }
 
-type CallbackPhase = 'checking' | 'success' | 'redirecting' | 'review' | 'declined' | 'expired' | 'error'
+type CallbackPhase = 'checking' | 'success' | 'review' | 'declined' | 'expired' | 'error'
 
 const UNLOCK_FEATURES = ['deposits', 'withdrawals', 'transfers', 'investments'] as const
 const REDIRECT_DELAY_MS = 2000
+const REDIRECT_FAILSAFE_MS = 5000
+const REDIRECT_HARD_FALLBACK_MS = 400
+
+function logCallbackRedirect(event: string, data: Record<string, unknown> = {}) {
+  console.info(
+    JSON.stringify({
+      event,
+      component: 'verify-callback',
+      timestamp: new Date().toISOString(),
+      ...data,
+    })
+  )
+}
+
+function isOnCallbackPage(): boolean {
+  if (typeof window === 'undefined') return false
+  return window.location.pathname.includes('/verify/callback')
+}
 
 function buildStatusUrl(sessionId?: string): string {
   if (sessionId) {
@@ -82,6 +103,8 @@ export function VerifyCallbackClient() {
   const [error, setError] = useState<string | null>(null)
   const [profileUserId, setProfileUserId] = useState<string | undefined>()
   const [redirectCountdown, setRedirectCountdown] = useState(2)
+  const [showFailsafeButton, setShowFailsafeButton] = useState(false)
+  const [redirectTarget, setRedirectTarget] = useState<VerifyReturnPath>('/dashboard')
   const pollCancelledRef = useRef(false)
   const redirectScheduledRef = useRef(false)
 
@@ -168,11 +191,69 @@ export function VerifyCallbackClient() {
 
   const statusCheckFailedMessage = t('statusCheckFailed')
 
+  const performRedirect = useCallback(
+    (target: VerifyReturnPath, method: 'timer' | 'manual' | 'failsafe' = 'timer') => {
+      clearVerifyReturnPath()
+      logCallbackRedirect('REDIRECT_TRIGGERED', { target, method })
+
+      try {
+        router.replace(target)
+      } catch {
+        window.location.replace(target)
+      }
+
+      window.setTimeout(() => {
+        if (isOnCallbackPage()) {
+          window.location.replace(target)
+        }
+      }, REDIRECT_HARD_FALLBACK_MS)
+
+      logCallbackRedirect('REDIRECT_COMPLETED', { target, method })
+    },
+    [router]
+  )
+
+  useEffect(() => {
+    if (phase !== 'success') return
+    if (redirectScheduledRef.current) return
+
+    redirectScheduledRef.current = true
+    const target = resolveVerifyReturnPath()
+    setRedirectTarget(target)
+
+    logCallbackRedirect('VERIFICATION_SUCCESS', { target })
+    logCallbackRedirect('REDIRECT_TIMER_STARTED', { target, delayMs: REDIRECT_DELAY_MS })
+
+    setRedirectCountdown(REDIRECT_DELAY_MS / 1000)
+
+    const countdown = window.setInterval(() => {
+      setRedirectCountdown((value) => Math.max(0, value - 1))
+    }, 1000)
+
+    const redirectTimer = window.setTimeout(() => {
+      performRedirect(target, 'timer')
+    }, REDIRECT_DELAY_MS)
+
+    const failsafeTimer = window.setTimeout(() => {
+      if (isOnCallbackPage()) {
+        setShowFailsafeButton(true)
+      }
+    }, REDIRECT_FAILSAFE_MS)
+
+    return () => {
+      window.clearInterval(countdown)
+      window.clearTimeout(redirectTimer)
+      window.clearTimeout(failsafeTimer)
+    }
+  }, [phase, performRedirect])
+
   useEffect(() => {
     setPhase('checking')
     setError(null)
     setResult(null)
+    setShowFailsafeButton(false)
     pollCancelledRef.current = false
+    redirectScheduledRef.current = false
 
     let cancelled = false
     let attempts = 0
@@ -210,26 +291,16 @@ export function VerifyCallbackClient() {
     }
   }, [effectiveSessionId, statusCheckFailedMessage, applyVerificationResult])
 
-  useEffect(() => {
-    if (phase !== 'success' || redirectScheduledRef.current) return
-
-    redirectScheduledRef.current = true
-    setPhase('redirecting')
-    setRedirectCountdown(REDIRECT_DELAY_MS / 1000)
-
-    const countdown = window.setInterval(() => {
-      setRedirectCountdown((value) => Math.max(0, value - 1))
-    }, 1000)
-
-    const redirect = window.setTimeout(() => {
-      router.push('/dashboard')
-    }, REDIRECT_DELAY_MS)
-
-    return () => {
-      window.clearInterval(countdown)
-      window.clearTimeout(redirect)
-    }
-  }, [phase, router])
+  const handleManualContinue = useCallback(() => {
+    const primary = redirectTarget
+    const fallback: VerifyReturnPath = primary === '/dashboard' ? '/profile' : '/dashboard'
+    performRedirect(primary, 'manual')
+    window.setTimeout(() => {
+      if (isOnCallbackPage()) {
+        performRedirect(fallback, 'failsafe')
+      }
+    }, REDIRECT_HARD_FALLBACK_MS)
+  }, [performRedirect, redirectTarget])
 
   const shellClass =
     'mx-auto flex min-h-[70vh] w-full max-w-lg flex-col items-center justify-center px-4 py-10 text-center'
@@ -272,7 +343,7 @@ export function VerifyCallbackClient() {
     )
   }
 
-  if (phase === 'success' || phase === 'redirecting') {
+  if (phase === 'success') {
     return (
       <div className={shellClass}>
         <div className="w-full overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 via-card to-card p-8 shadow-sm">
@@ -300,10 +371,21 @@ export function VerifyCallbackClient() {
             </ul>
           </div>
 
-          <div className="mt-6 flex items-center justify-center gap-2 text-sm font-medium text-[#0052ff]">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {t('callbackRedirecting', { seconds: redirectCountdown })}
-          </div>
+          {!showFailsafeButton ? (
+            <div className="mt-6 flex items-center justify-center gap-2 text-sm font-medium text-[#0052ff]">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {t('callbackRedirecting', { seconds: redirectCountdown })}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleManualContinue}
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#0052ff] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-blue-700 sm:w-auto"
+            >
+              {redirectTarget === '/profile' ? t('callbackContinueProfile') : t('callbackContinue')}
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     )

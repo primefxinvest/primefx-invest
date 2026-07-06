@@ -1,84 +1,81 @@
 # Security Report
 
-**Date:** July 5, 2026  
-**Target Score:** 95+
+**Date:** 2026-07-06  
+**Scope:** Configuration and guard audit (no key rotation)
 
 ---
 
-## Secrets & API Keys
+## Environment Variables
 
-| Check | Result |
-|-------|--------|
-| Hardcoded API keys in source | **None found** |
-| Server-only keys exposed to client | **None** — `SUPABASE_SERVICE_ROLE_KEY`, payment keys, AI keys are server-only |
-| `NEXT_PUBLIC_*` variables | Expected public vars only (Supabase URL/anon, app URL, Google auth flag) |
-| `.env.local` in repo | Not committed (gitignored) |
+| Variable | Exposure | Status |
+|----------|----------|--------|
+| `DIDIT_WEBHOOK_SECRET` | Server-only via `server-only` imports | ✅ |
+| `DIDIT_API_KEY` | Server-only | ✅ |
+| `SUPABASE_SERVICE_ROLE_KEY` | Admin client server-only | ✅ |
+| `NEXT_PUBLIC_*` | Client bundle | ✅ Only public URLs |
+| `.env.example` | Placeholders only, no secrets | ✅ |
 
-Supabase anon key exposure is standard — data protected by Row Level Security.
-
----
-
-## Headers (Middleware)
-
-Applied via `lib/security/content-security-policy.ts`:
-
-| Header | Value |
-|--------|-------|
-| Content-Security-Policy | Nonce-based `script-src`, strict connect-src |
-| X-Frame-Options | DENY |
-| X-Content-Type-Options | nosniff |
-| Referrer-Policy | strict-origin-when-cross-origin |
-| Permissions-Policy | Camera limited to self + Didit |
-| Cross-Origin-Opener-Policy | same-origin |
-| Cross-Origin-Resource-Policy | same-site |
-| **Strict-Transport-Security** | **Added** — `max-age=31536000; includeSubDomains; preload` (production only) |
+**Action:** Verify all production secrets are set in hosting dashboard. Do not commit `.env.local`.
 
 ---
 
-## Cookies
+## Webhook Security
 
-| Cookie | Flags |
-|--------|-------|
-| Session idle (`primefx_last_activity`) | `httpOnly`, `sameSite: lax`, `secure` in production |
-| Supabase auth cookies | Managed by `@supabase/ssr` with secure defaults |
+| Endpoint | Validation |
+|----------|------------|
+| `/api/verify/webhook` | HMAC-SHA256 (V2 + raw + simple), timestamp window |
+| `/api/webhooks/didit` | Rewrite to canonical handler |
+| `/api/webhooks/nowpayments` | IPN signature (existing) |
+| `/api/webhooks/binance-pay` | Signature (existing) |
 
----
-
-## Authentication
-
-- MFA challenge enforced server-side in middleware
-- Session idle timeout: configurable via `INVESTOR_RULES.security.sessionTimeoutMinutes`
-- Auth routes protected by `AuthRedirectGuard` + middleware
-- No auth logic changed in this pass
+Idempotency via `didit_webhook_logs.event_id` UNIQUE constraint.
 
 ---
 
-## Payment Integrations
+## Route Protection
 
-- NOWPayments + Binance Pay: server-side only (`lib/payments/`)
-- Webhook signature verification preserved
-- No payment provider code modified
-
----
-
-## CSP Notes
-
-| Directive | Assessment |
-|-----------|------------|
-| `style-src 'unsafe-inline'` | Required for Tailwind/Next — standard |
-| `img-src https:` | Permissive — tighten to known CDNs in future |
-| Dev relaxations | `unsafe-eval`, localhost WS — dev only |
+| Layer | Mechanism |
+|-------|-----------|
+| Middleware | Supabase session refresh, idle timeout, MFA gate |
+| Protected routes | `PROTECTED_ROUTE_PREFIXES` in `lib/auth/routes.ts` |
+| KYC gates | Wallet/invest routes require verification |
+| Admin portal | Separate admin auth + permissions |
+| Cron routes | `CRON_SECRET` header validation |
 
 ---
 
-## Cron Auth
+## Database Security
 
-`lib/cron/auth.ts` bypasses when `CRON_SECRET` unset in non-production.
-
-**Action:** Ensure `CRON_SECRET` is set in production environment.
+| Control | Implementation |
+|---------|----------------|
+| Client KYC tampering | `enforce_users_self_update_guard` trigger |
+| RLS on sensitive tables | Enabled on webhooks, verification sessions |
+| Service-role writes | KYC sync via admin client only |
 
 ---
 
-## Score: 96/100
+## Content Security
 
-Deductions: permissive `img-src`, structured logging not yet centralized, `ignoreBuildErrors` still in next.config (recommend removal now that TS is clean).
+CSP headers applied via `middleware.ts` + `content-security-policy.ts`.
+
+---
+
+## Findings
+
+| Severity | Issue | Status |
+|----------|-------|--------|
+| — | No exposed secrets in repo | ✅ |
+| — | Webhook signature bypass | ✅ Mitigated |
+| Low | ESLint security rules not active | Documented — add ESLint |
+| Low | Debug logs in `lib/ai/provider.ts` | Non-secret boolean only |
+
+**No critical security regressions. No keys rotated during this audit.**
+
+---
+
+## Production Checklist
+
+- [ ] `DIDIT_WEBHOOK_SECRET` matches Didit dashboard
+- [ ] `CRON_SECRET` set for scheduled jobs
+- [ ] Supabase RLS policies applied in production
+- [ ] HTTPS enforced on `www.primefxinvest.com`

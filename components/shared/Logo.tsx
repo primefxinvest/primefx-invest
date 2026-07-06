@@ -97,7 +97,7 @@ export default function Logo({
   if (href) {
     const LinkComponent = href.startsWith('/admin') ? NextLink : I18nLink
     return (
-      <LinkComponent href={href} className="inline-flex transition-opacity hover:opacity-90">
+      <LinkComponent href={href} className="inline-flex items-center transition-opacity hover:opacity-90">
         {content}
       </LinkComponent>
     )

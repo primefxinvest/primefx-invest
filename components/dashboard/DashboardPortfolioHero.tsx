@@ -7,10 +7,8 @@ import { Wallet } from 'lucide-react'
 import { m } from 'framer-motion'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { InvestorKpiMetrics, InvestorKpiWallet } from '@/components/shared/kpi/InvestorKpiCards'
-import { trendColorFromPercentage } from '@/components/shared/kpi'
 import { MOTION_VARIANTS } from '@/lib/motion/tokens'
 import { useReducedMotion } from '@/lib/motion/use-reduced-motion'
-import { cn } from '@/lib/utils'
 
 type DashboardPortfolioHeroProps = {
   metrics?: InvestorKpiMetrics | null
@@ -23,51 +21,15 @@ type DashboardPortfolioHeroProps = {
   loading?: boolean
 }
 
-function StatCell({
-  label,
-  value,
-  trend,
-  trendSuffix,
-  emphasis = false,
-}: {
-  label: string
-  value: string
-  trend?: string
-  trendSuffix?: string
-  emphasis?: boolean
-}) {
-  const trendColor = trendColorFromPercentage(trend)
+function StatCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0 flex-1 px-2 py-2 first:pl-0 last:pr-0 sm:px-5 sm:py-0 sm:first:pl-0 sm:last:pr-0">
-      <p
-        className={cn(
-          'font-semibold uppercase tracking-[0.06em] text-slate-400',
-          emphasis ? 'text-[10px] sm:text-xs' : 'text-[9px] sm:text-[11px]'
-        )}
-      >
+    <div className="flex h-full min-h-[4.25rem] min-w-0 flex-col justify-center sm:min-h-[4.75rem]">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.06em] text-slate-400 sm:text-[11px]">
         {label}
       </p>
-      <p
-        className={cn(
-          'mt-1 truncate font-bold tabular-nums text-white sm:mt-1.5',
-          emphasis ? 'text-base font-bold sm:text-lg lg:text-xl' : 'text-xs font-semibold sm:text-base'
-        )}
-      >
+      <p className="mt-1 truncate text-sm font-bold tabular-nums text-white sm:mt-1.5 sm:text-base lg:text-lg">
         {value}
       </p>
-      {trend ? (
-        <p
-          className={cn(
-            'mt-0.5 text-[10px] font-semibold sm:mt-1 sm:text-xs',
-            trendColor === 'green' && 'text-emerald-400',
-            trendColor === 'red' && 'text-red-400',
-            trendColor === 'muted' && 'text-slate-400'
-          )}
-        >
-          {trend}
-          {trendSuffix ? <span className="font-normal text-slate-500"> {trendSuffix}</span> : null}
-        </p>
-      ) : null}
     </div>
   )
 }
@@ -89,9 +51,9 @@ function DashboardPortfolioHeroInner({ metrics, investmentStats, wallet, loading
           <Skeleton className="h-10 flex-1 bg-white/10 sm:h-11" />
           <Skeleton className="h-10 flex-1 bg-white/10 sm:h-11" />
         </div>
-        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-4 sm:mt-6 sm:grid-cols-4 sm:gap-4 sm:pt-5">
+        <div className="mt-5 grid grid-cols-2 gap-3 border-t border-white/10 pt-4 sm:mt-6 sm:grid-cols-4 sm:gap-4 sm:pt-5 lg:mt-7 lg:pt-6">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-11 bg-white/10 sm:h-14" />
+            <Skeleton key={i} className="h-14 bg-white/10 sm:h-16" />
           ))}
         </div>
       </div>
@@ -121,8 +83,8 @@ function DashboardPortfolioHeroInner({ metrics, investmentStats, wallet, loading
 
       <div className="relative flex flex-col gap-4 sm:gap-5 lg:flex-row lg:items-end lg:justify-between lg:gap-6">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/20 text-primary sm:h-9 sm:w-9 sm:rounded-xl">
+          <div className="flex items-center gap-2.5">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/20 text-primary sm:h-9 sm:w-9 sm:rounded-xl">
               <Wallet className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden />
             </span>
             <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400 sm:text-xs">
@@ -130,11 +92,11 @@ function DashboardPortfolioHeroInner({ metrics, investmentStats, wallet, loading
             </p>
           </div>
 
-          <p className="mt-2 min-w-0 truncate text-3xl font-bold tabular-nums tracking-tight text-white sm:mt-3 sm:text-[2.75rem] lg:text-5xl lg:leading-none">
+          <p className="mt-2.5 min-w-0 truncate text-3xl font-bold tabular-nums tracking-tight text-white sm:mt-3 sm:text-[2.75rem] lg:text-5xl lg:leading-none">
             {wallet?.availableBalance ?? '$0.00'}
           </p>
 
-          <p className="mt-1.5 text-xs leading-snug text-slate-400 sm:mt-2 sm:text-sm sm:leading-relaxed">
+          <p className="mt-1.5 max-w-prose text-xs leading-snug text-slate-400 sm:mt-2 sm:text-sm">
             {t('overviewSubtitle')}
           </p>
         </div>
@@ -156,14 +118,8 @@ function DashboardPortfolioHeroInner({ metrics, investmentStats, wallet, loading
         </div>
       </div>
 
-      <div className="relative mt-5 grid grid-cols-2 gap-y-3 border-t border-white/10 pt-4 sm:mt-6 sm:grid-cols-4 sm:gap-y-0 sm:divide-x sm:divide-white/10 sm:pt-5 lg:mt-7 lg:pt-6">
-        <StatCell
-          label={t('totalInvested')}
-          value={metrics?.totalInvested ?? '$0.00'}
-          trend={metrics?.trends?.[0]?.percentage}
-          trendSuffix={t('fromLastMonth')}
-          emphasis
-        />
+      <div className="relative mt-5 grid auto-rows-fr grid-cols-2 gap-3 border-t border-white/10 pt-4 sm:mt-6 sm:grid-cols-4 sm:gap-4 sm:pt-5 lg:mt-7 lg:pt-6">
+        <StatCell label={t('totalInvested')} value={metrics?.totalInvested ?? '$0.00'} />
         <StatCell
           label={t('activeInvestments')}
           value={String(investmentStats?.activeCount ?? 0)}
@@ -175,8 +131,6 @@ function DashboardPortfolioHeroInner({ metrics, investmentStats, wallet, loading
         <StatCell
           label={t('totalProfit')}
           value={investmentStats?.totalProfitsEarned ?? metrics?.totalProfit ?? '$0.00'}
-          trend={metrics?.trends?.[2]?.percentage}
-          trendSuffix={t('fromLastMonth')}
         />
       </div>
     </HeroWrapper>

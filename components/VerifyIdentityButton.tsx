@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { CheckCircle2, Loader2, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { storeDiditSessionId } from '@/lib/didit/callback-session'
+import { storeDiditSessionId, storeVerifyReturnPath } from '@/lib/didit/callback-session'
 
 type VerifyIdentityButtonProps = {
   userId?: string
@@ -69,6 +69,8 @@ export function VerifyIdentityButton({
       if (payload.sessionId) {
         storeDiditSessionId(payload.sessionId)
       }
+
+      storeVerifyReturnPath(window.location.pathname)
 
       window.location.href = payload.url
     } catch (err) {

@@ -10,14 +10,15 @@ type StaggerContainerProps = {
   children: ReactNode
   className?: string
   as?: 'div' | 'ul' | 'section'
-} & React.ComponentPropsWithoutRef<'div'>
+  'aria-label'?: string
+}
 
 /** Staggered children entrance — tables, grids, lists. */
 export function StaggerContainer({
   children,
   className,
   as = 'div',
-  ...props
+  'aria-label': ariaLabel,
 }: StaggerContainerProps) {
   const reduced = useReducedMotion()
   const Component = m[as]
@@ -25,7 +26,7 @@ export function StaggerContainer({
   if (reduced) {
     const Static = as
     return (
-      <Static className={cn(className)} {...props}>
+      <Static className={cn(className)} aria-label={ariaLabel}>
         {children}
       </Static>
     )
@@ -34,10 +35,10 @@ export function StaggerContainer({
   return (
     <Component
       className={cn(className)}
+      aria-label={ariaLabel}
       initial="initial"
       animate="animate"
       variants={MOTION_VARIANTS.staggerContainer}
-      {...props}
     >
       {children}
     </Component>

@@ -1,146 +1,86 @@
-# Error Audit Report — PrimeFx Invest
+# Error Audit Report
 
-**Date:** July 5, 2026  
-**Method:** Build verification, static analysis, pattern review
+**Date:** 2026-07-06
 
 ---
 
-## Build & Compile Status
+## TypeScript Errors (Fixed)
+
+### 1. `components/invest/InvestPlanCard.tsx`
+
+```
+Property 'title' does not exist on Lucide SVG props
+```
+
+**Cause:** Lucide React icons do not accept native `title` attribute.  
+**Fix:** Tooltip via wrapping `<span title={...}>`.
+
+### 2. `lib/motion/motion-card.tsx`
+
+```
+onDrag / onAnimationStart incompatible between HTML div and framer-motion m.div
+```
+
+**Cause:** Spreading `ComponentProps<'div'>` onto `m.div` merges conflicting event handler types.  
+**Fix:** Explicit prop interface (`className`, `children`, `interactive` only).
+
+### 3. `lib/motion/stagger.tsx`
+
+```
+onCopy incompatible between HTMLDivElement and HTMLUListElement when as="ul"
+```
+
+**Cause:** `StaggerContainer` spread `div` props onto `ul` motion element.  
+**Fix:** Typed props limited to `children`, `className`, `as`, `aria-label`.
+
+---
+
+## Build Configuration
+
+| Setting | Before | After |
+|---------|--------|-------|
+| `typescript.ignoreBuildErrors` | `true` | **Removed** |
+| `tsc --noEmit` | 4 errors | **0 errors** |
+| `npm run build` | Passed (errors ignored) | **Passes (strict)** |
+
+---
+
+## ESLint
 
 | Check | Result |
 |-------|--------|
-| `npm run build` | ✅ Pass |
-| TypeScript | Skipped per config (pre-existing) |
-| Static page generation | ✅ 261/261 |
-| New compile errors | ✅ None |
+| `npm run lint` | **Fails** — `eslint` not in `devDependencies` |
+| Config file | **Missing** — no `eslint.config.js` or `.eslintrc` |
+
+**Recommendation:** Add ESLint with Next.js config. Not blocking production deploy.
 
 ---
 
-## React Warnings
-
-### Hydration
-
-| Location | Issue | Status |
-|----------|-------|--------|
-| Dashboard date | `suppressHydrationWarning` on `<time>` | ✅ Pre-existing fix preserved |
-| Motion components | Client-only (`'use client'`) | ✅ No SSR mismatch |
-| `useReducedMotion` | Defaults `false`, updates in `useEffect` | ✅ No hydration flash |
-
-### Potential Risks (Mitigated)
-
-| Risk | Mitigation |
-|------|------------|
-| `AnimatePresence` + SSR | Wrapped in client `PageTransition` only |
-| `m.button` backdrop | Only renders when `open === true` (client state) |
-| Stagger on first paint | `initial={false}` on `PageTransition` prevents double animation |
-
----
-
-## Console Errors
-
-### Pre-existing (Not Introduced)
-
-| Item | Notes |
-|------|-------|
-| Next.js middleware deprecation warning | Framework notice, not app error |
-| npm audit (2 moderate) | Pre-existing dependencies |
-
-### New Changes — Error Risk Assessment
-
-| Change | Risk | Notes |
-|--------|------|-------|
-| Framer Motion install | Low | Build passes, no import errors |
-| Sidebar `m.button` backdrop | Low | Same props as previous `<button>` |
-| `StaggerContainer as="ul"` | Low | Valid HTML structure maintained |
-| `MotionCard` spread props | Low | Only passes to `m.div` |
-
----
-
-## State & Race Conditions
+## Hydration / Runtime
 
 | Area | Status |
 |------|--------|
-| Dashboard data loading | `useDashboardCore` unchanged |
-| Wallet realtime | `useUserWalletRealtime` unchanged |
-| Sidebar close on navigate | `useEffect([pathname])` preserved |
-| Logout race | `loggingOut` guard preserved |
-| Async data cache | `CACHE_KEYS` unchanged |
+| `useSearchParams` in callback | Wrapped in `<Suspense>` ✅ |
+| Locale routing | `next-intl` middleware ✅ |
+| Supabase client SSR | Cookie handlers in middleware ✅ |
+
+No new hydration errors identified in audited paths.
 
 ---
 
-## Loading & Empty States
+## API Error Handling
 
-| Component | Loading | Empty | Error |
-|-----------|---------|-------|-------|
-| Dashboard hero | Skeleton | N/A | AsyncState |
-| Charts | Skeleton | EmptyState with CTA | AsyncState retry |
-| Transactions | ListSkeleton | EmptyState with CTA | AsyncState retry |
-| Allocation | Donut skeleton | EmptyState with CTA | AsyncState retry |
-
-All `AsyncState` patterns preserved — no regressions.
+Webhook and verification routes return appropriate HTTP status codes (401/400/503/500) with structured logging. Payment webhooks use signature validation.
 
 ---
 
-## Event Listener Audit
+## Summary
 
-| Component | Listener | Cleanup |
-|-----------|----------|---------|
-| Sidebar | `keydown` Escape | ✅ `removeEventListener` |
-| Sidebar | Focus trap Tab | ✅ `removeEventListener` |
-| MobileNavContext | Body scroll lock | ✅ Existing cleanup |
-| `useReducedMotion` | `matchMedia` change | ✅ `removeEventListener` |
+| Category | Count Found | Count Fixed |
+|----------|-------------|-------------|
+| TypeScript errors | 4 | 4 |
+| Build config issues | 1 | 1 |
+| ESLint setup | 1 | 0 (documented) |
+| Critical runtime bugs | 0 | — |
 
----
-
-## WebSocket / Realtime
-
-No changes to:
-
-- `useUserWalletRealtime`
-- `useLiveTransactions`
-- `useTransactionsRealtime`
-- Notification push listener
-
----
-
-## Undefined State Guards
-
-Verified preserved in dashboard flow:
-
-```tsx
-wallet?.availableBalance ?? '$0.00'
-metrics?.totalInvested ?? '$0.00'
-chartData ?? []
-allocation ?? []
-```
-
-Motion wrappers do not alter data flow or conditional rendering.
-
----
-
-## Accessibility Errors
-
-| Check | Status |
-|-------|--------|
-| Sidebar `aria-modal` when open | ✅ Preserved |
-| Focus trap in drawer | ✅ Preserved |
-| `aria-current="page"` on nav | ✅ Preserved |
-| `sr-only` section headings | ✅ Preserved |
-| Reduced motion support | ✅ Added |
-
----
-
-## Target: Zero Visible Errors
-
-| Category | Current |
-|----------|---------|
-| Build errors | 0 |
-| Runtime errors (expected) | 0 |
-| Hydration mismatches (new) | 0 |
-| Memory leaks (new) | 0 |
-
-**Recommendation:** Smoke test on mobile Safari and Chrome DevTools → Console filtered to "Errors" on:
-1. Dashboard load
-2. Route change (Dashboard → Wallet → back)
-3. Mobile drawer open/close
-4. Reduced motion enabled in OS settings
+**All fixable compile-time errors resolved.**

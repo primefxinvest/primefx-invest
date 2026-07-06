@@ -93,7 +93,9 @@ function InvestPlanCard({
         </p>
         <p className="mt-1 flex items-center gap-1 text-xs font-medium text-gray-600">
           {plan.weeklyRoiLabel ?? t('weeklyReturn')}
-          <Info className="h-3.5 w-3.5 text-gray-400" aria-hidden title={t('performanceDisclaimer')} />
+          <span className="inline-flex" title={t('performanceDisclaimer')}>
+            <Info className="h-3.5 w-3.5 text-gray-400" aria-hidden />
+          </span>
         </p>
         <p className="mt-1 text-[10px] leading-snug text-gray-500">{t('performanceDisclaimer')}</p>
       </div>

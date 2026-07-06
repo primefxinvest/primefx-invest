@@ -23,12 +23,16 @@ import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { useInvestmentPlans } from '@/lib/hooks/useInvestmentPlans'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 import type { InvestmentPlan } from '@/lib/invest/plan-config'
+import {
+  persistInvestViewModePreference,
+  readInvestViewModePreference,
+  type InvestViewMode,
+} from '@/lib/invest/view-mode-preference'
 import { cn } from '@/lib/utils'
 import { pageStackClass, gridGapClass, pageHeaderGapClass } from '@/lib/layout/spacing'
 import { dashboardCardClass, dashboardMutedTextClass } from '@/lib/layout/surfaces'
 
-const VIEW_MODE_IDS = ['table', 'grid', 'compare'] as const
-type ViewMode = (typeof VIEW_MODE_IDS)[number]
+type ViewMode = InvestViewMode
 
 export default function InvestPage() {
   const t = useTranslations('invest')
@@ -41,7 +45,7 @@ export default function InvestPage() {
     [investmentPlans]
   )
 
-  const [viewMode, setViewMode] = useState<ViewMode>('table')
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null)
   const [modalPlan, setModalPlan] = useState<InvestmentPlan | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
@@ -49,6 +53,15 @@ export default function InvestPage() {
   const recommendationRef = useRef<HTMLDivElement>(null)
   const deepLinkHandled = useRef(false)
   const defaultPlanSet = useRef(false)
+
+  useEffect(() => {
+    setViewMode(readInvestViewModePreference())
+  }, [])
+
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode)
+    persistInvestViewModePreference(mode)
+  }, [])
 
   useEffect(() => {
     if (!recommendedPlan || defaultPlanSet.current) return
@@ -160,7 +173,7 @@ export default function InvestPage() {
                   key={id}
                   type="button"
                   aria-pressed={viewMode === id}
-                  onClick={() => setViewMode(id)}
+                  onClick={() => handleViewModeChange(id)}
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0052ff] focus-visible:ring-offset-2 sm:text-sm',
                     viewMode === id
