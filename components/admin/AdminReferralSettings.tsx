@@ -77,7 +77,7 @@ export function AdminReferralSettings({ enabled: _enabled, configured }: AdminRe
           </ul>
           <p className="mt-3 text-xs text-muted-foreground">
             Commissions accrue daily and pay weekly (Friday batch). Platform fees: P2P transfer
-            1.2% · Withdrawal 5% · Withdrawals require a 7-day notice. Gold (XAU/USD) profits accrue
+            1.20 USD fixed internal transfer fee · Withdrawal 5% · Withdrawals require a 7-day notice. Gold (XAU/USD) profits accrue
             Monday–Friday only.
           </p>
         </div>

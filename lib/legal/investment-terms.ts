@@ -54,7 +54,7 @@ Level 4 (L4): 0.5% of profits every week`,
   {
     id: 'fees',
     title: 'Platform Fees',
-    body: 'P2P Transfer Fee: 1.2% per transfer\nWithdrawal Fee: 5% per withdrawal',
+    body: 'Internal Transfer Fee: $1.20 fixed per transfer\nWithdrawal Fee: 5% per withdrawal',
   },
 ] as const
 

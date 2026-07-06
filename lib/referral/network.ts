@@ -71,13 +71,8 @@ export async function refreshUserReferralStats(userId: string) {
   let activeCount = 0
   if (activeRows?.length) {
     const ids = activeRows.map((row) => row.descendant_id as string)
-    const { count } = await admin
-      .from('referrals')
-      .select('*', { count: 'exact', head: true })
-      .in('referred_user_id', ids)
-      .eq('status', 'Active')
-
-    activeCount = count ?? 0
+    const { countActiveNetworkInvestors } = await import('@/lib/referral/team-metrics')
+    activeCount = await countActiveNetworkInvestors(ids)
   }
 
   const { REFERRAL_RANK_TIERS, resolveReferralRank } = await import('@/lib/referral/program-config')

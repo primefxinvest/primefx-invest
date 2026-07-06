@@ -1,9 +1,10 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo, useMemo, useState } from 'react'
 import { ChevronRight, Medal, Trophy } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 import { ReferralPageHeader } from '@/components/referral/shared/ReferralPageHeader'
+import { ReferralMemberIdentity } from '@/components/referral/shared/ReferralMemberIdentity'
 import {
   ReferralRankPill,
   shortRankName,
@@ -24,7 +25,16 @@ const TABS = ['All Leaders', 'My Network', 'Rising Stars'] as const
 
 function ReferralLeaderboardSectionInner({ overview }: ReferralLeaderboardSectionProps) {
   const [activeTab, setActiveTab] = useState<(typeof TABS)[number]>('All Leaders')
-  const leaders = overview.leaderboard
+
+  const leaders = useMemo(() => {
+    const base = overview.leaderboard
+    if (activeTab === 'Rising Stars') {
+      return base
+        .filter((entry) => entry.trendPercent && entry.trendPercent !== '+0%')
+        .sort((a, b) => (b.trendPercent ?? '').localeCompare(a.trendPercent ?? ''))
+    }
+    return base
+  }, [activeTab, overview.leaderboard])
 
   const topLeader = leaders[0]
 
@@ -58,15 +68,15 @@ function ReferralLeaderboardSectionInner({ overview }: ReferralLeaderboardSectio
         />
         <KpiCard
           label="Total Team Volume"
-          value={formatCurrency(overview.activeInvestors * 1200)}
-          trend="+22.4%"
+          value={formatCurrency(overview.teamVolumeUsd)}
+          trend={overview.trends.teamVolume}
           icon={<Trophy className="h-4 w-4 sm:h-5 sm:w-5" />}
           iconBg="bg-blue-50 text-primary"
         />
         <KpiCard
           label="Total Rewards"
-          value={formatCurrency(overview.lifetimeEarnings * 100)}
-          trend="+19.3%"
+          value={formatCurrency(overview.lifetimeEarnings)}
+          trend={overview.trends.lifetime}
           icon={<Trophy className="h-4 w-4 sm:h-5 sm:w-5" />}
           iconBg="bg-emerald-50 text-emerald-600"
         />
@@ -93,12 +103,13 @@ function ReferralLeaderboardSectionInner({ overview }: ReferralLeaderboardSectio
           </div>
 
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
+            <table className="w-full min-w-[760px] text-left text-sm">
               <thead>
                 <tr className="border-b border-border text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   <th className="pb-3 pr-4">Rank</th>
                   <th className="pb-3 pr-4">Leader</th>
                   <th className="pb-3 pr-4">Rank Title</th>
+                  <th className="pb-3 pr-4">Team Volume</th>
                   <th className="pb-3 pr-4">Team Profit Share</th>
                   <th className="pb-3 text-right">Trend</th>
                 </tr>
@@ -112,19 +123,41 @@ function ReferralLeaderboardSectionInner({ overview }: ReferralLeaderboardSectio
                           {entry.rank}
                         </span>
                       </td>
-                      <td className="py-3 pr-4 font-medium text-foreground">{entry.name}</td>
                       <td className="py-3 pr-4">
-                        <ReferralRankPill rankName={overview.rank.current} />
+                        <ReferralMemberIdentity
+                          name={entry.name}
+                          username={entry.username}
+                          country={entry.country}
+                          verified={entry.verified}
+                          avatarUrl={entry.avatarUrl}
+                          seed={entry.userId}
+                          size="sm"
+                        />
+                      </td>
+                      <td className="py-3 pr-4">
+                        <ReferralRankPill rankName={entry.rankName} />
+                      </td>
+                      <td className="py-3 pr-4 font-medium text-foreground">
+                        {formatCurrency(entry.teamVolumeUsd)}
                       </td>
                       <td className="py-3 pr-4 font-semibold text-emerald-600">
                         {formatCurrency(entry.earnings)}
                       </td>
-                      <td className="py-3 text-right text-emerald-600">+12%</td>
+                      <td
+                        className={cn(
+                          'py-3 text-right font-medium',
+                          entry.trendPercent?.startsWith('-')
+                            ? 'text-red-600'
+                            : 'text-emerald-600'
+                        )}
+                      >
+                        {entry.trendPercent ?? '—'}
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={5} className="py-8 text-center text-muted-foreground">
+                    <td colSpan={6} className="py-8 text-center text-muted-foreground">
                       Share your link to appear on the leaderboard when your network earns.
                     </td>
                   </tr>

@@ -92,10 +92,10 @@ function ReferralMyRankSectionInner({ overview }: ReferralMyRankSectionProps) {
                       Team Volume
                     </p>
                     <p className="mt-1 text-lg font-bold">
-                      {formatCurrency(rank.activeInvestors * 200)}
+                      {formatCurrency(overview.teamVolumeUsd)}
                       <span className="text-slate-400">
                         {' '}
-                        / {formatCurrency(rank.nextThreshold * 250)}
+                        / {formatCurrency(overview.rank.nextThreshold * 250)}
                       </span>
                     </p>
                     <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-slate-700">

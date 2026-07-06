@@ -448,8 +448,8 @@ export function TransferPageView() {
                         {transferAmount >= 5 ? (
                           <p className="mt-1 text-xs text-gray-500">
                             {t('totalDebit', {
-                              total: transferAmount.toFixed(2),
-                              fee: DISPLAY_INTERNAL_TRANSFER_FEE_USD.toFixed(2),
+                              total: transferFees.senderTotal.toFixed(2),
+                              fee: transferFees.fee.toFixed(2),
                             })}
                           </p>
                         ) : null}
@@ -528,9 +528,7 @@ export function TransferPageView() {
                 <li>{t('maxTransferCondition')}</li>
                 <li>{t('dailyLimitVerified')}</li>
                 <li>{t('dailyLimitUnverified')}</li>
-                <li>
-                  Internal Transfer Fee: {formatDisplayFeeUsd(DISPLAY_INTERNAL_TRANSFER_FEE_USD)}
-                </li>
+                <li>{t('internalTransferFeeCondition', { fee: formatDisplayFeeUsd(DISPLAY_INTERNAL_TRANSFER_FEE_USD) })}</li>
                 <li>Transfer Speed: Instant</li>
                 <li>Methods: Email Address, PrimeFx ID</li>
               </ul>
@@ -663,15 +661,15 @@ export function TransferPageView() {
         recipientName={recipientPreview?.fullName || recipientPreview?.email || ''}
         recipientId={recipientPreview?.primeFxId || ''}
         amount={Number(amount).toFixed(2)}
-        fee={DISPLAY_INTERNAL_TRANSFER_FEE_USD.toFixed(2)}
-        totalDebit={transferAmount.toFixed(2)}
+        fee={transferFees.fee.toFixed(2)}
+        totalDebit={transferFees.senderTotal.toFixed(2)}
         message={message.trim() || undefined}
       />
 
       <div className={cn('grid grid-cols-2 lg:grid-cols-4', gridGapClass)}>
         {[
           { icon: Zap, label: t('featureInstant') },
-          { icon: Send, label: `Transfer Fee: ${formatDisplayFeeUsd(DISPLAY_INTERNAL_TRANSFER_FEE_USD)}` },
+          { icon: Send, label: t('featureFee', { fee: formatDisplayFeeUsd(DISPLAY_INTERNAL_TRANSFER_FEE_USD) }) },
           { icon: Shield, label: t('featureSecure') },
           { icon: Clock, label: t('featureSupport') },
         ].map((item) => (

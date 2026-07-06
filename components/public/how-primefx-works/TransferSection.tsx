@@ -1,5 +1,7 @@
 import { Mail, Send, User, Zap } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
+import { formatDisplayFeeUsd } from '@/lib/fees/display'
+import { INTERNAL_TRANSFER_FEE_USD } from '@/lib/fees/constants'
 import { InfoCard, SectionHeader, SectionShell } from './shared'
 
 const TRANSFER_METHODS = [
@@ -7,13 +9,15 @@ const TRANSFER_METHODS = [
   { icon: User, label: 'PrimeFx ID', description: 'Transfer using a unique PrimeFx identifier.' },
 ] as const
 
+const FIXED_FEE_LABEL = formatDisplayFeeUsd(INTERNAL_TRANSFER_FEE_USD)
+
 export function HowPrimefxTransferSection() {
   return (
     <SectionShell id="transfers">
       <SectionHeader
         eyebrow="Wallet"
         title="Transfer System"
-        subtitle="Move funds instantly between PrimeFx accounts. Zero internal transfer fees."
+        subtitle="Move funds instantly between PrimeFx accounts with a transparent fixed transfer fee."
       />
 
       <div className="grid gap-6 md:grid-cols-3">
@@ -39,8 +43,9 @@ export function HowPrimefxTransferSection() {
               <div>
                 <h3 className="font-bold text-gray-900">Instant internal transfers</h3>
                 <p className="mt-1 text-sm text-gray-600">
-                  Internal transfers between PrimeFx accounts are processed instantly with a{' '}
-                  <strong className="font-semibold text-emerald-600">$0.00 fee</strong>.
+                  Internal transfers between PrimeFx Invest accounts are processed instantly with a
+                  fixed fee of{' '}
+                  <strong className="font-semibold text-emerald-600">{FIXED_FEE_LABEL}</strong>.
                 </p>
               </div>
             </div>

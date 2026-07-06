@@ -93,16 +93,27 @@ export async function markReferralActiveOnFirstActivity(sourceUserId: string) {
 
   await db.from('referrals').update({ status: 'Active' }).eq('id', referral.id)
 
-  const { data: referrerRow } = await db
-    .from('referrals')
-    .select('referrer_id')
-    .eq('referred_user_id', sourceUserId)
-    .maybeSingle()
+  const { data: ancestors } = await db
+    .from('referral_network')
+    .select('ancestor_id')
+    .eq('descendant_id', sourceUserId)
 
-  if (referrerRow?.referrer_id) {
-    const { refreshUserReferralStats } = await import('@/lib/referral/network')
-    await refreshUserReferralStats(referrerRow.referrer_id as string)
+  const { refreshUserReferralStats } = await import('@/lib/referral/network')
+  const ancestorIds = [...new Set((ancestors ?? []).map((row) => row.ancestor_id as string))]
+
+  if (!ancestorIds.length) {
+    const { data: referrerRow } = await db
+      .from('referrals')
+      .select('referrer_id')
+      .eq('referred_user_id', sourceUserId)
+      .maybeSingle()
+
+    if (referrerRow?.referrer_id) {
+      ancestorIds.push(referrerRow.referrer_id as string)
+    }
   }
+
+  await Promise.all(ancestorIds.map((ancestorId) => refreshUserReferralStats(ancestorId)))
 }
 
 export async function accrueAmbassadorTeamProfits(input: {

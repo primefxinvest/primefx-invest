@@ -55,6 +55,12 @@ import {
 import { mapDbTransactionToItem } from '@/lib/data/transaction-map'
 import type { InvestmentDbRow, TransactionDbRow } from '@/lib/data/db-rows'
 import { formatCurrency, formatDate, formatDateTime, formatPercent, formatRelativeTime, toNumber } from '@/lib/data/format'
+import {
+  isReferralMemberVerified,
+  resolveReferralDisplayName,
+  resolveReferralUsername,
+} from '@/lib/referral/member-profile'
+import { REFERRAL_UNRANKED } from '@/lib/referral/program-config'
 import { buildReferralLink } from '@/lib/referral/share'
 import type {
   AcademyCourseDetail,
@@ -1000,33 +1006,59 @@ export async function fetchReferralList() {
     .map((row) => row.referred_user_id as string)
     .filter(Boolean)
 
-  const referredUsers = new Map<string, { full_name?: string; email?: string }>()
+  const referredUsers = new Map<
+    string,
+    {
+      full_name?: string | null
+      email?: string | null
+      avatar_url?: string | null
+      referral_code?: string | null
+      country?: string | null
+      kyc_status?: string | null
+      is_verified?: boolean | null
+      verification_status?: string | null
+      investor_tier?: string | null
+    }
+  >()
   if (referredIds.length > 0) {
     const { data: users } = await supabase
       .from('users')
-      .select('id, full_name, email')
+      .select(
+        'id, full_name, email, avatar_url, referral_code, country, kyc_status, is_verified, verification_status, investor_tier'
+      )
       .in('id', referredIds)
 
     users?.forEach((user) => {
-      referredUsers.set(user.id as string, {
-        full_name: user.full_name as string | undefined,
-        email: user.email as string | undefined,
-      })
+      referredUsers.set(user.id as string, user)
     })
   }
 
   return data.map((row) => {
     const referredId = row.referred_user_id as string
     const referred = referredUsers.get(referredId)
+    const displayName = resolveReferralDisplayName({
+      fullName: referred?.full_name,
+      email: referred?.email,
+    })
 
     return {
       id: row.id as string,
-      name: referred?.full_name || `Investor ${referredId.slice(0, 8)}`,
-      email: referred?.email || 'Referred investor',
+      userId: referredId,
+      name: displayName,
+      email: referred?.email?.trim() || 'Referred investor',
+      username: referred ? resolveReferralUsername(referred) : null,
+      avatarUrl: referred?.avatar_url ?? null,
+      country: referred?.country ?? null,
+      verified: referred ? isReferralMemberVerified(referred) : false,
       status: (row.status as string) ?? 'Pending',
       commissionEarned: toNumber(row.bonus_earned),
       joinedDate: formatDate(row.created_at as string),
-      tradingVolume: formatCurrency(toNumber(row.bonus_earned) * 20),
+      tradingVolume: formatCurrency(0),
+      teamVolumeUsd: 0,
+      investmentPlan: referred?.investor_tier ?? null,
+      rankName: REFERRAL_UNRANKED.name,
+      trendPercent: null,
+      networkLevel: 1,
     }
   })
 }

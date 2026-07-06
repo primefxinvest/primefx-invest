@@ -16,12 +16,21 @@ import {
 
 export interface ReferralListItem {
   id: string
+  userId: string
   name: string
   email: string
+  username: string | null
+  avatarUrl: string | null
+  country: string | null
+  verified: boolean
   status: string
   commissionEarned: number
   joinedDate: string
   tradingVolume: string
+  teamVolumeUsd: number
+  investmentPlan: string | null
+  rankName: string
+  trendPercent: string | null
   networkLevel?: number
 }
 
@@ -30,6 +39,11 @@ type OverviewContext = {
   levelEarnings?: Array<{ level: number; earnings: number }>
   memberCount?: number
   activeInvestors?: number
+  teamVolumeUsd?: number
+  teamProfitUsd?: number
+  teamVolumeTrend?: string
+  teamProfitTrend?: string
+  pendingCommissionUsd?: number
   thisWeekEarnings?: number
   thisMonthEarnings?: number
   earningsTimeline?: EarningsTimelineDay[]
@@ -39,6 +53,7 @@ type OverviewContext = {
     lifetime?: string
   }
   referralDates?: Date[]
+  memberRankNames?: Map<string, string>
 }
 
 export interface ReferralRank {
@@ -84,12 +99,35 @@ export interface ReferralProgramOverview {
     membersRemaining: number
   }>
   challenges: Array<{ id: string; title: string; progress: number; target: number; reward: string }>
-  leaderboard: Array<{ rank: number; name: string; earnings: number }>
+  teamVolumeUsd: number
+  teamProfitUsd: number
+  pendingCommissionUsd: number
+  networkHealth: {
+    activePercent: number
+    inactivePercent: number
+    suspendedPercent: number
+  }
+  leaderboard: Array<{
+    rank: number
+    userId: string
+    name: string
+    username: string | null
+    avatarUrl: string | null
+    country: string | null
+    verified: boolean
+    rankName: string
+    activeInvestors: number
+    teamVolumeUsd: number
+    earnings: number
+    trendPercent: string | null
+  }>
   trends: {
     lifetime: string
     week: string
     month: string
     newInvestors: string
+    teamVolume: string
+    teamProfit: string
   }
 }
 
@@ -169,9 +207,21 @@ export function buildReferralProgramOverview(
     }
   })
 
+  const teamVolumeUsd = context.teamVolumeUsd ?? referrals.reduce((sum, row) => sum + row.teamVolumeUsd, 0)
+  const teamProfitUsd = context.teamProfitUsd ?? 0
+  const pendingCommissionUsd = context.pendingCommissionUsd ?? 0
+
+  const activeReferrals = referrals.filter((row) => row.status === 'Active').length
+  const inactiveReferrals = referrals.filter((row) => row.status === 'Pending').length
+  const suspendedReferrals = Math.max(0, referrals.length - activeReferrals - inactiveReferrals)
+  const networkTotal = Math.max(referrals.length, 1)
+  const activePercent = Math.round((activeReferrals / networkTotal) * 100)
+  const inactivePercent = Math.round((inactiveReferrals / networkTotal) * 100)
+  const suspendedPercent = Math.max(0, 100 - activePercent - inactivePercent)
+
   const healthScore = Math.min(
     100,
-    Math.round(60 + activeInvestors * 2 + Math.min(20, lifetimeEarnings / 100))
+    Math.round(activePercent * 0.7 + Math.min(30, activeInvestors))
   )
 
   const recentActivities = referrals.slice(0, 5).map((referral) => ({
@@ -185,12 +235,21 @@ export function buildReferralProgramOverview(
   }))
 
   const leaderboard = [...referrals]
-    .sort((a, b) => b.commissionEarned - a.commissionEarned)
-    .slice(0, 5)
+    .sort((a, b) => b.commissionEarned - a.commissionEarned || b.teamVolumeUsd - a.teamVolumeUsd)
+    .slice(0, 10)
     .map((entry, index) => ({
       rank: index + 1,
+      userId: entry.userId,
       name: entry.name,
+      username: entry.username,
+      avatarUrl: entry.avatarUrl,
+      country: entry.country,
+      verified: entry.verified,
+      rankName: entry.rankName,
+      activeInvestors: entry.status === 'Active' ? 1 : 0,
+      teamVolumeUsd: entry.teamVolumeUsd,
       earnings: entry.commissionEarned,
+      trendPercent: entry.trendPercent,
     }))
 
   const signups = Math.max(totalReferrals, 0)
@@ -215,7 +274,16 @@ export function buildReferralProgramOverview(
     totalReferrals,
     rank,
     healthScore,
-    healthLabel: healthScore >= 90 ? 'Excellent' : healthScore >= 75 ? 'Good' : 'Fair',
+    healthLabel:
+      healthScore >= 90 ? 'Excellent' : healthScore >= 75 ? 'Good' : healthScore >= 50 ? 'Fair' : 'Needs attention',
+    teamVolumeUsd,
+    teamProfitUsd,
+    pendingCommissionUsd,
+    networkHealth: {
+      activePercent,
+      inactivePercent,
+      suspendedPercent,
+    },
     earningsTimeline: context.earningsTimeline ?? [],
     earningsBreakdown: buildEarningsBreakdown(context.levelEarnings),
     networkLevels: levelData.map(({ level, items, earnings }) => ({
@@ -269,6 +337,8 @@ export function buildReferralProgramOverview(
       week: priorWeek ?? (thisWeekEarnings > 0 ? '+100%' : '+0%'),
       month: priorMonth ?? (thisMonthEarnings > 0 ? '+100%' : '+0%'),
       newInvestors: `+${Math.max(0, activeInvestors)} new`,
+      teamVolume: context.teamVolumeTrend ?? '+0%',
+      teamProfit: context.teamProfitTrend ?? '+0%',
     },
   }
 }

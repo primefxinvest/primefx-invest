@@ -9,7 +9,6 @@ import { cardSurfaceClass } from '@/lib/layout/surfaces'
 import { sectionStackClass } from '@/lib/layout/spacing'
 import { formatCurrency } from '@/lib/data/format'
 import type { ReferralProgramOverview } from '@/lib/referral/analytics'
-import { REFERRAL_DISPLAY_INVESTMENT_COMMISSION } from '@/lib/referral/display-config'
 import { cn } from '@/lib/utils'
 
 type ReferralPayoutsSectionProps = {
@@ -18,8 +17,8 @@ type ReferralPayoutsSectionProps = {
 
 function ReferralPayoutsSectionInner({ overview }: ReferralPayoutsSectionProps) {
   const available = overview.lifetimeEarnings
-  const withdrawn = Math.max(0, overview.lifetimeEarnings - overview.thisMonthEarnings)
-  const pending = Math.max(0, overview.thisMonthEarnings * 0.15)
+  const withdrawn = Math.max(0, overview.lifetimeEarnings - overview.pendingCommissionUsd)
+  const pending = overview.pendingCommissionUsd
 
   return (
     <div className={cn('min-w-0', sectionStackClass)}>
@@ -169,26 +168,14 @@ function ReferralPayoutsSectionInner({ overview }: ReferralPayoutsSectionProps) 
             <h3 className="font-semibold text-foreground">Earnings Summary</h3>
             <p className="text-xs text-muted-foreground">This Month</p>
             <ul className="mt-3 space-y-2 text-sm">
-              <li className="flex justify-between">
-                <span className="text-muted-foreground">
-                  Investment Commission ({REFERRAL_DISPLAY_INVESTMENT_COMMISSION})
-                </span>
-                <span className="font-semibold text-emerald-600">
-                  +{formatCurrency(overview.thisMonthEarnings * 0.5)}
-                </span>
-              </li>
-              <li className="flex justify-between">
-                <span className="text-muted-foreground">Rank Bonus</span>
-                <span className="font-semibold text-emerald-600">
-                  +{formatCurrency(overview.thisMonthEarnings * 0.35)}
-                </span>
-              </li>
-              <li className="flex justify-between">
-                <span className="text-muted-foreground">Referral Bonus</span>
-                <span className="font-semibold text-emerald-600">
-                  +{formatCurrency(overview.thisMonthEarnings * 0.15)}
-                </span>
-              </li>
+              {overview.earningsBreakdown.map((item) => (
+                <li key={item.name} className="flex justify-between">
+                  <span className="text-muted-foreground">{item.name}</span>
+                  <span className="font-semibold text-emerald-600">
+                    +{formatCurrency(item.amount)}
+                  </span>
+                </li>
+              ))}
             </ul>
             <p className="mt-3 border-t border-border pt-3 text-sm font-bold text-emerald-600">
               Total: +{formatCurrency(overview.thisMonthEarnings)}

@@ -7,6 +7,7 @@ import { ErrorState } from '@/components/shared/data-state'
 import { MetricCardsSkeleton, PageHeaderSkeleton } from '@/components/shared/skeletons'
 import { pageStackClass } from '@/lib/layout/spacing'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { useReferralRealtime } from '@/lib/hooks/useReferralRealtime'
 import { fetchReferralProgramOverviewAction } from '@/lib/referral/actions'
 import type { ReferralProgramPageData } from '@/lib/referral/overview-server'
 import { parseReferralSection, type ReferralSectionKey } from '@/lib/referral/navigation'
@@ -147,6 +148,8 @@ function ReferralProgramViewInner({
     [],
     initialOverview ?? undefined
   )
+
+  useReferralRealtime(reload, Boolean(data))
 
   if (loading && !data) {
     return <SectionSkeleton />

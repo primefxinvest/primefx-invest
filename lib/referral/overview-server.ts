@@ -4,13 +4,26 @@ import { formatCurrency, formatDate, toNumber } from '@/lib/data/format'
 import type { ReferralData } from '@/lib/data/types'
 import { buildReferralProgramOverview } from '@/lib/referral/analytics'
 import type { ReferralListItem } from '@/lib/referral/analytics'
-import { REFERRAL_PROFIT_SHARE_LEVELS, formatReferralRate } from '@/lib/referral/program-config'
+import { REFERRAL_PROFIT_SHARE_LEVELS, formatReferralRate, REFERRAL_UNRANKED } from '@/lib/referral/program-config'
 import { buildDailyEarningsTimeline } from '@/lib/referral/earnings-chart'
-import { getReferralNetworkDescendants } from '@/lib/referral/network'
+import { getReferralNetworkDescendants, refreshUserReferralStats } from '@/lib/referral/network'
 import { buildReferralLink } from '@/lib/referral/share'
 import { getSiteUrl } from '@/lib/seo/site'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import {
+  isReferralMemberVerified,
+  resolveReferralDisplayName,
+  resolveReferralUsername,
+  type ReferralMemberProfileRow,
+} from '@/lib/referral/member-profile'
+import {
+  fetchCommissionsBySource,
+  fetchMemberRankNames,
+  fetchNetworkMetrics,
+  fetchPendingCommissionUsd,
+  fetchReferralStatuses,
+} from '@/lib/referral/team-metrics'
 
 export type ReferralProgramPageData = {
   referralData: ReferralData
@@ -156,7 +169,18 @@ export async function fetchReferralProgramOverviewServer(
     .map((row) => row.referred_user_id as string)
     .filter(Boolean)
 
-  const networkDescendants = await getReferralNetworkDescendants(userId)
+  let networkDescendants = await getReferralNetworkDescendants(userId)
+
+  if (referredIds.length > 0 && networkDescendants.length === 0) {
+    const { buildReferralNetworkForUser } = await import('@/lib/referral/network')
+    await Promise.all(
+      referralRows.map((row) =>
+        buildReferralNetworkForUser(row.referred_user_id as string, userId)
+      )
+    )
+    networkDescendants = await getReferralNetworkDescendants(userId)
+  }
+
   const allMemberIds = [
     ...new Set([
       ...referredIds,
@@ -164,19 +188,75 @@ export async function fetchReferralProgramOverviewServer(
     ]),
   ]
 
-  const referredUsers = new Map<string, { full_name?: string; email?: string }>()
+  const referredUsers = new Map<string, ReferralMemberProfileRow>()
   if (allMemberIds.length > 0) {
     const { data: users } = await supabase
       .from('users')
-      .select('id, full_name, email')
+      .select(
+        'id, full_name, email, avatar_url, referral_code, country, kyc_status, is_verified, verification_status, investor_tier'
+      )
       .in('id', allMemberIds)
 
     users?.forEach((profile) => {
-      referredUsers.set(profile.id as string, {
-        full_name: profile.full_name as string | undefined,
-        email: profile.email as string | undefined,
-      })
+      referredUsers.set(profile.id as string, profile as ReferralMemberProfileRow)
     })
+  }
+
+  const [networkMetrics, referralStatuses, memberRankNames, commissionsBySource, pendingCommissionUsd] =
+    await Promise.all([
+      fetchNetworkMetrics(allMemberIds),
+      fetchReferralStatuses(allMemberIds),
+      fetchMemberRankNames(allMemberIds),
+      fetchCommissionsBySource(userId, allMemberIds),
+      fetchPendingCommissionUsd(userId),
+    ])
+
+  void refreshUserReferralStats(userId)
+
+  const formatTrend = (current: number, previous: number) => {
+    if (previous === 0) return current > 0 ? '+100%' : null
+    const pct = ((current - previous) / previous) * 100
+    return `${pct >= 0 ? '+' : ''}${Math.round(pct)}%`
+  }
+
+  const buildReferralListItem = (
+    memberId: string,
+    directRow: (typeof referralRows)[number] | undefined,
+    depth: number
+  ): ReferralListItem => {
+    const profile = referredUsers.get(memberId)
+    const metrics = networkMetrics.memberMetrics.get(memberId)
+    const commission = commissionsBySource.get(memberId)
+    const status =
+      (directRow?.status as string) ??
+      referralStatuses.get(memberId) ??
+      (metrics?.hasActiveInvestment ? 'Active' : 'Pending')
+
+    const commissionEarned = commission?.total ?? (directRow ? toNumber(directRow.bonus_earned) : 0)
+    const teamVolumeUsd = metrics?.activeVolumeUsd ?? 0
+
+    return {
+      id: directRow?.id ?? `${memberId}-${depth}`,
+      userId: memberId,
+      name: resolveReferralDisplayName({
+        fullName: profile?.full_name,
+        email: profile?.email,
+      }),
+      email: profile?.email?.trim() || 'Network member',
+      username: profile ? resolveReferralUsername(profile) : null,
+      avatarUrl: profile?.avatar_url ?? null,
+      country: profile?.country ?? null,
+      verified: profile ? isReferralMemberVerified(profile) : false,
+      status,
+      commissionEarned,
+      joinedDate: directRow ? formatDate(directRow.created_at as string) : '—',
+      tradingVolume: formatCurrency(teamVolumeUsd),
+      teamVolumeUsd,
+      investmentPlan: metrics?.primaryPlan ?? profile?.investor_tier ?? null,
+      rankName: memberRankNames.get(memberId) ?? REFERRAL_UNRANKED.name,
+      trendPercent: formatTrend(commission?.thisMonth ?? 0, commission?.priorMonth ?? 0),
+      networkLevel: depth,
+    }
   }
 
   const directReferralByUserId = new Map(
@@ -185,40 +265,16 @@ export async function fetchReferralProgramOverviewServer(
 
   const referralList: ReferralListItem[] =
     networkDescendants.length > 0
-      ? networkDescendants.map((member) => {
-          const referred = referredUsers.get(member.descendantId)
-          const directRow = directReferralByUserId.get(member.descendantId)
-
-          return {
-            id: directRow?.id ?? `${member.descendantId}-${member.depth}`,
-            name: referred?.full_name || `Investor ${member.descendantId.slice(0, 8)}`,
-            email: referred?.email || 'Network member',
-            status: (directRow?.status as string) ?? 'Active',
-            commissionEarned: directRow ? toNumber(directRow.bonus_earned) : 0,
-            joinedDate: directRow
-              ? formatDate(directRow.created_at as string)
-              : '—',
-            tradingVolume: directRow
-              ? formatCurrency(toNumber(directRow.bonus_earned) * 20)
-              : '—',
-            networkLevel: member.depth,
-          }
-        })
-      : referralRows.map((row) => {
-          const referredId = row.referred_user_id as string
-          const referred = referredUsers.get(referredId)
-
-          return {
-            id: row.id as string,
-            name: referred?.full_name || `Investor ${referredId.slice(0, 8)}`,
-            email: referred?.email || 'Referred investor',
-            status: (row.status as string) ?? 'Pending',
-            commissionEarned: toNumber(row.bonus_earned),
-            joinedDate: formatDate(row.created_at as string),
-            tradingVolume: formatCurrency(toNumber(row.bonus_earned) * 20),
-            networkLevel: 1,
-          }
-        })
+      ? networkDescendants.map((member) =>
+          buildReferralListItem(
+            member.descendantId,
+            directReferralByUserId.get(member.descendantId),
+            member.depth
+          )
+        )
+      : referralRows.map((row) =>
+          buildReferralListItem(row.referred_user_id as string, row, 1)
+        )
 
   const levelEarnings = await fetchLevelEarnings(userId)
   const commissionTimeline = await fetchCommissionTimeline(userId)
@@ -242,7 +298,12 @@ export async function fetchReferralProgramOverviewServer(
       lifetimeEarningsOverride: totalEarnings,
       levelEarnings,
       memberCount: Number(stats?.total_member_count ?? referralRows.length),
-      activeInvestors: Number(stats?.active_member_count ?? referralList.filter((r) => r.status === 'Active').length),
+      activeInvestors: networkMetrics.activeInvestorCount,
+      teamVolumeUsd: networkMetrics.teamVolumeUsd,
+      teamProfitUsd: networkMetrics.teamProfitUsd,
+      teamVolumeTrend: networkMetrics.volumeTrend,
+      teamProfitTrend: networkMetrics.profitTrend,
+      pendingCommissionUsd,
       thisWeekEarnings: commissionTimeline.thisWeekEarnings,
       thisMonthEarnings: commissionTimeline.thisMonthEarnings,
       earningsTimeline: commissionTimeline.earningsTimeline,

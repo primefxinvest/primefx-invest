@@ -6,7 +6,7 @@ export const INVESTOR_RULES = {
     minimumWithdrawal: 20,
     withdrawalProcessingDays: '1-5 business days',
     withdrawalNoticeDays: 7,
-    p2pTransferFeeRate: 0.012,
+    p2pTransferFixedFeeUsd: 1.2,
     withdrawalFeeRate: 0.05,
     maximumActiveInvestments: 10,
     profitWithdrawalMinimum: 10,

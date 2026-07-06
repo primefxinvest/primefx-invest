@@ -69,7 +69,10 @@ export function TransferConfirmDialog({
             </div>
             <div className="flex justify-between gap-3">
               <dt className="text-muted-foreground">{t('transferFee')}</dt>
-              <dd className="font-semibold tabular-nums">${fee}</dd>
+              <dd className="text-right">
+                <span className="block font-semibold tabular-nums">${fee}</span>
+                <span className="text-xs text-muted-foreground">{t('transferFeeFixed')}</span>
+              </dd>
             </div>
             <div className="flex justify-between gap-3 border-t border-border pt-3">
               <dt className="font-semibold text-foreground">{t('totalDebitLabel')}</dt>

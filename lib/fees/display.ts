@@ -1,7 +1,9 @@
-/** UI-only fee labels — does not affect withdrawal/transfer calculations. */
+/** UI-only fee labels — withdrawal display estimates. Transfer fee re-exports calculation config. */
+
+import { INTERNAL_TRANSFER_FEE_USD } from '@/lib/fees/constants'
 
 export const DISPLAY_PLATFORM_WITHDRAWAL_FEE_USD = 1.5
-export const DISPLAY_INTERNAL_TRANSFER_FEE_USD = 0
+export const DISPLAY_INTERNAL_TRANSFER_FEE_USD = INTERNAL_TRANSFER_FEE_USD
 
 const DISPLAY_NETWORK_FEES_USD: Record<string, number> = {
   TRC20: 1.0,

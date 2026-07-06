@@ -20,6 +20,8 @@ import {
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
+import { INTERNAL_TRANSFER_FEE_USD } from '@/lib/fees/constants'
+import { formatDisplayFeeUsd } from '@/lib/fees/display'
 import { PLAN_UI_META } from '@/lib/invest/plan-mapper'
 import { REFERRAL_PROFIT_SHARE_LEVELS } from '@/lib/referral/program-config'
 
@@ -187,7 +189,11 @@ export const WITHDRAWAL_NETWORKS = ['TRC20', 'ERC20', 'BEP20', 'SOL'] as const
 
 export const FEE_ROWS = [
   { label: 'Wallet Fee', value: '$1.50', note: 'One-time account wallet setup' },
-  { label: 'Internal Transfer', value: '$0', note: 'Send to other PrimeFx users' },
+  {
+    label: 'Internal Transfer',
+    value: formatDisplayFeeUsd(INTERNAL_TRANSFER_FEE_USD),
+    note: 'Fixed fee per transfer to other PrimeFx users',
+  },
   { label: 'Hidden Fees', value: 'None', note: 'Transparent pricing always' },
   { label: 'Management Fees', value: 'None', note: 'No ongoing management charges' },
   { label: 'Trading Fees', value: 'None', note: 'No per-trade commissions' },
@@ -263,6 +269,11 @@ export const FAQ_ITEMS: FaqItem[] = [
     question: 'What cryptocurrencies are supported?',
     answer:
       'Deposits support USDT (TRC20, ERC20, BEP20), BTC, and ETH. Withdrawals support TRC20, ERC20, BEP20, and SOL networks. Supported assets may be updated over time — check your wallet for the latest options.',
+  },
+  {
+    question: 'What is the internal transfer fee?',
+    answer:
+      'Internal transfers between PrimeFx Invest accounts are processed instantly with a fixed fee of $1.20.',
   },
 ]
 
