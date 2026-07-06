@@ -1,12 +1,19 @@
 import { AdminServiceRoleBanner } from '@/components/admin/AdminServiceRoleBanner'
-import { AdminSupportView } from '@/components/admin/AdminSupportView'
+import { AdminSupportHub } from '@/components/admin/AdminSupportHub'
 import { requireAdminModule } from '@/lib/admin/auth'
-import { getAdminSupportTickets } from '@/lib/admin/queries'
+import { getAdminAssistanceSessions, getAdminSupportTickets } from '@/lib/admin/queries'
 import { withAdminData } from '@/lib/admin/safe-query'
 
 export default async function AdminSupportPage() {
   await requireAdminModule('support_tickets')
-  const { data, error, configured } = await withAdminData(getAdminSupportTickets, [])
+
+  const [ticketsResult, sessionsResult] = await Promise.all([
+    withAdminData(getAdminSupportTickets, []),
+    withAdminData(getAdminAssistanceSessions, []),
+  ])
+
+  const configured = ticketsResult.configured && sessionsResult.configured
+  const error = ticketsResult.error ?? sessionsResult.error
 
   return (
     <>
@@ -16,7 +23,7 @@ export default async function AdminSupportPage() {
           {error}
         </div>
       ) : null}
-      <AdminSupportView tickets={data} />
+      <AdminSupportHub tickets={ticketsResult.data} sessions={sessionsResult.data} />
     </>
   )
 }

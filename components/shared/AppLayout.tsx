@@ -4,6 +4,7 @@ import { ReactNode, Suspense } from 'react'
 import MfaSessionGuard from '@/components/auth/MfaSessionGuard'
 import { NotificationPushListener } from '@/components/notifications/NotificationPushListener'
 import MobileBottomNav from '@/components/shared/MobileBottomNav'
+import PrimeFxAssistanceWidget from '@/components/assistance/PrimeFxAssistanceWidget'
 import { MobileNavProvider } from '@/components/shared/MobileNavContext'
 import { SkipLink } from '@/components/shared/SkipLink'
 import { SIDEBAR_OFFSET_CLASS, SIDEBAR_OFFSET_TABLET_CLASS } from '@/lib/layout/sidebar'
@@ -45,6 +46,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </div>
           </main>
           <MobileBottomNav />
+          <PrimeFxAssistanceWidget />
         </div>
       </MobileNavProvider>
     </MotionProvider>

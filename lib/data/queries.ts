@@ -1372,8 +1372,9 @@ export async function fetchSupportTickets(): Promise<SupportTicketItem[]> {
 
   return data.map((ticket) => {
     const ticketId = ticket.id as string
+    const ticketNumber = ticket.ticket_number as string | undefined
     return {
-      id: ticketId.slice(0, 8).toUpperCase(),
+      id: ticketNumber ?? ticketId.slice(0, 8).toUpperCase(),
       ticketId,
       subject: ticket.subject as string,
       description: ticket.description as string,
@@ -1420,7 +1421,7 @@ export async function fetchSupportTicketDetail(
   ]
 
   return {
-    id: ticketId.slice(0, 8).toUpperCase(),
+    id: (ticket.ticket_number as string) ?? ticketId.slice(0, 8).toUpperCase(),
     ticketId,
     subject: ticket.subject as string,
     description: ticket.description as string,

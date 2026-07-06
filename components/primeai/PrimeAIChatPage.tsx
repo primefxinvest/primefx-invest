@@ -14,9 +14,12 @@ import {
 } from 'lucide-react'
 import { PRIMEAI_CAPABILITIES, PRIMEAI_QUICK_ACTIONS } from '@/components/primeai/constants'
 import { PrimeAIQuickActionsGrid } from '@/components/primeai/PrimeAIQuickActionsGrid'
-import { createPrimeAIWelcomeMessage, getMessageText } from '@/lib/ai/message-utils'
+import { ChatTypingIndicator } from '@/components/chat/ChatTypingIndicator'
+import { TypewriterText } from '@/components/chat/TypewriterText'
+import { getMessageText } from '@/lib/ai/message-utils'
 import { toPrimeAiClientError, PRIMEAI_UNAVAILABLE_USER_MESSAGE } from '@/lib/ai/user-errors'
 import { useLocaleChatTransport } from '@/lib/hooks/useLocaleChatTransport'
+import { useTypewriter } from '@/lib/hooks/useTypewriter'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { cn } from '@/lib/utils'
 
@@ -64,6 +67,7 @@ function MessageBubble({
   userName,
   messageIndex,
   messageTotal,
+  isStreaming,
 }: {
   role: 'user' | 'assistant'
   text: string
@@ -71,6 +75,7 @@ function MessageBubble({
   userName?: string
   messageIndex: number
   messageTotal: number
+  isStreaming?: boolean
 }) {
   const isUser = role === 'user'
 
@@ -101,8 +106,7 @@ function MessageBubble({
               : 'rounded-tl-md border border-border bg-card text-foreground'
           )}
         >
-          {/* Markdown-ready wrapper — swap inner renderer when streaming markdown is enabled */}
-          <p className="whitespace-pre-wrap text-sm leading-relaxed">{text}</p>
+          <TypewriterText text={text} isTyping={isStreaming} className="text-sm leading-relaxed" />
         </div>
         <MessageTimestamp index={messageIndex} total={messageTotal} />
       </div>
@@ -123,24 +127,30 @@ function PrimeAIChatInner() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const transport = useLocaleChatTransport()
-  const welcomeMessage = useMemo(
-    () => createPrimeAIWelcomeMessage(t('welcomeMessage')),
-    [t, locale]
-  )
+  const welcomeText = t('welcomeMessage')
+  const hasInitialQuery = Boolean(searchParams.get('q'))
 
   const { messages, sendMessage, status, error, clearError, setMessages } = useChat({
     transport,
-    messages: [welcomeMessage],
+    messages: [],
+  })
+
+  const intro = useTypewriter(welcomeText, {
+    enabled: !hasInitialQuery,
+    skip: hasInitialQuery,
+    startDelay: 900,
+    speed: 14,
   })
 
   useEffect(() => {
-    setMessages([welcomeMessage])
+    setMessages([])
     initialQuerySent.current = false
-  }, [locale, welcomeMessage, setMessages])
+  }, [locale, setMessages])
 
   const isLoading = status === 'submitted' || status === 'streaming'
   const userMessageCount = messages.filter((m) => m.role === 'user').length
-  const showQuickActions = userMessageCount === 0 && !isLoading
+  const showQuickActions =
+    userMessageCount === 0 && !isLoading && (hasInitialQuery || intro.isComplete)
 
   const quickActions = useMemo(
     () =>
@@ -182,7 +192,7 @@ function PrimeAIChatInner() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isLoading])
+  }, [messages, isLoading, intro.displayed])
 
   useEffect(() => {
     const query = searchParams.get('q')
@@ -271,6 +281,23 @@ function PrimeAIChatInner() {
           aria-live="polite"
           aria-label={t('chatLabel')}
         >
+          {!hasInitialQuery && intro.isDelaying ? (
+            <ChatTypingIndicator label={t('loadingConnecting')} />
+          ) : null}
+
+          {!hasInitialQuery && !intro.isDelaying && intro.displayed ? (
+            <div className="flex gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0052ff] to-[#2563eb] shadow-sm">
+                <Sparkles className="h-4 w-4 text-white" aria-hidden />
+              </div>
+              <div className="flex max-w-[85%] flex-col gap-1 sm:max-w-xl">
+                <div className="rounded-2xl rounded-tl-md border border-border bg-card px-4 py-3 shadow-sm">
+                  <TypewriterText text={intro.displayed} isTyping={intro.isTyping} />
+                </div>
+              </div>
+            </div>
+          ) : null}
+
           {messages.map((message, index) => (
             <MessageBubble
               key={message.id}
@@ -280,10 +307,15 @@ function PrimeAIChatInner() {
               userName={user.name}
               messageIndex={index}
               messageTotal={messages.length}
+              isStreaming={
+                isLoading &&
+                message.role === 'assistant' &&
+                index === messages.length - 1
+              }
             />
           ))}
 
-          {isLoading ? <TypingIndicator label={typingLabel} /> : null}
+          {isLoading && messages.length > 0 ? <TypingIndicator label={typingLabel} /> : null}
           <div ref={messagesEndRef} aria-hidden="true" />
         </div>
 

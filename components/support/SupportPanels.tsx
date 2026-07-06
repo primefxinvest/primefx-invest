@@ -2,7 +2,6 @@
 
 import {
   ChevronRight,
-  Clock,
   CreditCard,
   Gift,
   HelpCircle,
@@ -19,7 +18,7 @@ import { cn } from '@/lib/utils'
 import type { LucideIcon } from 'lucide-react'
 
 const quickHelpIcons: Record<string, LucideIcon> = {
-  withdrawals: Clock,
+  withdrawals: HelpCircle,
   referrals: Users,
   deposit: CreditCard,
   rewards: Gift,
@@ -163,10 +162,9 @@ export function SupportTrustFooter() {
 
 type SupportContactMethodsProps = {
   onLiveChat: () => void
-  onScheduleCall: () => void
 }
 
-export function SupportContactMethods({ onLiveChat, onScheduleCall }: SupportContactMethodsProps) {
+export function SupportContactMethods({ onLiveChat }: SupportContactMethodsProps) {
   const t = useTranslations('support')
 
   const methods = [
@@ -179,7 +177,6 @@ export function SupportContactMethods({ onLiveChat, onScheduleCall }: SupportCon
       badge: t('fastest'),
       action: onLiveChat,
       actionLabel: t('startChat'),
-      primary: false,
     },
     {
       id: 'email',
@@ -191,17 +188,6 @@ export function SupportContactMethods({ onLiveChat, onScheduleCall }: SupportCon
         window.location.href = `mailto:${t('supportEmail')}`
       },
       actionLabel: t('sendEmail'),
-      primary: false,
-    },
-    {
-      id: 'call',
-      icon: Clock,
-      title: t('scheduleCall'),
-      description: t('scheduleCallDesc'),
-      response: t('callResponse'),
-      action: onScheduleCall,
-      actionLabel: t('scheduleCallAction'),
-      primary: false,
     },
   ]
 
@@ -212,7 +198,7 @@ export function SupportContactMethods({ onLiveChat, onScheduleCall }: SupportCon
         <p className="mt-1 text-sm text-muted-foreground">{t('contactSubtitle')}</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {methods.map((method) => {
           const Icon = method.icon
           return (

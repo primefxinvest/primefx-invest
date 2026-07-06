@@ -30,8 +30,10 @@ const PRIORITY_OPTIONS = [
 
 export function AdminSupportTicketDetailView({
   ticket,
+  backHref = '/admin/support',
 }: {
   ticket: AdminSupportTicketDetail
+  backHref?: string
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -70,7 +72,7 @@ export function AdminSupportTicketDetailView({
   return (
     <div className="min-w-0 space-y-6">
       <Link
-        href="/admin/support"
+        href={backHref}
         className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-primary"
       >
         <ArrowLeft className="h-4 w-4" />
@@ -88,6 +90,16 @@ export function AdminSupportTicketDetailView({
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Original request
             </p>
+            {ticket.aiSummary ? (
+              <div className="mt-3 rounded-lg border border-amber-200/60 bg-amber-50/50 p-4 dark:border-amber-900/40 dark:bg-amber-950/20">
+                <p className="text-xs font-semibold text-amber-900 dark:text-amber-200">
+                  AI Escalation Summary
+                </p>
+                <pre className="mt-2 whitespace-pre-wrap font-sans text-xs text-amber-800 dark:text-amber-300">
+                  {ticket.aiSummary}
+                </pre>
+              </div>
+            ) : null}
             <div className="mt-3 rounded-lg bg-muted/40 p-4">
               <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold">{ticket.userName ?? ticket.userEmail}</p>
@@ -140,6 +152,24 @@ export function AdminSupportTicketDetailView({
           <div className="rounded-xl border border-border bg-card p-5">
             <h3 className="font-semibold text-foreground">Ticket details</h3>
             <dl className="mt-4 space-y-3 text-sm">
+              {ticket.ticketNumber ? (
+                <div>
+                  <dt className="text-muted-foreground">Ticket ID</dt>
+                  <dd className="font-mono font-medium">{ticket.ticketNumber}</dd>
+                </div>
+              ) : null}
+              {ticket.category ? (
+                <div>
+                  <dt className="text-muted-foreground">Category</dt>
+                  <dd className="capitalize">{ticket.category.replace(/_/g, ' ')}</dd>
+                </div>
+              ) : null}
+              {ticket.issueSummary ? (
+                <div>
+                  <dt className="text-muted-foreground">Issue summary</dt>
+                  <dd>{ticket.issueSummary}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt className="text-muted-foreground">User</dt>
                 <dd className="font-medium">{ticket.userName ?? '—'}</dd>

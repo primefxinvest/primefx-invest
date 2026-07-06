@@ -1,92 +1,113 @@
 'use client'
 
+import { useMemo, useState } from 'react'
+import { ChevronDown } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import PrimeFxAssistanceWidget from '@/components/assistance/PrimeFxAssistanceWidget'
+import { SupportHubShell } from '@/components/support/SupportHubShell'
+import { FAQ_KEYS, type FaqKey } from '@/components/support/constants'
 import { Link } from '@/i18n/navigation'
-import { Mail, MapPin, MessageSquare, Phone } from 'lucide-react'
+import { openPrimeFxAssistance } from '@/lib/assistance/events'
 import { useAuthEntry } from '@/lib/hooks/useAuthEntry'
+import { dashboardCardClass } from '@/lib/layout/surfaces'
+import { cn } from '@/lib/utils'
 
 export function ContactContent() {
-  const { isAuthenticated, dashboardHref, loginHref, signupHref, signupLabel } = useAuthEntry()
+  const t = useTranslations('support')
+  const { isAuthenticated, loginHref, signupHref, signupLabel } = useAuthEntry()
+  const [searchQuery, setSearchQuery] = useState('')
+  const [expandedFaq, setExpandedFaq] = useState<FaqKey | null>(null)
+
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+
+  const filteredFaqKeys = useMemo(() => {
+    if (!normalizedSearch) return FAQ_KEYS
+    return FAQ_KEYS.filter((key) => {
+      const question = t(`faq.${key}`).toLowerCase()
+      const answer = t(`faq.a${key.slice(1)}`).toLowerCase()
+      return question.includes(normalizedSearch) || answer.includes(normalizedSearch)
+    })
+  }, [normalizedSearch, t])
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
-      <h1 className="mb-2 text-4xl font-bold text-gray-900">Contact Us</h1>
-      <p className="mb-8 text-muted-foreground">
-        Get in touch with the PrimeFx Invest team. We are here to help with account questions,
-        compliance, and general inquiries.
-      </p>
-
-      <div className="mb-10 grid gap-6 md:grid-cols-3">
-        {[
-          {
-            icon: Mail,
-            title: 'Email',
-            value: 'support@primefxinvest.com',
-            href: 'mailto:support@primefxinvest.com',
-          },
-          {
-            icon: Phone,
-            title: 'Phone',
-            value: '+1 (800) 555-0199',
-            href: 'tel:+18005550199',
-          },
-          {
-            icon: MapPin,
-            title: 'Office',
-            value: 'London, United Kingdom',
-          },
-        ].map((item) => (
-          <div key={item.title} className="rounded-lg border border-border bg-card p-6">
-            <item.icon className="mb-3 h-8 w-8 text-primary" />
-            <h3 className="mb-2 font-semibold">{item.title}</h3>
-            {item.href ? (
-              <a href={item.href} className="text-sm text-primary hover:underline">
-                {item.value}
-              </a>
-            ) : (
-              <p className="text-sm text-muted-foreground">{item.value}</p>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="rounded-lg border border-border bg-card p-8">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-            <MessageSquare className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold">Already have an account?</h2>
-            <p className="mt-2 text-muted-foreground">
-              Logged-in investors can open a support ticket from the dashboard for faster account
-              assistance.
-            </p>
-            <div className="mt-4 flex flex-wrap gap-3">
-              {isAuthenticated ? (
-                <Link
-                  href={dashboardHref}
-                  className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                >
-                  Go to dashboard
-                </Link>
-              ) : (
-                <>
+    <>
+      <div className="px-4 py-8 sm:px-6 lg:py-12">
+        <SupportHubShell
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          onLiveChat={() => {
+            if (isAuthenticated) {
+              openPrimeFxAssistance()
+            }
+          }}
+          showLiveChat={isAuthenticated}
+          footer={
+            !isAuthenticated ? (
+              <section className="rounded-2xl border border-border bg-card p-6 text-center">
+                <h2 className="text-lg font-bold text-foreground">{t('contactSignInTitle')}</h2>
+                <p className="mt-2 text-sm text-muted-foreground">{t('contactSignInDesc')}</p>
+                <div className="mt-4 flex flex-wrap justify-center gap-3">
                   <Link
                     href={loginHref}
-                    className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    className="rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                   >
-                    Sign in for support
+                    {t('contactSignIn')}
                   </Link>
                   <Link
                     href={signupHref}
-                    className="rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-secondary"
+                    className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold hover:bg-muted/50"
                   >
                     {signupLabel}
                   </Link>
-                </>
+                </div>
+              </section>
+            ) : null
+          }
+        >
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('tabFaq')}
+            </h2>
+            <div className={cn(dashboardCardClass, 'rounded-2xl')}>
+              {filteredFaqKeys.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">{t('faqNoResults')}</p>
+              ) : (
+                <div className="divide-y divide-border/60">
+                  {filteredFaqKeys.map((key) => {
+                    const isOpen = expandedFaq === key
+                    return (
+                      <div key={key}>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedFaq(isOpen ? null : key)}
+                          className="flex w-full items-center justify-between gap-3 py-4 text-left"
+                          aria-expanded={isOpen}
+                        >
+                          <span className="text-sm font-semibold text-foreground">
+                            {t(`faq.${key}`)}
+                          </span>
+                          <ChevronDown
+                            className={cn(
+                              'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
+                              isOpen && 'rotate-180'
+                            )}
+                          />
+                        </button>
+                        {isOpen ? (
+                          <p className="pb-4 text-sm leading-relaxed text-muted-foreground">
+                            {t(`faq.a${key.slice(1)}`)}
+                          </p>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
               )}
             </div>
-          </div>
-        </div>
+          </section>
+        </SupportHubShell>
       </div>
-    </div>
+      {isAuthenticated ? <PrimeFxAssistanceWidget /> : null}
+    </>
   )
 }

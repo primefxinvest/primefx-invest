@@ -265,6 +265,11 @@ export interface AdminVerificationSessionsResult {
 export interface AdminSupportTicketRow {
   id: string
   shortId: string
+  ticketNumber: string | null
+  category: string | null
+  issueSummary: string | null
+  aiSummaryPreview: string | null
+  lastMessage: string | null
   userId: string
   userEmail: string
   userName: string | null
@@ -276,6 +281,24 @@ export interface AdminSupportTicketRow {
   replyCount: number
   lastReplyAt: string | null
   lastReplyBy: 'user' | 'admin' | null
+  assistanceSessionId: string | null
+}
+
+export interface AdminAssistanceSessionRow {
+  id: string
+  userId: string
+  userEmail: string
+  userName: string | null
+  status: string
+  category: string | null
+  escalationReason: string | null
+  ticketId: string | null
+  ticketNumber: string | null
+  messageCount: number
+  lastMessage: string | null
+  lastMessageRole: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface AdminSupportTicketMessage {
@@ -290,6 +313,10 @@ export interface AdminSupportTicketMessage {
 export interface AdminSupportTicketDetail {
   id: string
   shortId: string
+  ticketNumber: string | null
+  category: string | null
+  issueSummary: string | null
+  aiSummary: string | null
   userId: string
   userEmail: string
   userName: string | null

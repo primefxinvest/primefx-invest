@@ -918,6 +918,10 @@ function shortTicketId(id: string) {
   return id.slice(0, 8).toUpperCase()
 }
 
+function displayTicketId(id: string, ticketNumber?: string | null) {
+  return ticketNumber?.trim() || shortTicketId(id)
+}
+
 function displayUserName(email: string, fullName: string | null | undefined) {
   return fullName?.trim() || email.split('@')[0] || 'User'
 }
@@ -936,17 +940,27 @@ export async function getAdminSupportTickets(): Promise<AdminSupportTicketRow[]>
   const ticketIds = tickets.map((row) => String(row.id))
   const { data: messages } = await db
     .from('support_ticket_messages')
-    .select('ticket_id, sender_type, created_at')
+    .select('ticket_id, sender_type, created_at, message')
     .in('ticket_id', ticketIds)
     .order('created_at', { ascending: false })
 
   const statsByTicket = new Map<
     string,
-    { count: number; lastReplyAt: string | null; lastReplyBy: 'user' | 'admin' | null }
+    {
+      count: number
+      lastReplyAt: string | null
+      lastReplyBy: 'user' | 'admin' | null
+      lastMessage: string | null
+    }
   >()
 
   for (const ticketId of ticketIds) {
-    statsByTicket.set(ticketId, { count: 0, lastReplyAt: null, lastReplyBy: null })
+    statsByTicket.set(ticketId, {
+      count: 0,
+      lastReplyAt: null,
+      lastReplyBy: null,
+      lastMessage: null,
+    })
   }
 
   for (const row of messages ?? []) {
@@ -957,17 +971,30 @@ export async function getAdminSupportTickets(): Promise<AdminSupportTicketRow[]>
     if (!current.lastReplyAt) {
       current.lastReplyAt = String(row.created_at)
       current.lastReplyBy = row.sender_type as 'user' | 'admin'
+      current.lastMessage = String(row.message ?? '').slice(0, 120)
     }
   }
 
   return tickets.map((row) => {
     const user = row.users as { email?: string; full_name?: string | null } | null
     const id = String(row.id)
-    const stats = statsByTicket.get(id) ?? { count: 0, lastReplyAt: null, lastReplyBy: null }
+    const stats = statsByTicket.get(id) ?? {
+      count: 0,
+      lastReplyAt: null,
+      lastReplyBy: null,
+      lastMessage: null,
+    }
+    const aiSummary = (row.ai_summary as string) ?? null
 
     return {
       id,
-      shortId: shortTicketId(id),
+      shortId: displayTicketId(id, row.ticket_number as string | null),
+      ticketNumber: (row.ticket_number as string) ?? null,
+      category: (row.category as string) ?? null,
+      issueSummary: (row.issue_summary as string) ?? null,
+      aiSummaryPreview: aiSummary ? aiSummary.slice(0, 140) : null,
+      lastMessage: stats.lastMessage ?? String(row.description ?? '').slice(0, 120),
+      assistanceSessionId: (row.assistance_session_id as string) ?? null,
       userId: String(row.user_id),
       userEmail: String(user?.email ?? '—'),
       userName: user?.full_name ?? null,
@@ -1045,7 +1072,11 @@ export async function getAdminSupportTicketDetail(
 
   return {
     id,
-    shortId: shortTicketId(id),
+    shortId: displayTicketId(id, ticket.ticket_number as string | null),
+    ticketNumber: (ticket.ticket_number as string) ?? null,
+    category: (ticket.category as string) ?? null,
+    issueSummary: (ticket.issue_summary as string) ?? null,
+    aiSummary: (ticket.ai_summary as string) ?? null,
     userId: String(ticket.user_id),
     userEmail: String(user?.email ?? '—'),
     userName: user?.full_name ?? null,
@@ -1057,4 +1088,139 @@ export async function getAdminSupportTicketDetail(
     updatedAt: String(ticket.updated_at),
     messages,
   }
+}
+
+export async function getAdminAssistanceSessions(): Promise<import('./types').AdminAssistanceSessionRow[]> {
+  const db = getDb()
+  const { data: sessions, error } = await db
+    .from('assistance_sessions')
+    .select('*, users(email, full_name)')
+    .order('updated_at', { ascending: false })
+    .limit(200)
+
+  if (error) throw new Error(error.message)
+  if (!sessions?.length) return []
+
+  const sessionIds = sessions.map((row) => String(row.id))
+  const { data: messageRows } = await db
+    .from('assistance_messages')
+    .select('session_id, role, content, created_at')
+    .in('session_id', sessionIds)
+    .order('created_at', { ascending: false })
+
+  const ticketIds = sessions
+    .map((row) => row.ticket_id as string | null)
+    .filter((id): id is string => Boolean(id))
+
+  const ticketNumbers = new Map<string, string>()
+  if (ticketIds.length) {
+    const { data: ticketRows } = await db
+      .from('support_tickets')
+      .select('id, ticket_number')
+      .in('id', ticketIds)
+    for (const ticket of ticketRows ?? []) {
+      ticketNumbers.set(String(ticket.id), String(ticket.ticket_number ?? ''))
+    }
+  }
+
+  const lastBySession = new Map<
+    string,
+    { count: number; lastMessage: string | null; lastMessageRole: string | null }
+  >()
+
+  for (const sessionId of sessionIds) {
+    lastBySession.set(sessionId, { count: 0, lastMessage: null, lastMessageRole: null })
+  }
+
+  for (const row of messageRows ?? []) {
+    const sessionId = String(row.session_id)
+    const current = lastBySession.get(sessionId)
+    if (!current) continue
+    current.count += 1
+    if (!current.lastMessage) {
+      current.lastMessage = String(row.content ?? '').slice(0, 140)
+      current.lastMessageRole = String(row.role)
+    }
+  }
+
+  return sessions.map((row) => {
+    const user = row.users as { email?: string; full_name?: string | null } | null
+    const id = String(row.id)
+    const stats = lastBySession.get(id) ?? { count: 0, lastMessage: null, lastMessageRole: null }
+    const ticketId = (row.ticket_id as string) ?? null
+
+    return {
+      id,
+      userId: String(row.user_id),
+      userEmail: String(user?.email ?? '—'),
+      userName: user?.full_name ?? null,
+      status: String(row.status ?? 'active'),
+      category: (row.category as string) ?? null,
+      escalationReason: (row.escalation_reason as string) ?? null,
+      ticketId,
+      ticketNumber: ticketId ? ticketNumbers.get(ticketId) ?? null : null,
+      messageCount: stats.count,
+      lastMessage: stats.lastMessage,
+      lastMessageRole: stats.lastMessageRole,
+      createdAt: String(row.created_at),
+      updatedAt: String(row.updated_at),
+    }
+  })
+}
+
+export async function getAdminAssistanceSessionDetail(sessionId: string) {
+  const db = getDb()
+  const { data: sessionRow, error } = await db
+    .from('assistance_sessions')
+    .select('*, users(email, full_name)')
+    .eq('id', sessionId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  if (!sessionRow) return null
+
+  let ticketNumber: string | null = null
+  if (sessionRow.ticket_id) {
+    const { data: ticket } = await db
+      .from('support_tickets')
+      .select('ticket_number')
+      .eq('id', sessionRow.ticket_id)
+      .maybeSingle()
+    ticketNumber = (ticket?.ticket_number as string) ?? null
+  }
+
+  const user = sessionRow.users as { email?: string; full_name?: string | null } | null
+  const messages = await getAdminAssistanceSessionMessages(sessionId)
+
+  return {
+    session: {
+      id: String(sessionRow.id),
+      userId: String(sessionRow.user_id),
+      userEmail: String(user?.email ?? '—'),
+      userName: user?.full_name ?? null,
+      status: String(sessionRow.status),
+      category: (sessionRow.category as string) ?? null,
+      ticketNumber,
+      ticketId: (sessionRow.ticket_id as string) ?? null,
+    },
+    messages,
+  }
+}
+
+export async function getAdminAssistanceSessionMessages(sessionId: string) {
+  const db = getDb()
+  const { data, error } = await db
+    .from('assistance_messages')
+    .select('*')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: true })
+
+  if (error) throw new Error(error.message)
+  return (data ?? []).map((row) => ({
+    id: String(row.id),
+    role: String(row.role),
+    content: String(row.content),
+    metadata: row.metadata,
+    createdAt: String(row.created_at),
+  }))
 }
