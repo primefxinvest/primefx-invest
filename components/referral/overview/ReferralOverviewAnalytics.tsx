@@ -13,29 +13,21 @@ import { cardSurfaceClass } from '@/lib/layout/surfaces'
 import { cn } from '@/lib/utils'
 
 function buildDisplayBreakdown(overview: ReferralProgramOverview) {
-  const total = overview.lifetimeEarnings || 1
   const levelTotal = overview.earningsBreakdown.reduce((s, r) => s + r.amount, 0)
   if (levelTotal > 0) {
-    return overview.earningsBreakdown.map((row, i) => ({
-      name:
-        i === 0
-          ? 'Investment Commission (3%)'
-          : i === 1
-            ? 'Rank Bonus'
-            : i === 2
-              ? 'Referral Bonus'
-              : 'Other Bonuses',
+    return overview.earningsBreakdown.map((row) => ({
+      name: `${row.name} Profit Share`,
       value: row.amount,
       percent: Math.round((row.amount / levelTotal) * 100),
-      color: ['#2563eb', '#7c3aed', '#f97316', '#06b6d4'][i] ?? '#94a3b8',
+      color: row.color,
     }))
   }
-  return [
-    { name: 'Investment Commission (3%)', value: total * 0.51, percent: 51, color: '#2563eb' },
-    { name: 'Rank Bonus', value: total * 0.39, percent: 39, color: '#7c3aed' },
-    { name: 'Referral Bonus', value: total * 0.08, percent: 8, color: '#f97316' },
-    { name: 'Other Bonuses', value: total * 0.02, percent: 2, color: '#06b6d4' },
-  ]
+  return overview.earningsBreakdown.map((row) => ({
+    name: `${row.name} Profit Share`,
+    value: 0,
+    percent: 0,
+    color: row.color,
+  }))
 }
 
 function ReferralOverviewAnalyticsInner({ overview }: { overview: ReferralProgramOverview }) {

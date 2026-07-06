@@ -26,7 +26,8 @@ export function ReferralMemberAvatar({
   className,
 }: ReferralMemberAvatarProps) {
   const initials = resolveReferralInitials(name)
-  const src = avatarUrl?.trim() || getDefaultAvatarUrl(seed || name)
+  const photoUrl = avatarUrl?.trim()
+  const src = photoUrl || getDefaultAvatarUrl(seed || name)
 
   return (
     <div
@@ -36,7 +37,7 @@ export function ReferralMemberAvatar({
         className
       )}
     >
-      {avatarUrl ? (
+      {photoUrl || seed ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={src} alt={name} className="h-full w-full object-cover" />
       ) : (

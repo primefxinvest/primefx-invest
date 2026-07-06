@@ -15,8 +15,8 @@ import {
   isReferralMemberVerified,
   resolveReferralDisplayName,
   resolveReferralUsername,
-  type ReferralMemberProfileRow,
 } from '@/lib/referral/member-profile'
+import { fetchReferralMemberProfiles } from '@/lib/referral/member-profiles-server'
 import {
   fetchCommissionsBySource,
   fetchMemberRankNames,
@@ -188,19 +188,7 @@ export async function fetchReferralProgramOverviewServer(
     ]),
   ]
 
-  const referredUsers = new Map<string, ReferralMemberProfileRow>()
-  if (allMemberIds.length > 0) {
-    const { data: users } = await supabase
-      .from('users')
-      .select(
-        'id, full_name, email, avatar_url, referral_code, country, kyc_status, is_verified, verification_status, investor_tier'
-      )
-      .in('id', allMemberIds)
-
-    users?.forEach((profile) => {
-      referredUsers.set(profile.id as string, profile as ReferralMemberProfileRow)
-    })
-  }
+  const referredUsers = await fetchReferralMemberProfiles(allMemberIds)
 
   const [networkMetrics, referralStatuses, memberRankNames, commissionsBySource, pendingCommissionUsd] =
     await Promise.all([
