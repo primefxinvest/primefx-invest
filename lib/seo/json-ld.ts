@@ -37,11 +37,13 @@ export function websiteJsonLd() {
   }
 }
 
-export function faqPageJsonLd() {
+export function faqPageJsonLd(
+  items: ReadonlyArray<{ question: string; answer: string }> = LANDING_FAQS
+) {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: LANDING_FAQS.map((item) => ({
+    mainEntity: items.map((item) => ({
       '@type': 'Question',
       name: item.question,
       acceptedAnswer: {

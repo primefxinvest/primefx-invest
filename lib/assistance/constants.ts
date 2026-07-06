@@ -36,3 +36,9 @@ export const ALLOWED_ATTACHMENT_TYPES = [
   'image/gif',
   'application/pdf',
 ]
+
+export const AGENT_JOIN_MESSAGE =
+  'PrimeFx Support Specialist joined the conversation.'
+
+export const REALTIME_POLL_INTERVAL_MS = 3000
+export const REALTIME_RECONNECT_DELAY_MS = 2000

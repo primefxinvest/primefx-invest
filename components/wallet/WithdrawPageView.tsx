@@ -31,7 +31,10 @@ import {
 import { initiateWithdrawal } from '@/lib/wallet/actions'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
-import { calculateWithdrawalFee } from '@/lib/fees/constants'
+import {
+  calculateDisplayWithdrawalReceive,
+  formatDisplayFeeUsd,
+} from '@/lib/fees/display'
 import { pageStackClass, sectionStackClass } from '@/lib/layout/spacing'
 import { cn } from '@/lib/utils'
 
@@ -116,12 +119,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
   const minWithdrawal = INVESTOR_RULES.financial.minimumWithdrawal
   const withdrawBlocked = kyc.loading || kyc.fetchError || !kyc.verified || !cryptoWithdrawalsEnabled
 
-  const selectedNetwork = getNetworksForAsset(assetId, availableApiCurrencies).find(
-    (n) => n.id === networkId
-  )
-  const networkFee = selectedNetwork?.estimatedFeeUsd ?? 0
-  const { fee: platformFee, netAmount } = calculateWithdrawalFee(amountNum)
-  const youWillReceive = Math.max(0, Math.round((netAmount - networkFee) * 100) / 100)
+  const displayFees = calculateDisplayWithdrawalReceive(amountNum, networkId)
 
   const recentWithdrawals = useMemo(
     () =>
@@ -210,7 +208,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
   }
 
   return (
-    <div className={cn('min-w-0 pb-28 md:pb-0', pageStackClass)}>
+    <div className={cn('min-w-0 pb-24 md:pb-0', pageStackClass)}>
       <WalletPageHeader
         title={t('title')}
         description={t('description')}
@@ -234,7 +232,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
         errorTitle={t('loadWalletError')}
         skeleton={<MetricCardsSkeleton count={4} />}
       >
-        <div className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-1.5 sm:gap-3 xl:grid-cols-4">
           <WalletStatCard
             compact
             label={tBalances('available')}
@@ -307,9 +305,9 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           <WithdrawSummaryCard
             withdrawalAmount={`$${amountNum > 0 ? amountNum.toFixed(2) : '0.00'}`}
-            networkFee={`$${networkFee.toFixed(2)}`}
-            platformFee={`$${platformFee.toFixed(2)}`}
-            youWillReceive={`$${youWillReceive.toFixed(2)}`}
+            networkFee={formatDisplayFeeUsd(displayFees.networkFeeUsd)}
+            platformFee={formatDisplayFeeUsd(displayFees.platformFeeUsd)}
+            youWillReceive={formatDisplayFeeUsd(displayFees.youWillReceiveUsd)}
             processingTime={t('processingTimeRange')}
           />
 

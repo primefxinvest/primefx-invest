@@ -93,11 +93,11 @@ export const MOTION_VARIANTS = {
 /** Card hover — max scale 1.02 per design spec */
 export const CARD_HOVER = {
   y: -2,
-  scale: 1.01,
+  scale: 1.02,
   transition: { duration: MOTION_DURATION.fast, ease: MOTION_EASING.out },
 }
 
 export const CARD_TAP = {
-  scale: 0.99,
+  scale: 0.98,
   transition: { duration: MOTION_DURATION.instant },
 }

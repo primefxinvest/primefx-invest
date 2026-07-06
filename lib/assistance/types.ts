@@ -23,11 +23,21 @@ export interface AssistanceAttachment {
   size: number
 }
 
+export type DeliveryStatus = 'sending' | 'sent' | 'delivered' | 'read'
+
 export interface AssistanceMessageMeta {
   attachments?: AssistanceAttachment[]
-  readAt?: string
+  readAt?: string | null
+  deliveredAt?: string | null
+  sentAt?: string | null
+  deliveryStatus?: DeliveryStatus
   escalationSuggested?: boolean
   escalationReason?: string
+  agentId?: string
+  agentName?: string
+  ticketId?: string | null
+  eventType?: 'agent_join'
+  joinedAt?: string
 }
 
 export interface AssistanceMessage {

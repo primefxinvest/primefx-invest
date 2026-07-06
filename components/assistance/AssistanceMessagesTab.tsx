@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import {
   Check,
   CheckCheck,
@@ -17,22 +17,59 @@ import { TypewriterText } from '@/components/chat/TypewriterText'
 import type { AssistanceChatState } from '@/lib/hooks/useAssistanceChat'
 import { useTypewriter } from '@/lib/hooks/useTypewriter'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
+import { formatDateTime } from '@/lib/data/format'
 import { cn } from '@/lib/utils'
 
-function formatTime(date = new Date()) {
-  return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+function DeliveryStatusIcon({ status }: { status?: string }) {
+  if (status === 'sending') {
+    return (
+      <span className="text-[10px] text-muted-foreground" aria-label="Sending">
+        Sending…
+      </span>
+    )
+  }
+  if (status === 'read') {
+    return <CheckCheck className="h-3 w-3 text-primary" aria-label="Read" />
+  }
+  if (status === 'delivered') {
+    return <CheckCheck className="h-3 w-3 text-primary/60" aria-label="Delivered" />
+  }
+  return <Check className="h-3 w-3 text-primary/60" aria-label="Sent" />
 }
 
-function MessageTimestamp({ index, total }: { index: number; total: number }) {
-  const [time, setTime] = useState('')
-  useEffect(() => {
-    setTime(formatTime(new Date(Date.now() - (total - index) * 60_000)))
-  }, [index, total])
+function AgentJoinCard({
+  joinedAt,
+  agentName,
+}: {
+  joinedAt?: string
+  agentName?: string
+}) {
+  const t = useTranslations('assistance')
   return (
-    <span className="flex items-center gap-1 px-1 text-[10px] tabular-nums text-muted-foreground">
-      {time}
-      <CheckCheck className="h-3 w-3 text-primary/60" aria-hidden />
-    </span>
+    <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/60 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+      <div className="flex items-start gap-3">
+        <div className="relative">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-600 shadow-sm">
+            <Headphones className="h-4 w-4 text-white" aria-hidden />
+          </div>
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 rounded-full border-2 border-emerald-50 bg-emerald-500 dark:border-emerald-950" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-foreground">{t('humanTitle')}</p>
+          <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+            {t('agentOnline')}
+          </p>
+          {agentName ? (
+            <p className="text-[10px] text-muted-foreground">{agentName}</p>
+          ) : null}
+          {joinedAt ? (
+            <p className="mt-1 text-[10px] tabular-nums text-muted-foreground">
+              Joined at {formatDateTime(joinedAt)}
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -71,6 +108,10 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
     handleFileSelect,
     setEscalationSuggested,
     setEscalationReason,
+    agentJoined,
+    agentPresence,
+    agentTyping,
+    hasAgentReply,
   } = chat
 
   const showIntro = !hasConversationHistory && userMessageCount === 0 && !sessionLoading
@@ -80,9 +121,13 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
     speed: 16,
   })
 
+  const agentJoinMessage = messages.find(
+    (m) => m.role === 'system' && m.metadata?.eventType === 'agent_join'
+  )
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isLoading, escalationSuggested, intro.displayed])
+  }, [messages, isLoading, escalationSuggested, intro.displayed, agentTyping])
 
   useEffect(() => {
     const el = textareaRef.current
@@ -121,6 +166,13 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
               </div>
             ) : null}
 
+            {agentJoinMessage || (agentJoined && hasAgentReply) ? (
+              <AgentJoinCard
+                joinedAt={agentJoinMessage?.metadata?.joinedAt ?? agentPresence?.joinedAt}
+                agentName={agentJoinMessage?.metadata?.agentName ?? agentPresence?.displayName}
+              />
+            ) : null}
+
             {messages.map((message, index) => {
               const isUser = message.role === 'user'
               const isAgent = message.role === 'agent'
@@ -129,6 +181,7 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
               if (!text) return null
 
               if (isSystem) {
+                if (message.metadata?.eventType === 'agent_join') return null
                 return (
                   <div key={message.id} className="flex justify-center px-2">
                     <p className="rounded-full bg-emerald-50 px-3 py-1.5 text-center text-[11px] font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
@@ -200,7 +253,14 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
                         />
                       ) : null}
                     </div>
-                    <MessageTimestamp index={index} total={messages.length} />
+                    <span className="flex items-center gap-1 px-1 text-[10px] tabular-nums text-muted-foreground">
+                      {message.createdAt
+                        ? formatDateTime(message.createdAt)
+                        : null}
+                      {isUser ? (
+                        <DeliveryStatusIcon status={message.deliveryStatus} />
+                      ) : null}
+                    </span>
                   </div>
                 </div>
               )
@@ -208,6 +268,10 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
 
             {isLoading && !intro.isDelaying ? (
               <ChatTypingIndicator label={t('typing')} compact />
+            ) : null}
+
+            {agentTyping ? (
+              <ChatTypingIndicator label={`${t('humanTitle')} is typing…`} compact />
             ) : null}
 
             {escalationSuggested && sessionData?.status !== 'escalated' ? (
@@ -257,7 +321,7 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
               </div>
             ) : null}
 
-            {sessionData?.status === 'escalated' && humanConnected && !chat.hasAgentReply ? (
+            {sessionData?.status === 'escalated' && humanConnected && !hasAgentReply ? (
               <div className="rounded-xl border border-border bg-muted/40 p-3 text-center">
                 <div className="mx-auto mb-2 flex items-center justify-center gap-2">
                   <span className="relative flex h-2 w-2">

@@ -340,6 +340,7 @@
     "profile": "Profile",
     "settings": "Settings",
     "about": "About",
+    "howPrimefxWorks": "How PrimeFx Works",
     "legal": "Legal",
     "logout": "Log out",
     "overview": "Overview",
@@ -364,6 +365,7 @@
     "marketInsights": "Market Insights",
     "community": "Community",
     "support": "Support",
+    "howPrimefxWorks": "How PrimeFx Works",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "hero": {
@@ -378,6 +380,7 @@
       "featureGlobal": "Global Access",
       "ctaStart": "Open Investor Account",
       "ctaDashboard": "Go to Dashboard",
+      "ctaHowItWorks": "How PrimeFx Invest Works",
       "ctaWatch": "Watch How It Works",
       "trustedBy": "Trusted by {count} investors worldwide",
       "reviews": "({count} Reviews)",
@@ -594,13 +597,23 @@
       "product": "Product",
       "company": "Company",
       "legal": "Legal",
+      "support": "Support",
       "features": "Features",
       "pricing": "Pricing",
       "security": "Security",
       "about": "About",
+      "aboutPrimefx": "About PrimeFx",
+      "careers": "Careers",
       "contact": "Contact",
       "privacy": "Privacy",
       "terms": "Terms",
+      "amlPolicy": "AML Policy",
+      "kycPolicy": "KYC Policy",
+      "riskDisclosure": "Risk Disclosure",
+      "cookiePolicy": "Cookie Policy",
+      "helpCenter": "Help Center",
+      "supportCenter": "Support Center",
+      "faq": "FAQ",
       "legalCenter": "Legal Center",
       "rights": "All rights reserved."
     }
@@ -1214,7 +1227,9 @@
     "contactTitle": "Contact Us",
     "contactDescription": "Get in touch with the PrimeFx Invest support team.",
     "legalTitle": "Legal Center",
-    "legalDescription": "Terms of service, privacy policy, and legal disclosures for PrimeFx Invest."
+    "legalDescription": "Terms of service, privacy policy, and legal disclosures for PrimeFx Invest.",
+    "howPrimefxWorksTitle": "How PrimeFx Invest Works",
+    "howPrimefxWorksDescription": "The complete investor education guide — investing, profits, referrals, deposits, withdrawals, transfers, verification, security, and PrimeAI."
   },
   "dashboard": {
     "welcome": "Welcome back, {name}!",

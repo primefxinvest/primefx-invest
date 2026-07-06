@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
-import { LegalContent } from '@/components/public/LegalContent'
+import { LegalHubContent } from '@/components/public/legal/LegalHubContent'
 import { JsonLd } from '@/components/seo/JsonLd'
 import { webPageJsonLd } from '@/lib/seo/json-ld'
 import { buildPageMetadata } from '@/lib/seo/metadata'
@@ -23,7 +23,7 @@ export default async function LegalPage() {
   return (
     <>
       <JsonLd data={webPageJsonLd({ title, description, path: '/legal' })} />
-      <LegalContent />
+      <LegalHubContent />
     </>
   )
 }

@@ -11,7 +11,7 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { ASSISTANCE_ATTACHMENT_BUCKET, ALLOWED_ATTACHMENT_TYPES, MAX_ATTACHMENT_SIZE } from '@/lib/assistance/constants'
 import { ensureAssistanceStorageBucket } from '@/lib/assistance/storage'
 import { notifyAssistanceAgentReply } from '@/lib/notifications/service'
-import { insertAgentAssistanceMessage } from '@/lib/assistance/mirror-agent-reply'
+import { insertAgentAssistanceMessage, ensureAgentJoinMessage, markUserMessagesDelivered, markMessagesReadByRole } from '@/lib/assistance/mirror-agent-reply'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -63,6 +63,8 @@ export async function adminReplyAssistanceSession(
   if (!mirrored.ok) {
     return { success: false, error: mirrored.error }
   }
+
+  await markUserMessagesDelivered(db, sessionId)
 
   const { data: inserted } = await db
     .from('assistance_messages')
@@ -257,4 +259,108 @@ export async function adminUploadAssistanceAttachment(
     .createSignedUrl(path, 3600)
 
   return { success: true, path, signedUrl: signed?.signedUrl ?? undefined }
+}
+
+export async function adminPollAssistanceMessages(
+  sessionId: string,
+  knownIds: string[]
+): Promise<{
+  success: boolean
+  messages?: ReturnType<typeof mapMessage>[]
+  error?: string
+}> {
+  const context = await getAdminContext()
+  if (!context) return { success: false, error: 'Not authorized.' }
+  assertModuleAccess(context, 'support_tickets')
+
+  const db = getDb()
+  const { data: rows, error } = await db
+    .from('assistance_messages')
+    .select('*')
+    .eq('session_id', sessionId)
+    .order('created_at', { ascending: true })
+
+  if (error) return { success: false, error: error.message }
+
+  const known = new Set(knownIds)
+  const messages = (rows ?? []).map(mapMessage).filter((m) => !known.has(m.id))
+
+  if (messages.some((m) => m.role === 'user')) {
+    await markUserMessagesDelivered(db, sessionId)
+  }
+
+  return { success: true, messages }
+}
+
+export async function adminRecordAgentJoin(
+  sessionId: string
+): Promise<AdminMutationResult & { joined?: boolean; message?: ReturnType<typeof mapMessage> }> {
+  const context = await getAdminContext()
+  if (!context) return { success: false, error: 'Not authorized.' }
+  assertModuleAccess(context, 'support_tickets')
+
+  const db = getDb()
+  const { data: session, error: sessionError } = await db
+    .from('assistance_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .maybeSingle()
+
+  if (sessionError) return { success: false, error: sessionError.message }
+  if (!session) return { success: false, error: 'Session not found.' }
+
+  const result = await ensureAgentJoinMessage(db, {
+    sessionId,
+    agentId: context.userId,
+    agentEmail: context.email,
+  })
+
+  if (!result.ok) return { success: false, error: result.error }
+
+  await markMessagesReadByRole(db, sessionId, 'user')
+
+  let message: ReturnType<typeof mapMessage> | undefined
+  if (result.joined && result.messageId) {
+    const { data: row } = await db
+      .from('assistance_messages')
+      .select('*')
+      .eq('id', result.messageId)
+      .single()
+    if (row) message = mapMessage(row)
+  }
+
+  return { success: true, joined: result.joined, message }
+}
+
+export async function adminMarkSessionMessagesRead(
+  sessionId: string
+): Promise<AdminMutationResult> {
+  const context = await getAdminContext()
+  if (!context) return { success: false, error: 'Not authorized.' }
+  assertModuleAccess(context, 'support_tickets')
+
+  const db = getDb()
+  await markMessagesReadByRole(db, sessionId, 'user')
+  return { success: true }
+}
+
+export async function adminUpdateAgentPresence(
+  isOnline: boolean
+): Promise<AdminMutationResult> {
+  const context = await getAdminContext()
+  if (!context) return { success: false, error: 'Not authorized.' }
+  assertModuleAccess(context, 'support_tickets')
+
+  const db = getDb()
+  const now = new Date().toISOString()
+  const { error } = await db.from('support_agents').upsert({
+    user_id: context.userId,
+    display_name: context.email,
+    is_online: isOnline,
+    last_seen_at: now,
+    updated_at: now,
+  })
+
+  if (error) return { success: false, error: error.message }
+  return { success: true }
 }

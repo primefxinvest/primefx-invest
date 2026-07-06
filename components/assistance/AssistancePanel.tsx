@@ -45,6 +45,8 @@ export function AssistancePanel({
       <AssistanceHeader
         isHumanMode={chat.isHumanMode}
         session={chat.session}
+        agentJoined={chat.agentJoined}
+        agentPresence={chat.agentPresence}
         showBack={activeTab !== 'home'}
         onBack={() => setActiveTab('home')}
         onMinimize={onMinimize}

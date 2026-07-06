@@ -22,6 +22,9 @@ import {
   MAX_ATTACHMENT_SIZE,
 } from '@/lib/assistance/constants'
 import { notifySupportEscalation } from '@/lib/notifications/service'
+import { mirrorUserReplyToTicket } from '@/lib/assistance/mirror-user-reply'
+import { markMessagesReadByRole } from '@/lib/assistance/mirror-agent-reply'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 
 const CONNECTED_MESSAGE =
   'You are now connected to a PrimeFx Support Specialist. A team member will join shortly.'
@@ -157,17 +160,28 @@ export async function saveAssistanceMessage(input: {
   const { supabase, user } = await requireAuthUser()
   if (!user) return { ok: false as const, error: 'Not authenticated' }
 
+  if (input.role === 'agent') {
+    return { ok: false as const, error: 'Not authorized' }
+  }
+
   const content = input.content.trim()
   if (!content) return { ok: false as const, error: 'Message is required' }
 
   const { data: session } = await supabase
     .from('assistance_sessions')
-    .select('id')
+    .select('id, ticket_id, status')
     .eq('id', input.sessionId)
     .eq('user_id', user.id)
     .maybeSingle()
 
   if (!session) return { ok: false as const, error: 'Session not found' }
+
+  const sentAt = new Date().toISOString()
+  const metadata = {
+    ...(input.metadata ?? {}),
+    sentAt,
+    deliveryStatus: 'sent' as const,
+  }
 
   const { data, error } = await supabase
     .from('assistance_messages')
@@ -176,7 +190,7 @@ export async function saveAssistanceMessage(input: {
         session_id: input.sessionId,
         role: input.role,
         content,
-        metadata: input.metadata ?? {},
+        metadata,
       },
     ])
     .select('*')
@@ -186,8 +200,20 @@ export async function saveAssistanceMessage(input: {
 
   await supabase
     .from('assistance_sessions')
-    .update({ updated_at: new Date().toISOString() })
+    .update({ updated_at: sentAt })
     .eq('id', input.sessionId)
+
+  if (input.role === 'user' && session.status === 'escalated' && session.ticket_id) {
+    const adminDb = createAdminSupabaseClient()
+    if (adminDb) {
+      await mirrorUserReplyToTicket(adminDb, {
+        sessionId: input.sessionId,
+        content,
+        userId: user.id,
+        ticketId: String(session.ticket_id),
+      })
+    }
+  }
 
   return { ok: true as const, message: mapMessage(data) }
 }
@@ -438,6 +464,38 @@ export async function pollAssistanceMessages(
   return { ok: true, messages }
 }
 
+export async function pollAssistanceMessageUpdates(
+  sessionId: string,
+  messageIds: string[]
+): Promise<{
+  ok: boolean
+  messages?: AssistanceMessage[]
+  error?: string
+}> {
+  const { supabase, user } = await requireAuthUser()
+  if (!user) return { ok: false, error: 'Not authenticated' }
+  if (!messageIds.length) return { ok: true, messages: [] }
+
+  const { data: session } = await supabase
+    .from('assistance_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!session) return { ok: false, error: 'Session not found' }
+
+  const { data: rows, error } = await supabase
+    .from('assistance_messages')
+    .select('*')
+    .eq('session_id', sessionId)
+    .in('id', messageIds)
+
+  if (error) return { ok: false, error: error.message }
+
+  return { ok: true, messages: (rows ?? []).map(mapMessage) }
+}
+
 export async function updateAssistanceCategory(sessionId: string, category: string) {
   const { supabase, user } = await requireAuthUser()
   if (!user) return { ok: false as const, error: 'Not authenticated' }
@@ -462,4 +520,25 @@ export async function sendEscalatedUserMessage(input: {
     content: input.content,
     metadata: input.attachments?.length ? { attachments: input.attachments } : {},
   })
+}
+
+export async function markAssistanceMessagesRead(sessionId: string) {
+  const { supabase, user } = await requireAuthUser()
+  if (!user) return { ok: false as const, error: 'Not authenticated' }
+
+  const { data: session } = await supabase
+    .from('assistance_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (!session) return { ok: false as const, error: 'Session not found' }
+
+  const adminDb = createAdminSupabaseClient()
+  if (adminDb) {
+    await markMessagesReadByRole(adminDb, sessionId, 'agent')
+  }
+
+  return { ok: true as const }
 }

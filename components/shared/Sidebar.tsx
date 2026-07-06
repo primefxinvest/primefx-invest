@@ -87,6 +87,7 @@ const bottomNavItems = [
   { href: '/notifications', labelKey: 'notifications', icon: Bell },
   { href: '/profile', labelKey: 'profile', icon: User },
   { href: '/settings', labelKey: 'settings', icon: Settings },
+  { href: '/how-primefx-works', labelKey: 'howPrimefxWorks', icon: BookOpen },
   { href: '/about', labelKey: 'about', icon: HelpCircle },
   { href: '/legal', labelKey: 'legal', icon: Scale },
 ] as const

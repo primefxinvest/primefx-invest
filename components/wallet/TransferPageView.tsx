@@ -34,6 +34,10 @@ import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
 import { searchTransferRecipient, submitWalletTransfer } from '@/lib/wallet/actions'
 import type { TransferRecipientMethod } from '@/lib/wallet/types'
 import { calculateP2pTransferFee } from '@/lib/fees/constants'
+import {
+  DISPLAY_INTERNAL_TRANSFER_FEE_USD,
+  formatDisplayFeeUsd,
+} from '@/lib/fees/display'
 import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { TransferConfirmDialog } from '@/components/wallet/transfer/TransferConfirmDialog'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
@@ -444,8 +448,8 @@ export function TransferPageView() {
                         {transferAmount >= 5 ? (
                           <p className="mt-1 text-xs text-gray-500">
                             {t('totalDebit', {
-                              total: transferFees.senderTotal.toFixed(2),
-                              fee: transferFees.fee.toFixed(2),
+                              total: transferAmount.toFixed(2),
+                              fee: DISPLAY_INTERNAL_TRANSFER_FEE_USD.toFixed(2),
                             })}
                           </p>
                         ) : null}
@@ -524,6 +528,11 @@ export function TransferPageView() {
                 <li>{t('maxTransferCondition')}</li>
                 <li>{t('dailyLimitVerified')}</li>
                 <li>{t('dailyLimitUnverified')}</li>
+                <li>
+                  Internal Transfer Fee: {formatDisplayFeeUsd(DISPLAY_INTERNAL_TRANSFER_FEE_USD)}
+                </li>
+                <li>Transfer Speed: Instant</li>
+                <li>Methods: Email Address, PrimeFx ID</li>
               </ul>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
@@ -654,15 +663,15 @@ export function TransferPageView() {
         recipientName={recipientPreview?.fullName || recipientPreview?.email || ''}
         recipientId={recipientPreview?.primeFxId || ''}
         amount={Number(amount).toFixed(2)}
-        fee={transferFees.fee.toFixed(2)}
-        totalDebit={transferFees.senderTotal.toFixed(2)}
+        fee={DISPLAY_INTERNAL_TRANSFER_FEE_USD.toFixed(2)}
+        totalDebit={transferAmount.toFixed(2)}
         message={message.trim() || undefined}
       />
 
       <div className={cn('grid grid-cols-2 lg:grid-cols-4', gridGapClass)}>
         {[
           { icon: Zap, label: t('featureInstant') },
-          { icon: Send, label: t('featureFee') },
+          { icon: Send, label: `Transfer Fee: ${formatDisplayFeeUsd(DISPLAY_INTERNAL_TRANSFER_FEE_USD)}` },
           { icon: Shield, label: t('featureSecure') },
           { icon: Clock, label: t('featureSupport') },
         ].map((item) => (

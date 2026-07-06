@@ -83,6 +83,7 @@ export default function LandingNav() {
     { href: '/', label: t('home') },
     { href: '/invest', label: t('invest') },
     { href: '/about', label: t('aboutUs') },
+    { href: '/how-primefx-works', label: t('howPrimefxWorks') },
     { href: '/academy', label: t('academy') },
     { href: '/market-insights', label: t('marketInsights') },
     { href: '/support', label: t('support') },

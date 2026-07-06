@@ -6,7 +6,20 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/about', '/contact', '/legal', '/signup'],
+        allow: [
+          '/',
+          '/about',
+          '/how-primefx-works',
+          '/contact',
+          '/legal',
+          '/terms',
+          '/privacy',
+          '/risk-disclosure',
+          '/cookies',
+          '/aml-policy',
+          '/kyc-policy',
+          '/signup',
+        ],
         disallow: [
           '/admin',
           '/dashboard',

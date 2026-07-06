@@ -15,7 +15,11 @@ import { CryptoAssetIcon, NetworkBadge } from '@/components/wallet/withdraw/Cryp
 import { WithdrawReviewDialog } from '@/components/wallet/withdraw/WithdrawReviewDialog'
 import { dashboardCardClass } from '@/lib/layout/surfaces'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
-import { calculateWithdrawalFee } from '@/lib/fees/constants'
+import {
+  calculateDisplayWithdrawalReceive,
+  formatDisplayFeeUsd,
+  getDisplayNetworkFeeUsd,
+} from '@/lib/fees/display'
 import {
   getNetworksForAsset,
   validateWithdrawAddress,
@@ -109,9 +113,8 @@ export function WithdrawFormCard({
   }, [networks, networkId, onNetworkChange])
 
   const addressValidation = validateWithdrawAddress(address, selectedNetwork)
-  const { fee: platformFee, netAmount } = calculateWithdrawalFee(amountNum)
-  const networkFee = selectedNetwork?.estimatedFeeUsd ?? 0
-  const youWillReceive = Math.max(0, Math.round((netAmount - networkFee) * 100) / 100)
+  const displayFees = calculateDisplayWithdrawalReceive(amountNum, networkId)
+  const youWillReceive = displayFees.youWillReceiveUsd
 
   const amountError =
     amountNum > 0 && amountNum < minWithdrawal
@@ -244,7 +247,8 @@ export function WithdrawFormCard({
                             <NetworkBadge label={network.badge} />
                           </div>
                           <p className="mt-0.5 text-xs text-muted-foreground">
-                            {t('estimatedNetworkFee')}: ${network.estimatedFeeUsd.toFixed(2)}
+                            {t('estimatedNetworkFee')}:{' '}
+                            {formatDisplayFeeUsd(getDisplayNetworkFeeUsd(network.id))}
                           </p>
                         </div>
                       </div>
@@ -375,8 +379,8 @@ export function WithdrawFormCard({
               </p>
               <p className="mt-1 text-[11px] text-muted-foreground">
                 {t('feeBreakdown', {
-                  platform: `$${platformFee.toFixed(2)}`,
-                  network: `$${networkFee.toFixed(2)}`,
+                  platform: formatDisplayFeeUsd(displayFees.platformFeeUsd),
+                  network: formatDisplayFeeUsd(displayFees.networkFeeUsd),
                 })}
               </p>
             </div>
@@ -415,7 +419,7 @@ export function WithdrawFormCard({
       </div>
 
       {/* Mobile sticky CTA */}
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-card/95 p-4 backdrop-blur sm:hidden">
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom,0px))] z-30 border-t border-border bg-card/95 p-3 backdrop-blur sm:hidden">
         <button
           type="button"
           onClick={(e) => {
@@ -442,9 +446,9 @@ export function WithdrawFormCard({
         networkBadge={selectedNetwork?.badge ?? ''}
         address={address.trim()}
         amountUsd={`$${amountNum.toFixed(2)}`}
-        networkFee={`$${networkFee.toFixed(2)}`}
-        platformFee={`$${platformFee.toFixed(2)}`}
-        youWillReceive={`$${youWillReceive.toFixed(2)}`}
+        networkFee={formatDisplayFeeUsd(displayFees.networkFeeUsd)}
+        platformFee={formatDisplayFeeUsd(displayFees.platformFeeUsd)}
+        youWillReceive={formatDisplayFeeUsd(displayFees.youWillReceiveUsd)}
         processingTime={t('processingTimeRange')}
       />
     </>

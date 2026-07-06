@@ -3,8 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { m } from 'framer-motion'
 import { Link, usePathname } from '@/i18n/navigation'
-import { Home, Menu, PieChart, TrendingUp, Wallet } from 'lucide-react'
-import { useMobileNav } from '@/components/shared/MobileNavContext'
+import { Home, PieChart, TrendingUp, Wallet } from 'lucide-react'
 import { CARD_TAP } from '@/lib/motion/tokens'
 import { useReducedMotion } from '@/lib/motion/use-reduced-motion'
 import { cn } from '@/lib/utils'
@@ -19,7 +18,6 @@ const primaryItems = [
 export default function MobileBottomNav() {
   const t = useTranslations('sidebar')
   const pathname = usePathname()
-  const { toggle } = useMobileNav()
   const reducedMotion = useReducedMotion()
   const TapWrapper = reducedMotion ? 'div' : m.div
 
@@ -28,7 +26,7 @@ export default function MobileBottomNav() {
       aria-label={t('mobileNav')}
       className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom,0px)] backdrop-blur-md md:hidden"
     >
-      <div className="mx-auto grid h-16 max-w-lg grid-cols-5 px-1">
+      <div className="mx-auto grid h-14 max-w-lg grid-cols-4 px-1">
         {primaryItems.map((item) => {
           const Icon = item.icon
           const active =
@@ -42,35 +40,21 @@ export default function MobileBottomNav() {
                 href={item.href}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'relative flex min-h-11 min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-medium transition-colors',
-                  active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+                  'flex min-h-11 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] transition-colors',
+                  active
+                    ? 'font-semibold text-[#0052ff]'
+                    : 'font-medium text-muted-foreground hover:text-foreground'
                 )}
               >
-              {active ? (
-                <span
-                  className="absolute inset-x-2 top-1 h-0.5 rounded-full bg-primary"
+                <Icon
+                  className={cn('h-5 w-5 shrink-0', active ? 'text-[#0052ff] stroke-[2.25]' : 'text-gray-400')}
                   aria-hidden
                 />
-              ) : null}
-              <Icon className={cn('h-5 w-5 shrink-0', active && 'stroke-[2.25]')} aria-hidden />
-              <span className="max-w-full truncate">{t(item.labelKey)}</span>
+                <span className="max-w-full truncate">{t(item.labelKey)}</span>
               </Link>
             </TapWrapper>
           )
         })}
-
-        <TapWrapper whileTap={reducedMotion ? undefined : CARD_TAP}>
-          <button
-            type="button"
-            onClick={toggle}
-            aria-label={t('openMenu')}
-            aria-haspopup="dialog"
-            className="flex min-h-11 min-w-0 w-full flex-col items-center justify-center gap-1 rounded-lg px-1 text-[10px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Menu className="h-5 w-5 shrink-0" aria-hidden />
-            <span className="max-w-full truncate">{t('more')}</span>
-          </button>
-        </TapWrapper>
       </div>
     </nav>
   )

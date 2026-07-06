@@ -32,4 +32,4 @@ export const sectionHeaderMbClass = 'mb-4'
 
 /** Bottom safe area when mobile nav is visible. */
 export const mobileNavBottomPadClass =
-  'pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] md:pb-0'
+  'pb-[calc(3.75rem+env(safe-area-inset-bottom,0px))] md:pb-0'

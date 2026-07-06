@@ -2,27 +2,55 @@
 
 import { ChevronLeft, Headphones, Minus, Sparkles, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import type { PresenceState } from '@/lib/assistance/presence'
 import { cn } from '@/lib/utils'
 import type { AssistanceSession } from '@/lib/assistance/types'
 
 type AssistanceHeaderProps = {
   isHumanMode: boolean
   session: AssistanceSession | null
+  agentJoined?: boolean
+  agentPresence?: PresenceState | null
   showBack?: boolean
   onBack?: () => void
   onMinimize: () => void
   onClose: () => void
 }
 
+function presenceLabel(presence?: PresenceState | null) {
+  if (!presence) return null
+  if (presence.status === 'online') return 'Online now'
+  if (presence.status === 'away') return 'Away'
+  return 'Offline'
+}
+
 export function AssistanceHeader({
   isHumanMode,
   session,
+  agentJoined,
+  agentPresence,
   showBack,
   onBack,
   onMinimize,
   onClose,
 }: AssistanceHeaderProps) {
   const t = useTranslations('assistance')
+
+  const showAgentOnline = isHumanMode && (agentJoined || agentPresence?.status === 'online')
+  const presenceText = isHumanMode
+    ? agentPresence
+      ? presenceLabel(agentPresence)
+      : agentJoined
+        ? 'Online now'
+        : t('escalation.waiting')
+    : t('statusOnline')
+
+  const dotColor =
+    agentPresence?.status === 'away'
+      ? 'bg-amber-400'
+      : showAgentOnline
+        ? 'bg-emerald-400'
+        : 'bg-muted-foreground/50'
 
   return (
     <header className="relative shrink-0 overflow-hidden">
@@ -94,10 +122,15 @@ export function AssistanceHeader({
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 text-[10px] font-semibold text-white ring-1 ring-white/20 backdrop-blur-sm">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-70" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              {showAgentOnline ? (
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-300 opacity-70" />
+              ) : null}
+              <span className={cn('relative inline-flex h-2 w-2 rounded-full', dotColor)} />
             </span>
             {isHumanMode ? t('agentOnline') : t('statusOnline')}
+            {isHumanMode && presenceText ? (
+              <span className="font-normal text-white/80">· {presenceText}</span>
+            ) : null}
           </span>
           {session?.ticketNumber ? (
             <span className="rounded-full bg-white/10 px-2.5 py-1 font-mono text-[10px] text-white/90 ring-1 ring-white/15">

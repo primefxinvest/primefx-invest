@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import { AdminServiceRoleBanner } from '@/components/admin/AdminServiceRoleBanner'
 import { AdminSupportSessionChat } from '@/components/admin/AdminSupportSessionChat'
-import { requireAdminModule } from '@/lib/admin/auth'
+import { requireAdminModule, getAdminContext } from '@/lib/admin/auth'
 import { getAdminAssistanceSessionDetail } from '@/lib/admin/queries'
 import { withAdminData } from '@/lib/admin/safe-query'
 
@@ -41,5 +41,19 @@ export default async function AdminSupportSessionPage({
     notFound()
   }
 
-  return <AdminSupportSessionChat session={data.session} initialMessages={data.messages} />
+  const adminContext = await getAdminContext()
+  if (!adminContext) {
+    notFound()
+  }
+
+  return (
+    <AdminSupportSessionChat
+      session={{
+        ...data.session,
+        agentUserId: adminContext.userId,
+        agentEmail: adminContext.email,
+      }}
+      initialMessages={data.messages}
+    />
+  )
 }

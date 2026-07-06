@@ -65,7 +65,14 @@ export function absoluteUrl(path = '/'): string {
 export const PUBLIC_INDEXABLE_ROUTES = [
   { path: '/', changeFrequency: 'weekly' as const, priority: 1 },
   { path: '/about', changeFrequency: 'monthly' as const, priority: 0.8 },
+  { path: '/how-primefx-works', changeFrequency: 'monthly' as const, priority: 0.85 },
   { path: '/contact', changeFrequency: 'monthly' as const, priority: 0.7 },
   { path: '/legal', changeFrequency: 'monthly' as const, priority: 0.6 },
+  { path: '/terms', changeFrequency: 'monthly' as const, priority: 0.55 },
+  { path: '/privacy', changeFrequency: 'monthly' as const, priority: 0.55 },
+  { path: '/risk-disclosure', changeFrequency: 'monthly' as const, priority: 0.55 },
+  { path: '/cookies', changeFrequency: 'monthly' as const, priority: 0.5 },
+  { path: '/aml-policy', changeFrequency: 'monthly' as const, priority: 0.5 },
+  { path: '/kyc-policy', changeFrequency: 'monthly' as const, priority: 0.5 },
   { path: '/signup', changeFrequency: 'monthly' as const, priority: 0.9 },
 ]

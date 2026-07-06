@@ -3,7 +3,11 @@
 import { CheckCircle2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
-import { PLATFORM_FEE_RATES, WITHDRAWAL_NOTICE_DAYS } from '@/lib/fees/constants'
+import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/fees/constants'
+import {
+  DISPLAY_PLATFORM_WITHDRAWAL_FEE_USD,
+  formatDisplayFeeUsd,
+} from '@/lib/fees/display'
 import { dashboardCardClass, dashboardSectionTitleClass } from '@/lib/layout/surfaces'
 import { cn } from '@/lib/utils'
 
@@ -32,12 +36,11 @@ export function WithdrawLimitsCard({
   const dailyPct = Math.min(100, Math.round((dailyUsed / dailyMax) * 100))
   const monthlyPct = Math.min(100, Math.round((monthlyUsed / monthlyMax) * 100))
   const minWithdrawal = INVESTOR_RULES.financial.minimumWithdrawal
-  const feePercent = (PLATFORM_FEE_RATES.withdrawal * 100).toFixed(0)
 
   const rules = [
     { label: t('limitsMin'), value: `$${minWithdrawal.toFixed(2)}` },
     { label: t('limitsMax'), value: `$${MAX_WITHDRAWAL_PER_TX.toLocaleString('en-US', { minimumFractionDigits: 2 })}` },
-    { label: t('limitsFee'), value: `${feePercent}%` },
+    { label: t('limitsFee'), value: formatDisplayFeeUsd(DISPLAY_PLATFORM_WITHDRAWAL_FEE_USD) },
     { label: t('limitsProcessing'), value: t('processingTimeRange') },
     { label: t('limitsNotice'), value: `${WITHDRAWAL_NOTICE_DAYS} ${t('days')}` },
   ]

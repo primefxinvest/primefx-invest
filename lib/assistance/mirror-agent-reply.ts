@@ -1,6 +1,7 @@
 import 'server-only'
 
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { AGENT_JOIN_MESSAGE } from '@/lib/assistance/constants'
 
 type MirrorAgentReplyInput = {
   sessionId: string
@@ -10,6 +11,71 @@ type MirrorAgentReplyInput = {
   ticketId?: string
 }
 
+type EnsureAgentJoinInput = {
+  sessionId: string
+  agentId: string
+  agentEmail: string
+}
+
+export async function ensureAgentJoinMessage(
+  db: SupabaseClient,
+  input: EnsureAgentJoinInput
+): Promise<{ ok: true; joined: boolean; messageId?: string } | { ok: false; error: string }> {
+  const { data: existing } = await db
+    .from('assistance_messages')
+    .select('id')
+    .eq('session_id', input.sessionId)
+    .eq('role', 'system')
+    .filter('metadata->>eventType', 'eq', 'agent_join')
+    .limit(1)
+    .maybeSingle()
+
+  if (existing?.id) {
+    return { ok: true, joined: false }
+  }
+
+  const joinedAt = new Date().toISOString()
+  const { data: inserted, error } = await db
+    .from('assistance_messages')
+    .insert({
+      session_id: input.sessionId,
+      role: 'system',
+      content: AGENT_JOIN_MESSAGE,
+      metadata: {
+        eventType: 'agent_join',
+        agentId: input.agentId,
+        agentName: input.agentEmail,
+        joinedAt,
+      },
+    })
+    .select('id')
+    .single()
+
+  if (error || !inserted) {
+    return { ok: false, error: error?.message ?? 'Failed to record agent join' }
+  }
+
+  await db
+    .from('assistance_sessions')
+    .update({
+      assigned_agent_id: input.agentId,
+      updated_at: joinedAt,
+    })
+    .eq('id', input.sessionId)
+
+  await db
+    .from('support_agents')
+    .upsert({
+      user_id: input.agentId,
+      display_name: input.agentEmail,
+      is_online: true,
+      last_seen_at: joinedAt,
+      updated_at: joinedAt,
+    })
+
+  return { ok: true, joined: true, messageId: String(inserted.id) }
+}
+
 export async function insertAgentAssistanceMessage(
   db: SupabaseClient,
   input: MirrorAgentReplyInput
@@ -17,6 +83,16 @@ export async function insertAgentAssistanceMessage(
   const body = input.content.trim()
   if (!body) return { ok: false, error: 'Message is required' }
 
+  const joinResult = await ensureAgentJoinMessage(db, {
+    sessionId: input.sessionId,
+    agentId: input.agentId,
+    agentEmail: input.agentEmail,
+  })
+  if (!joinResult.ok) {
+    return { ok: false, error: joinResult.error }
+  }
+
+  const sentAt = new Date().toISOString()
   const { data: inserted, error: insertError } = await db
     .from('assistance_messages')
     .insert({
@@ -27,6 +103,9 @@ export async function insertAgentAssistanceMessage(
         agentId: input.agentId,
         agentName: input.agentEmail,
         readAt: null,
+        deliveredAt: sentAt,
+        sentAt,
+        deliveryStatus: 'sent',
         ticketId: input.ticketId ?? null,
       },
     })
@@ -34,27 +113,14 @@ export async function insertAgentAssistanceMessage(
     .single()
 
   if (insertError || !inserted) {
-    console.error('[ADMIN_MESSAGE_CREATED] failed', {
-      sessionId: input.sessionId,
-      ticketId: input.ticketId,
-      error: insertError?.message,
-    })
     return { ok: false, error: insertError?.message ?? 'Failed to insert agent message' }
   }
-
-  console.log('[ADMIN_MESSAGE_CREATED]', {
-    messageId: inserted.id,
-    sessionId: inserted.session_id,
-    role: inserted.role,
-    ticketId: input.ticketId ?? null,
-    createdAt: inserted.created_at,
-  })
 
   await db
     .from('assistance_sessions')
     .update({
       assigned_agent_id: input.agentId,
-      updated_at: new Date().toISOString(),
+      updated_at: sentAt,
     })
     .eq('id', input.sessionId)
 
@@ -76,4 +142,68 @@ export async function resolveAssistanceSessionIdForTicket(
     .maybeSingle()
 
   return session?.id ? String(session.id) : null
+}
+
+export async function markUserMessagesDelivered(
+  db: SupabaseClient,
+  sessionId: string,
+  messageIds?: string[]
+): Promise<void> {
+  const deliveredAt = new Date().toISOString()
+
+  let query = db
+    .from('assistance_messages')
+    .select('id, metadata')
+    .eq('session_id', sessionId)
+    .eq('role', 'user')
+
+  if (messageIds?.length) {
+    query = query.in('id', messageIds)
+  }
+
+  const { data: rows } = await query
+
+  for (const row of rows ?? []) {
+    const meta = (row.metadata as Record<string, unknown>) ?? {}
+    if (meta.deliveredAt) continue
+    await db
+      .from('assistance_messages')
+      .update({
+        metadata: {
+          ...meta,
+          deliveredAt,
+          deliveryStatus: 'delivered',
+        },
+      })
+      .eq('id', row.id)
+  }
+}
+
+export async function markMessagesReadByRole(
+  db: SupabaseClient,
+  sessionId: string,
+  targetRole: 'user' | 'agent'
+): Promise<void> {
+  const readAt = new Date().toISOString()
+
+  const { data: rows } = await db
+    .from('assistance_messages')
+    .select('id, metadata')
+    .eq('session_id', sessionId)
+    .eq('role', targetRole)
+
+  for (const row of rows ?? []) {
+    const meta = (row.metadata as Record<string, unknown>) ?? {}
+    if (meta.readAt) continue
+    await db
+      .from('assistance_messages')
+      .update({
+        metadata: {
+          ...meta,
+          readAt,
+          deliveryStatus: 'read',
+        },
+      })
+      .eq('id', row.id)
+  }
 }

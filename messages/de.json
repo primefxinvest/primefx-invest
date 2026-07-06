@@ -159,7 +159,54 @@
     "loadStatusTitle": "Verifizierungsstatus konnte nicht geladen werden",
     "bulletId": "Ein amtlicher Ausweis und eine kurze Lebendigkeitserkennung können erforderlich sein.",
     "bulletRedirect": "Sie werden zum sicheren Verifizierungsportal von Didit weitergeleitet.",
-    "bulletAutoUpdate": "Wir aktualisieren Ihr Konto automatisch, wenn die Verifizierung abgeschlossen ist."
+    "bulletAutoUpdate": "Wir aktualisieren Ihr Konto automatisch, wenn die Verifizierung abgeschlossen ist.",
+    "cardRequiredTitle": "Identity Verification Required",
+    "cardRequiredDescription": "Verify your identity to unlock the full PrimeFx experience and access all financial features.",
+    "cardVerifiedTitle": "Identity Verified",
+    "cardVerifiedDescription": "Your identity has been verified successfully. Your account is fully unlocked.",
+    "cardPendingTitle": "Verification In Progress",
+    "cardPendingDescription": "Your documents are currently being reviewed. This usually takes just a few minutes.",
+    "cardInProgressTitle": "Verification In Progress",
+    "cardInProgressDescription": "Complete your identity verification to unlock deposits, withdrawals, transfers, and investments.",
+    "cardDeclinedTitle": "Verification Failed",
+    "cardDeclinedDescription": "We could not verify your identity. Please review the details below and try again.",
+    "cardExpiredTitle": "Verification Session Expired",
+    "cardExpiredDescription": "Your verification session has expired. Start a new session to continue.",
+    "badgeVerified": "Verified",
+    "badgePendingReview": "Pending Review",
+    "badgeInProgress": "In Progress",
+    "badgeDeclined": "Declined",
+    "badgeExpired": "Expired",
+    "badgeRequired": "Required",
+    "estimatedReviewTime": "Estimated review time: 1–5 minutes",
+    "verifiedOnLabel": "Verified on",
+    "declineReasonLabel": "Reason",
+    "providerLabel": "Verification provider",
+    "providerName": "Didit Identity Verification",
+    "securityLevelLabel": "Security level",
+    "securityLevelVerified": "Verified Account",
+    "viewVerificationDetails": "View Verification Details",
+    "unlockedFeaturesTitle": "You now have access to",
+    "callbackCheckingTitle": "Checking verification status",
+    "callbackCheckingDescription": "Please wait while we confirm your identity verification.",
+    "callbackSyncing": "Syncing with PrimeFx",
+    "callbackSuccessTitle": "Identity Verified Successfully",
+    "callbackSuccessDescription": "Your identity has been verified successfully. Welcome to PrimeFx.",
+    "callbackRedirecting": "Redirecting in {seconds}s…",
+    "callbackContinue": "Continue to Dashboard",
+    "callbackContinueProfile": "Continue to Profile",
+    "unlock": {
+      "deposits": "Deposits",
+      "withdrawals": "Withdrawals",
+      "transfers": "Transfers",
+      "investments": "Investments"
+    },
+    "progress": {
+      "start": "Start",
+      "verify": "Verify",
+      "review": "Review",
+      "complete": "Complete"
+    }
   },
   "primeaiChat": {
     "unavailableTitle": "PrimeAI ist derzeit nicht verfügbar",
@@ -307,7 +354,8 @@
     "more": "Mehr",
     "openMenu": "Menü öffnen",
     "upgradeNow": "Jetzt upgraden",
-    "upgradeTo": "Upgrade auf {tier}"
+    "upgradeTo": "Upgrade auf {tier}",
+    "howPrimefxWorks": "How PrimeFx Works"
   },
   "landing": {
     "home": "Startseite",
@@ -338,7 +386,8 @@
       "statAum": "Assets Under Management",
       "statReturns": "Average Annual Returns",
       "statCountries": "Countries Served",
-      "statSecure": "Secure & Protected"
+      "statSecure": "Secure & Protected",
+      "ctaHowItWorks": "How PrimeFx Invest Works"
     },
     "whyChoose": {
       "eyebrow": "WHY CHOOSE PRIMEAI INVEST?",
@@ -555,8 +604,19 @@
       "privacy": "Privacy",
       "terms": "Terms",
       "legalCenter": "Legal Center",
-      "rights": "All rights reserved."
-    }
+      "rights": "All rights reserved.",
+      "support": "Support",
+      "aboutPrimefx": "About PrimeFx",
+      "careers": "Careers",
+      "amlPolicy": "AML Policy",
+      "kycPolicy": "KYC Policy",
+      "riskDisclosure": "Risk Disclosure",
+      "cookiePolicy": "Cookie Policy",
+      "helpCenter": "Help Center",
+      "supportCenter": "Support Center",
+      "faq": "FAQ"
+    },
+    "howPrimefxWorks": "How PrimeFx Works"
   },
   "navbar": {
     "openMenu": "Navigationsmenü öffnen",
@@ -921,7 +981,12 @@
       "a7": "Teilen Sie Ihren Link unter Empfehlen & Verdienen. Provisionen bei Einzahlungen und Investitionen Ihrer Empfohlenen.",
       "q8": "Wie zahle ich Krypto ein?",
       "a8": "Gehen Sie zu Wallet → Einzahlung, Betrag eingeben und über NOWPayments bezahlen. Gutschrift nach Bestätigung."
-    }
+    },
+    "recentArticles": "Recent articles",
+    "trendingIssues": "Trending issues",
+    "contactSignInTitle": "Sign in for live support",
+    "contactSignInDesc": "Open Live Chat and manage tickets from your investor dashboard.",
+    "contactSignIn": "Sign in"
   },
   "marketInsightsPage": {
     "title": "Markteinblicke",
@@ -942,7 +1007,9 @@
     "contactTitle": "Kontakt",
     "contactDescription": "Kontaktieren Sie das PrimeFx Invest Support-Team.",
     "legalTitle": "Rechtliches",
-    "legalDescription": "Nutzungsbedingungen, Datenschutz und rechtliche Hinweise für PrimeFx Invest."
+    "legalDescription": "Nutzungsbedingungen, Datenschutz und rechtliche Hinweise für PrimeFx Invest.",
+    "howPrimefxWorksTitle": "How PrimeFx Invest Works",
+    "howPrimefxWorksDescription": "The complete investor education guide — investing, profits, referrals, deposits, withdrawals, transfers, verification, security, and PrimeAI."
   },
   "dashboard": {
     "welcome": "Willkommen zurück, {name}!",
@@ -1724,6 +1791,115 @@
         "marketOutlook": "Market outlook today",
         "explainTerms": "Explain investment terms"
       }
+    }
+  },
+  "emailVerification": {
+    "bannerTitle": "Verify your email address to secure your account and unlock all features.",
+    "bannerDescription": "Check your inbox for the verification link, or resend the email below.",
+    "statusVerified": "Verified",
+    "statusPending": "Pending Verification",
+    "verifyEmail": "Verify Email",
+    "resendEmail": "Resend Verification Email",
+    "resendIn": "Resend in {seconds}s",
+    "resendSuccess": "Verification email sent. Check your inbox.",
+    "resendCooldown": "Please wait {seconds} seconds before resending.",
+    "alreadyVerified": "Your email is already verified.",
+    "verifiedSuccess": "Email verified successfully.",
+    "modalTitle": "Email verification required",
+    "modalDescription": "Please verify your email address before using this feature.",
+    "sectionTitle": "Email Verification",
+    "sectionDescription": "Manage your account email and verification status.",
+    "currentEmail": "Current email",
+    "verificationStatus": "Verification status",
+    "lastSentAt": "Last verification email sent",
+    "changeEmail": "Change email",
+    "changeEmailTitle": "Change email address",
+    "changeEmailDescription": "We will send a confirmation link to your new email address.",
+    "newEmail": "New email address",
+    "changeEmailInvalid": "Enter a valid email address different from your current one.",
+    "changeEmailSuccess": "Confirmation email sent to your new address.",
+    "saveEmail": "Save email",
+    "cancel": "Cancel"
+  },
+  "assistance": {
+    "title": "PrimeFx Assistance",
+    "subtitle": "AI Powered Support • Online 24/7",
+    "humanTitle": "PrimeFx Support Specialist",
+    "humanSubtitle": "Human support • Escalated case",
+    "statusOnline": "Online 24/7",
+    "agentOnline": "Agent Online",
+    "welcomeMessage": "Hi! I'm PrimeFx Assistance, your AI support specialist. I can help with deposits, withdrawals, investments, verification, referrals, security, and more.\n\nI have access to your account context, so ask me anything — for example: \"What's the status of my withdrawal?\"",
+    "typing": "PrimeFx Assistance is typing…",
+    "inputPlaceholder": "Describe your issue…",
+    "send": "Send message",
+    "attach": "Attach screenshot or file",
+    "open": "Open PrimeFx Assistance",
+    "close": "Close support chat",
+    "minimize": "Minimize chat",
+    "ticketLabel": "Ticket",
+    "unavailable": "PrimeFx Assistance is temporarily unavailable. Please try again shortly.",
+    "infrastructureMissing": "Support chat is being set up. Please try again shortly or email support.",
+    "requestFailed": "Could not send your message. Please try again.",
+    "attachmentFailed": "Could not upload attachment",
+    "resolved": "Glad we could help! Chat marked as resolved.",
+    "markResolved": "Mark as resolved",
+    "tabs": {
+      "navLabel": "Support navigation",
+      "home": "Home",
+      "messages": "Messages",
+      "help": "Help"
+    },
+    "home": {
+      "greeting": "Hi {name}, how can we help?",
+      "subtitle": "AI-first support with instant answers. Escalate to a specialist anytime.",
+      "startChat": "Message PrimeFx Assistance",
+      "searchPlaceholder": "Search help articles…",
+      "resumeChat": "Continue conversation",
+      "resumeChatDesc": "Pick up where you left off with PrimeFx Assistance",
+      "quickActionsTitle": "Quick actions",
+      "humanEscalationDesc": "AI couldn't solve it? Connect with a human specialist.",
+      "humanEscalationQuery": "I'd like to speak with a support specialist please."
+    },
+    "help": {
+      "searchPlaceholder": "Search deposits, withdrawals, KYC…",
+      "articleCount": "{count} help articles",
+      "resultsCount": "{count} results",
+      "noResults": "No articles found",
+      "noResultsDesc": "Try different keywords or ask our AI assistant.",
+      "askAi": "Ask PrimeFx Assistance",
+      "stillNeedHelp": "Still need help? Ask AI",
+      "fallbackQuery": "I need help finding information in the help center."
+    },
+    "quickActions": {
+      "depositHelp": "Deposit Help",
+      "withdrawalHelp": "Withdrawal Help",
+      "verifyIdentity": "Verification Help",
+      "investmentHelp": "Investment Help",
+      "referralHelp": "Referral Help",
+      "securityHelp": "Security Help"
+    },
+    "quickActionQueries": {
+      "depositHelp": "I need help with making a deposit. What are the steps and available payment methods?",
+      "withdrawalHelp": "I need help with a withdrawal. Can you check my pending withdrawals and explain the process?",
+      "verifyIdentity": "I need help with identity verification (KYC). What is my current status and what should I do next?",
+      "investmentHelp": "I need help understanding investment plans and how to invest on PrimeFx.",
+      "referralHelp": "I have questions about the referral program, my rank, and commissions.",
+      "securityHelp": "I have a security concern or need help with account protection and 2FA."
+    },
+    "escalation": {
+      "title": "Need more help?",
+      "connect": "Connect to Support Specialist",
+      "issue": "Issue",
+      "amount": "Amount",
+      "reason": "Escalation Reason",
+      "defaultReason": "Manual review required",
+      "userRequested": "User requested human support",
+      "checkedContext": "Checked account context and withdrawal queue",
+      "attemptedResolution": "Attempted automated resolution",
+      "failed": "Could not escalate. Please try again or email support.",
+      "connected": "You are now connected to a PrimeFx Support Specialist.",
+      "success": "Connected to support. Ticket {ticket} created.",
+      "waiting": "A support specialist will respond shortly. Your conversation history has been shared with our team."
     }
   }
 }

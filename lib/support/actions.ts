@@ -2,6 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
+import { resolveAssistanceSessionIdForTicket } from '@/lib/assistance/mirror-agent-reply'
 
 export async function submitSupportTicket(input: {
   subject: string
@@ -59,7 +61,7 @@ export async function replyToSupportTicket(ticketId: string, message: string) {
 
   const { data: ticket, error: ticketError } = await supabase
     .from('support_tickets')
-    .select('id, status')
+    .select('id, status, assistance_session_id')
     .eq('id', ticketId)
     .eq('user_id', user.id)
     .maybeSingle()
@@ -90,6 +92,30 @@ export async function replyToSupportTicket(ticketId: string, message: string) {
     .from('support_tickets')
     .update({ updated_at: new Date().toISOString() })
     .eq('id', ticketId)
+
+  const adminDb = createAdminSupabaseClient()
+  if (adminDb) {
+    const sessionId = await resolveAssistanceSessionIdForTicket(adminDb, {
+      id: ticketId,
+      assistance_session_id: (ticket.assistance_session_id as string) ?? null,
+    })
+    if (sessionId) {
+      await adminDb.from('assistance_messages').insert({
+        session_id: sessionId,
+        role: 'user',
+        content: body,
+        metadata: {
+          sentAt: new Date().toISOString(),
+          deliveryStatus: 'sent',
+          mirroredFromTicket: ticketId,
+        },
+      })
+      await adminDb
+        .from('assistance_sessions')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', sessionId)
+    }
+  }
 
   revalidatePath('/support')
   return { ok: true as const }

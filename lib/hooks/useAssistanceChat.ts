@@ -7,26 +7,59 @@ import { toast } from 'sonner'
 import {
   escalateAssistanceSession,
   getOrCreateAssistanceSession,
+  markAssistanceMessagesRead,
+  pollAssistanceMessageUpdates,
   resolveAssistanceSession,
   saveAssistanceMessage,
   sendEscalatedUserMessage,
   uploadAssistanceAttachment,
 } from '@/lib/assistance/actions'
-import type { AssistanceAttachment, AssistanceMessage, AssistanceSession, EscalationSummary } from '@/lib/assistance/types'
+import type {
+  AssistanceAttachment,
+  AssistanceMessage,
+  AssistanceMessageMeta,
+  AssistanceSession,
+  EscalationSummary,
+} from '@/lib/assistance/types'
 import { parseEscalationFromResponse, userRequestsHumanSupport } from '@/lib/assistance/escalation'
 import { getMessageText } from '@/lib/ai/message-utils'
 import { toPrimeAiClientError, PRIMEAI_UNAVAILABLE_USER_MESSAGE } from '@/lib/ai/user-errors'
+import { resolveDeliveryStatus, sortMessagesByCreatedAt } from '@/lib/assistance/message-utils'
+import type { DeliveryStatus } from '@/lib/assistance/message-utils'
 import { useAssistanceChatTransport } from '@/lib/hooks/useAssistanceChatTransport'
 import { useAssistanceRealtime } from '@/lib/hooks/useAssistanceRealtime'
+import { useAssistancePresence } from '@/lib/hooks/useAssistancePresence'
+import { useSessionUser } from '@/lib/hooks/useSessionUser'
+import { REALTIME_POLL_INTERVAL_MS } from '@/lib/assistance/constants'
 
 export type AssistanceDisplayMessage = {
   id: string
   role: 'user' | 'assistant' | 'system' | 'agent'
   text: string
+  createdAt?: string
+  metadata?: AssistanceMessageMeta
+  deliveryStatus?: DeliveryStatus
+}
+
+function toDisplayMessage(
+  m: {
+    id: string
+    role: AssistanceDisplayMessage['role']
+    text: string
+    createdAt?: string
+    metadata?: AssistanceMessageMeta
+  },
+  optimistic = false
+): AssistanceDisplayMessage {
+  return {
+    ...m,
+    deliveryStatus: resolveDeliveryStatus(m.metadata, { optimistic }),
+  }
 }
 
 export function useAssistanceChat() {
   const t = useTranslations('assistance')
+  const sessionUser = useSessionUser()
   const [session, setSession] = useState<AssistanceSession | null>(null)
   const [hasAgentReply, setHasAgentReply] = useState(false)
   const [sessionLoading, setSessionLoading] = useState(true)
@@ -41,9 +74,11 @@ export function useAssistanceChat() {
   const [uploading, setUploading] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<AssistanceAttachment[]>([])
   const [supplementalMessages, setSupplementalMessages] = useState<AssistanceDisplayMessage[]>([])
+  const [messageMeta, setMessageMeta] = useState<Record<string, AssistanceMessageMeta>>({})
   const lastSavedAssistantRef = useRef<string | null>(null)
   const pendingQueryRef = useRef<string | null>(null)
   const knownMessageIdsRef = useRef<Set<string>>(new Set())
+  const userMessageIdsRef = useRef<Set<string>>(new Set())
 
   const transport = useAssistanceChatTransport(session?.id ?? null)
   const welcomeText = useMemo(() => t('welcomeMessage'), [t])
@@ -58,65 +93,141 @@ export function useAssistanceChat() {
   const isEscalated = session?.status === 'escalated'
   const isHumanMode = isEscalated
 
+  const presence = useAssistancePresence({
+    sessionId: isEscalated ? session?.id : null,
+    participantId: sessionUser.id ?? 'anonymous',
+    role: 'user',
+    displayName: sessionUser.name ?? sessionUser.email ?? 'Customer',
+    enabled: isEscalated && Boolean(session?.id),
+  })
+
   const displayMessages = useMemo<AssistanceDisplayMessage[]>(() => {
-    const fromChat = messages.map((m) => ({
-      id: m.id,
-      role: m.role as AssistanceDisplayMessage['role'],
-      text: getMessageText(m),
-    }))
+    const fromChat = messages.map((m) => {
+      const meta = messageMeta[m.id]
+      return toDisplayMessage({
+        id: m.id,
+        role: m.role as AssistanceDisplayMessage['role'],
+        text: getMessageText(m),
+        createdAt: meta?.sentAt ?? undefined,
+        metadata: meta,
+      })
+    })
     const merged = [...fromChat, ...supplementalMessages]
     const seen = new Set<string>()
-    return merged.filter((m) => {
+    const deduped = merged.filter((m) => {
       if (!m.text || seen.has(m.id)) return false
       seen.add(m.id)
       return true
     })
-  }, [messages, supplementalMessages])
+    return sortMessagesByCreatedAt(deduped)
+  }, [messages, supplementalMessages, messageMeta])
+
+  const agentJoined = useMemo(
+    () =>
+      supplementalMessages.some(
+        (m) => m.role === 'system' && m.metadata?.eventType === 'agent_join'
+      ) || hasAgentReply,
+    [supplementalMessages, hasAgentReply]
+  )
 
   const userMessageCount = useMemo(
     () => displayMessages.filter((m) => m.role === 'user').length,
     [displayMessages]
   )
 
-  const handleRealtimeMessage = useCallback((message: AssistanceMessage) => {
-    if (knownMessageIdsRef.current.has(message.id)) return
-    knownMessageIdsRef.current.add(message.id)
+  const handleMessageUpdate = useCallback((message: AssistanceMessage) => {
+    setMessageMeta((prev) => ({ ...prev, [message.id]: message.metadata }))
+    setSupplementalMessages((prev) =>
+      prev.map((m) =>
+        m.id === message.id
+          ? toDisplayMessage({
+              id: message.id,
+              role: message.role,
+              text: message.content,
+              createdAt: message.createdAt,
+              metadata: message.metadata,
+            })
+          : m
+      )
+    )
+  }, [])
 
-    if (message.role === 'agent') {
-      setHasAgentReply(true)
-    }
+  const handleRealtimeMessage = useCallback(
+    (message: AssistanceMessage) => {
+      if (knownMessageIdsRef.current.has(message.id)) return
+      knownMessageIdsRef.current.add(message.id)
 
-    if (message.role === 'agent' || message.role === 'system') {
-      setSupplementalMessages((prev) => {
-        if (prev.some((m) => m.id === message.id)) return prev
-        const next = [
-          ...prev,
-          { id: message.id, role: message.role, text: message.content },
-        ]
-        console.log('[USER_MESSAGE_RENDERED]', {
-          messageId: message.id,
-          role: message.role,
-          totalSupplemental: next.length,
+      if (message.role === 'user') {
+        userMessageIdsRef.current.add(message.id)
+      }
+
+      setMessageMeta((prev) => ({ ...prev, [message.id]: message.metadata }))
+
+      if (message.role === 'agent') {
+        setHasAgentReply(true)
+      }
+
+      if (message.role === 'agent' || message.role === 'system') {
+        setSupplementalMessages((prev) => {
+          if (prev.some((m) => m.id === message.id)) return prev
+          return [
+            ...prev,
+            toDisplayMessage({
+              id: message.id,
+              role: message.role,
+              text: message.content,
+              createdAt: message.createdAt,
+              metadata: message.metadata,
+            }),
+          ]
         })
-        return next
+        return
+      }
+
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) return prev
+        return [
+          ...prev,
+          {
+            id: message.id,
+            role: message.role as 'user' | 'assistant',
+            parts: [{ type: 'text' as const, text: message.content }],
+          },
+        ]
       })
-      return
+    },
+    [setMessages]
+  )
+
+  useAssistanceRealtime(session?.id, handleRealtimeMessage, knownMessageIdsRef, {
+    mode: 'user',
+    onUpdate: handleMessageUpdate,
+  })
+
+  useEffect(() => {
+    if (!session?.id || !isEscalated) return
+    void markAssistanceMessagesRead(session.id)
+  }, [session?.id, isEscalated, displayMessages.length])
+
+  useEffect(() => {
+    if (!session?.id) return
+    const ids = Array.from(userMessageIdsRef.current)
+    if (!ids.length) return
+
+    const poll = async () => {
+      const result = await pollAssistanceMessageUpdates(session.id!, ids)
+      if (!result.ok || !result.messages?.length) return
+      for (const message of result.messages) {
+        handleMessageUpdate(message)
+      }
     }
 
-    setMessages((prev) => {
-      if (prev.some((m) => m.id === message.id)) return prev
-      return [
-        ...prev,
-        {
-          id: message.id,
-          role: message.role as 'user' | 'assistant',
-          parts: [{ type: 'text' as const, text: message.content }],
-        },
-      ]
-    })
-  }, [setMessages])
-
-  useAssistanceRealtime(session?.id, handleRealtimeMessage, knownMessageIdsRef)
+    void poll()
+    const timer = setInterval(() => {
+      void poll()
+    }, REALTIME_POLL_INTERVAL_MS)
+    return () => clearInterval(timer)
+  }, [session?.id, handleMessageUpdate])
 
   useEffect(() => {
     let cancelled = false
@@ -140,6 +251,14 @@ export function useAssistanceChat() {
       if (result.data.messages.length > 0) {
         setHasConversationHistory(true)
         const persisted = result.data.messages
+        const meta: Record<string, AssistanceMessageMeta> = {}
+        for (const m of persisted) {
+          meta[m.id] = m.metadata
+          knownMessageIdsRef.current.add(m.id)
+          if (m.role === 'user') userMessageIdsRef.current.add(m.id)
+        }
+        setMessageMeta(meta)
+
         const chatMessages = persisted
           .filter((m) => m.role === 'user' || m.role === 'assistant')
           .map((m) => ({
@@ -150,11 +269,15 @@ export function useAssistanceChat() {
 
         const extra = persisted
           .filter((m) => m.role === 'agent' || m.role === 'system')
-          .map((m) => ({ id: m.id, role: m.role, text: m.content }))
-
-        for (const m of persisted) {
-          knownMessageIdsRef.current.add(m.id)
-        }
+          .map((m) =>
+            toDisplayMessage({
+              id: m.id,
+              role: m.role,
+              text: m.content,
+              createdAt: m.createdAt,
+              metadata: m.metadata,
+            })
+          )
 
         setMessages(chatMessages)
         setSupplementalMessages(extra)
@@ -171,7 +294,7 @@ export function useAssistanceChat() {
 
   const persistUserMessage = useCallback(
     async (text: string, attachments?: AssistanceAttachment[]) => {
-      if (!session?.id) return
+      if (!session?.id) return null
       const result = isEscalated
         ? await sendEscalatedUserMessage({
             sessionId: session.id,
@@ -187,7 +310,11 @@ export function useAssistanceChat() {
 
       if (result.ok && result.message) {
         knownMessageIdsRef.current.add(result.message.id)
+        userMessageIdsRef.current.add(result.message.id)
+        setMessageMeta((prev) => ({ ...prev, [result.message!.id]: result.message!.metadata }))
+        return result.message
       }
+      return null
     },
     [isEscalated, session?.id]
   )
@@ -247,6 +374,10 @@ export function useAssistanceChat() {
       clearError()
       setPendingAction(null)
 
+      if (isEscalated) {
+        presence.signalTyping()
+      }
+
       if (!session?.id) {
         const created = await getOrCreateAssistanceSession()
         if (!created.ok || !created.data) {
@@ -266,16 +397,46 @@ export function useAssistanceChat() {
           ? `\n[Attachments: ${pendingAttachments.map((a) => a.name).join(', ')}]`
           : ''
 
-      await persistUserMessage(trimmed, pendingAttachments)
+      const optimisticId = `optimistic-${Date.now()}`
+      const fullText = trimmed + attachmentNote
 
       if (isEscalated) {
-        const optimisticId = `optimistic-${Date.now()}`
         setSupplementalMessages((prev) => [
           ...prev,
-          { id: optimisticId, role: 'user', text: trimmed + attachmentNote },
+          toDisplayMessage(
+            {
+              id: optimisticId,
+              role: 'user',
+              text: fullText,
+              createdAt: new Date().toISOString(),
+            },
+            true
+          ),
         ])
-      } else {
-        sendMessage({ text: trimmed + attachmentNote })
+      }
+
+      const persisted = await persistUserMessage(trimmed, pendingAttachments)
+
+      if (isEscalated && persisted) {
+        setSupplementalMessages((prev) =>
+          prev.map((m) =>
+            m.id === optimisticId
+              ? toDisplayMessage({
+                  id: persisted.id,
+                  role: 'user',
+                  text: fullText,
+                  createdAt: persisted.createdAt,
+                  metadata: persisted.metadata,
+                })
+              : m
+          )
+        )
+      } else if (!isEscalated) {
+        sendMessage({ text: fullText })
+      } else if (!persisted) {
+        setSupplementalMessages((prev) => prev.filter((m) => m.id !== optimisticId))
+        toast.error(t('requestFailed'))
+        return
       }
 
       setInput('')
@@ -290,9 +451,9 @@ export function useAssistanceChat() {
       isLoading,
       pendingAttachments,
       persistUserMessage,
+      presence,
       sendMessage,
       session?.id,
-      setMessages,
       t,
     ]
   )
@@ -315,6 +476,16 @@ export function useAssistanceChat() {
       }
     },
     [sessionLoading, submitMessage]
+  )
+
+  const handleInputChange = useCallback(
+    (value: string) => {
+      setInput(value)
+      if (isEscalated && value.trim()) {
+        presence.signalTyping()
+      }
+    },
+    [isEscalated, presence]
   )
 
   const handleEscalate = async () => {
@@ -404,7 +575,7 @@ export function useAssistanceChat() {
     sessionLoading,
     messages: displayMessages,
     input,
-    setInput,
+    setInput: handleInputChange,
     isLoading,
     isHumanMode,
     humanConnected,
@@ -420,6 +591,9 @@ export function useAssistanceChat() {
     clientError,
     hasUnread,
     hasAgentReply,
+    agentJoined,
+    agentPresence: presence.agentPresence,
+    agentTyping: presence.agentTyping,
     welcomeText,
     hasConversationHistory,
     infrastructureMissing,
