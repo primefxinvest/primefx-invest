@@ -18,6 +18,8 @@ import type {
 } from './types'
 import { getAdminUserMfaSummary } from '@/lib/auth/mfa-admin'
 import { signKycDocumentPaths } from '@/lib/kyc/storage'
+import { isTableMissingError } from '@/lib/assistance/infrastructure'
+import { calculateDailyProfit } from '@/lib/invest/profit-engine'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -672,6 +674,55 @@ export async function getAdminAnalytics() {
     monthlyVolume: buildMonthlyVolume(transactions.data ?? []),
     activePlans: plans.data?.filter((plan) => (plan as { is_active?: boolean }).is_active !== false)
       .length ?? 0,
+    investmentLiabilities: await getAdminInvestmentLiabilities(),
+  }
+}
+
+export async function getAdminInvestmentLiabilities() {
+  const db = getDb()
+  const { data: investments, error } = await db
+    .from('investments')
+    .select('amount, current_value, roi_percentage, status, compound_mode')
+    .eq('status', 'Active')
+
+  if (error) {
+    if (isTableMissingError(error.message)) {
+      return {
+        totalLiabilitiesUsd: 0,
+        dailyPayoutObligationUsd: 0,
+        weeklyPayoutObligationUsd: 0,
+        monthlyPayoutObligationUsd: 0,
+        activeInvestments: 0,
+      }
+    }
+    throw new Error(error.message)
+  }
+
+  let totalLiabilitiesUsd = 0
+  let dailyPayoutObligationUsd = 0
+
+  for (const row of investments ?? []) {
+    const amount = Number(row.amount ?? 0)
+    const current = Number(row.current_value ?? amount)
+    const weeklyRoi = Number(row.roi_percentage ?? 0)
+    totalLiabilitiesUsd += current
+    dailyPayoutObligationUsd += calculateDailyProfit({
+      principalUsd: amount,
+      weeklyRoiPercent: weeklyRoi,
+      compoundMode: Boolean(row.compound_mode),
+      currentValueUsd: current,
+    })
+  }
+
+  const roundedDaily = Math.round(dailyPayoutObligationUsd * 100) / 100
+  const roundedTotal = Math.round(totalLiabilitiesUsd * 100) / 100
+
+  return {
+    totalLiabilitiesUsd: roundedTotal,
+    dailyPayoutObligationUsd: roundedDaily,
+    weeklyPayoutObligationUsd: Math.round(roundedDaily * 7 * 100) / 100,
+    monthlyPayoutObligationUsd: Math.round(roundedDaily * 30 * 100) / 100,
+    activeInvestments: investments?.length ?? 0,
   }
 }
 
@@ -1094,11 +1145,14 @@ export async function getAdminAssistanceSessions(): Promise<import('./types').Ad
   const db = getDb()
   const { data: sessions, error } = await db
     .from('assistance_sessions')
-    .select('*, users(email, full_name)')
+    .select('*, users(email, full_name, avatar_url)')
     .order('updated_at', { ascending: false })
     .limit(200)
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (isTableMissingError(error.message)) return []
+    throw new Error(error.message)
+  }
   if (!sessions?.length) return []
 
   const sessionIds = sessions.map((row) => String(row.id))
@@ -1107,6 +1161,24 @@ export async function getAdminAssistanceSessions(): Promise<import('./types').Ad
     .select('session_id, role, content, created_at')
     .in('session_id', sessionIds)
     .order('created_at', { ascending: false })
+
+  const agentIds = sessions
+    .map((row) => row.assigned_agent_id as string | null)
+    .filter((id): id is string => Boolean(id))
+
+  const agentNames = new Map<string, string>()
+  if (agentIds.length) {
+    const { data: agents } = await db
+      .from('users')
+      .select('id, full_name, email')
+      .in('id', agentIds)
+    for (const agent of agents ?? []) {
+      agentNames.set(
+        String(agent.id),
+        String(agent.full_name ?? agent.email ?? 'Agent')
+      )
+    }
+  }
 
   const ticketIds = sessions
     .map((row) => row.ticket_id as string | null)
@@ -1125,11 +1197,16 @@ export async function getAdminAssistanceSessions(): Promise<import('./types').Ad
 
   const lastBySession = new Map<
     string,
-    { count: number; lastMessage: string | null; lastMessageRole: string | null }
+    { count: number; lastMessage: string | null; lastMessageRole: string | null; unreadCount: number }
   >()
 
   for (const sessionId of sessionIds) {
-    lastBySession.set(sessionId, { count: 0, lastMessage: null, lastMessageRole: null })
+    lastBySession.set(sessionId, {
+      count: 0,
+      lastMessage: null,
+      lastMessageRole: null,
+      unreadCount: 0,
+    })
   }
 
   for (const row of messageRows ?? []) {
@@ -1141,27 +1218,43 @@ export async function getAdminAssistanceSessions(): Promise<import('./types').Ad
       current.lastMessage = String(row.content ?? '').slice(0, 140)
       current.lastMessageRole = String(row.role)
     }
+    if (String(row.role) === 'user') {
+      current.unreadCount += 1
+    }
+    if (String(row.role) === 'agent') {
+      current.unreadCount = 0
+    }
   }
 
   return sessions.map((row) => {
-    const user = row.users as { email?: string; full_name?: string | null } | null
+    const user = row.users as { email?: string; full_name?: string | null; avatar_url?: string | null } | null
     const id = String(row.id)
-    const stats = lastBySession.get(id) ?? { count: 0, lastMessage: null, lastMessageRole: null }
+    const stats = lastBySession.get(id) ?? {
+      count: 0,
+      lastMessage: null,
+      lastMessageRole: null,
+      unreadCount: 0,
+    }
     const ticketId = (row.ticket_id as string) ?? null
+    const assignedAgentId = (row.assigned_agent_id as string) ?? null
 
     return {
       id,
       userId: String(row.user_id),
       userEmail: String(user?.email ?? '—'),
       userName: user?.full_name ?? null,
+      userAvatarUrl: user?.avatar_url ?? null,
       status: String(row.status ?? 'active'),
       category: (row.category as string) ?? null,
       escalationReason: (row.escalation_reason as string) ?? null,
       ticketId,
       ticketNumber: ticketId ? ticketNumbers.get(ticketId) ?? null : null,
+      assignedAgentId,
+      assignedAgentName: assignedAgentId ? agentNames.get(assignedAgentId) ?? null : null,
       messageCount: stats.count,
       lastMessage: stats.lastMessage,
       lastMessageRole: stats.lastMessageRole,
+      unreadCount: stats.unreadCount,
       createdAt: String(row.created_at),
       updatedAt: String(row.updated_at),
     }
@@ -1176,7 +1269,10 @@ export async function getAdminAssistanceSessionDetail(sessionId: string) {
     .eq('id', sessionId)
     .maybeSingle()
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (isTableMissingError(error.message)) return null
+    throw new Error(error.message)
+  }
   if (!sessionRow) return null
 
   let ticketNumber: string | null = null
@@ -1187,6 +1283,16 @@ export async function getAdminAssistanceSessionDetail(sessionId: string) {
       .eq('id', sessionRow.ticket_id)
       .maybeSingle()
     ticketNumber = (ticket?.ticket_number as string) ?? null
+  }
+
+  let assignedAgentName: string | null = null
+  if (sessionRow.assigned_agent_id) {
+    const { data: agent } = await db
+      .from('users')
+      .select('full_name, email')
+      .eq('id', sessionRow.assigned_agent_id)
+      .maybeSingle()
+    assignedAgentName = String(agent?.full_name ?? agent?.email ?? null)
   }
 
   const user = sessionRow.users as { email?: string; full_name?: string | null } | null
@@ -1202,6 +1308,7 @@ export async function getAdminAssistanceSessionDetail(sessionId: string) {
       category: (sessionRow.category as string) ?? null,
       ticketNumber,
       ticketId: (sessionRow.ticket_id as string) ?? null,
+      assignedAgentName,
     },
     messages,
   }

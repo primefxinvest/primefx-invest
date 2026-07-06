@@ -133,7 +133,12 @@ export default function ActiveInvestmentsTable({
                           <Icon className="h-3.5 w-3.5" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-medium text-foreground">{inv.displayId}</p>
+                          <Link
+                            href={`/portfolio/investments/${inv.id}`}
+                            className="font-medium text-foreground hover:text-primary hover:underline"
+                          >
+                            {inv.displayId}
+                          </Link>
                           <p className="truncate text-xs text-muted-foreground">{inv.plan}</p>
                           <span
                             className={cn(
@@ -161,6 +166,9 @@ export default function ActiveInvestmentsTable({
                         investmentId={inv.id}
                         planName={inv.plan}
                         pendingRequest={capitalWithdrawalByInvestment.get(inv.id)}
+                        isCapitalUnlocked={inv.isCapitalUnlocked}
+                        lockCountdown={inv.lockCountdown}
+                        capitalLockDays={inv.capitalLockDays}
                         onRequested={onWithdrawalRequested}
                       />
                     </td>
@@ -203,7 +211,12 @@ function InvestmentMobileCard({
             <Icon className="h-4 w-4" />
           </div>
           <div className="min-w-0">
-            <p className="font-semibold text-foreground">{investment.displayId}</p>
+            <Link
+              href={`/portfolio/investments/${investment.id}`}
+              className="font-semibold text-foreground hover:text-primary hover:underline"
+            >
+              {investment.displayId}
+            </Link>
             <p className="truncate text-sm text-muted-foreground">{investment.plan}</p>
           </div>
         </div>
@@ -244,6 +257,9 @@ function InvestmentMobileCard({
           investmentId={investment.id}
           planName={investment.plan}
           pendingRequest={pendingRequest}
+          isCapitalUnlocked={investment.isCapitalUnlocked}
+          lockCountdown={investment.lockCountdown}
+          capitalLockDays={investment.capitalLockDays}
           onRequested={onWithdrawalRequested}
         />
       </div>

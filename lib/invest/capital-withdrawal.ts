@@ -6,6 +6,10 @@ import { generatePaymentReference } from '@/lib/payments/reference'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
+import {
+  isCapitalWithdrawalUnlocked,
+  resolvePlanCapitalLockDays,
+} from '@/lib/invest/profit-engine'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -33,7 +37,9 @@ export async function requestInvestmentCapitalWithdrawal(input: {
   const db = getDb()
   const { data: investment, error } = await db
     .from('investments')
-    .select('id, user_id, amount, current_value, status')
+    .select(
+      'id, user_id, amount, current_value, status, created_at, capital_withdrawal_unlock_at, investment_plans(name, capital_lock_days)'
+    )
     .eq('id', input.investmentId)
     .eq('user_id', input.userId)
     .maybeSingle()
@@ -44,6 +50,26 @@ export async function requestInvestmentCapitalWithdrawal(input: {
 
   if (String(investment.status).toLowerCase() !== 'active') {
     throw new Error('Only active investments can be withdrawn.')
+  }
+
+  const plan = investment.investment_plans as { name?: string; capital_lock_days?: number } | null
+  const unlockAt =
+    (investment.capital_withdrawal_unlock_at as string | null) ??
+    (() => {
+      const lockDays = resolvePlanCapitalLockDays(
+        String(plan?.name ?? ''),
+        plan?.capital_lock_days != null ? Number(plan.capital_lock_days) : null
+      )
+      if (lockDays <= 0) return null
+      const created = new Date(investment.created_at as string)
+      created.setUTCDate(created.getUTCDate() + lockDays)
+      return created.toISOString()
+    })()
+
+  if (unlockAt && !isCapitalWithdrawalUnlocked(unlockAt)) {
+    throw new Error(
+      'Capital withdrawal is locked. Your investment must complete the minimum holding period first.'
+    )
   }
 
   const amount = Number(investment.current_value ?? investment.amount ?? 0)

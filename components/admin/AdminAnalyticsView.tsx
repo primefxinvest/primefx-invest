@@ -55,6 +55,13 @@ interface AnalyticsData {
   pendingWithdrawals: number
   kycPending: number
   monthlyVolume: Array<{ month: string; deposits: number; withdrawals: number }>
+  investmentLiabilities?: {
+    totalLiabilitiesUsd: number
+    dailyPayoutObligationUsd: number
+    weeklyPayoutObligationUsd: number
+    monthlyPayoutObligationUsd: number
+    activeInvestments: number
+  }
 }
 
 const TIER_COLORS = ['#0052ff', '#10b981', '#f97316', '#8b5cf6', '#ec4899']
@@ -155,6 +162,44 @@ export function AdminAnalyticsView({ data }: { data: AnalyticsData }) {
           )
         })}
       </StatusCardGrid>
+
+      {data.investmentLiabilities ? (
+        <div className="rounded-xl border border-border bg-card p-6">
+          <h3 className="text-lg font-bold">Investment liabilities</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Active capital obligations and projected payout schedule
+          </p>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              {
+                label: 'Total liabilities',
+                value: formatCurrency(data.investmentLiabilities.totalLiabilitiesUsd),
+              },
+              {
+                label: 'Daily payout obligation',
+                value: formatCurrency(data.investmentLiabilities.dailyPayoutObligationUsd),
+              },
+              {
+                label: 'Weekly obligation',
+                value: formatCurrency(data.investmentLiabilities.weeklyPayoutObligationUsd),
+              },
+              {
+                label: 'Monthly obligation',
+                value: formatCurrency(data.investmentLiabilities.monthlyPayoutObligationUsd),
+              },
+              {
+                label: 'Active investments',
+                value: data.investmentLiabilities.activeInvestments.toLocaleString(),
+              },
+            ].map((item) => (
+              <div key={item.label} className="rounded-lg border border-border bg-muted/20 p-4">
+                <p className="text-xs text-muted-foreground">{item.label}</p>
+                <p className="mt-1 text-lg font-bold text-foreground">{item.value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-2">
         <div className="rounded-xl border border-border bg-card p-6">

@@ -9,6 +9,7 @@ import { TableSkeleton } from '@/components/shared/skeletons'
 import { SupportCreateTicketModal } from '@/components/support/SupportCreateTicketModal'
 import { SupportEmptyIllustration } from '@/components/support/SupportHeroSection'
 import { SupportHubShell } from '@/components/support/SupportHubShell'
+import { SupportInsightsSection } from '@/components/support/SupportInsightsSection'
 import {
   CLOSED_STATUSES,
   FAQ_KEYS,
@@ -271,6 +272,14 @@ export function SupportPageView() {
           ) : null}
         </section>
       </SupportHubShell>
+
+      <SupportInsightsSection
+        onSelectFaq={(key) => {
+          setTab('faq')
+          setExpandedFaq(key)
+          faqRef.current?.scrollIntoView({ behavior: 'smooth' })
+        }}
+      />
 
       <SupportCreateTicketModal
         open={modalOpen}

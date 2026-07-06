@@ -1,11 +1,16 @@
+'use server'
+
 import 'server-only'
 
 import {
-  dailyProfitMultiplier,
-  getPreviousTradingDay,
-  getPreviousTradingWeek,
-  weeklyProfitMultiplier,
-} from '@/lib/invest/trading-calendar'
+  calculateDailyProfit,
+  calculateDailyRate,
+  formatProfitPeriodDate,
+  getNextDailyPayoutAt,
+  getPreviousCalendarDay,
+  roundProfitUsd,
+  roundRate,
+} from '@/lib/invest/profit-engine'
 import { accrueReferralCommissionsForProfit } from '@/lib/referral/commission-service'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { creditInvestorWallet } from '@/lib/payments/wallet-ledger'
@@ -20,26 +25,25 @@ function getDb() {
   return db
 }
 
-function formatDate(date: Date) {
-  return date.toISOString().slice(0, 10)
-}
-
-type InvestmentProfitRunInput = {
+type ProfitRunResult = {
+  skipped: boolean
+  reason?: string
   periodStart: string
   periodEnd: string
-  tradingDays: number
-  profitDescription: string
-  calculateProfit: (amount: number, weeklyRoi: number) => number
+  processed: number
+  totalProfitUsd: number
 }
 
-async function runInvestmentProfits(input: InvestmentProfitRunInput) {
-  const { periodStart, periodEnd, tradingDays, profitDescription, calculateProfit } = input
+async function runInvestmentProfitsForPeriod(periodDate: Date): Promise<ProfitRunResult> {
   const db = getDb()
+  const periodStart = formatProfitPeriodDate(periodDate)
+  const periodEnd = periodStart
+  const nextPayoutAt = getNextDailyPayoutAt().toISOString()
 
   const { data: claimedRun, error: claimError } = await db.rpc('claim_profit_run_period', {
     p_period_start: periodStart,
     p_period_end: periodEnd,
-    p_trading_days: tradingDays,
+    p_trading_days: 1,
   })
 
   if (claimError) throw new Error(claimError.message)
@@ -50,18 +54,34 @@ async function runInvestmentProfits(input: InvestmentProfitRunInput) {
       referenceId: `${periodStart}:${periodEnd}`,
       metadata: { reason: 'period_already_claimed' },
     })
-    return { skipped: true, reason: 'Period already processed', periodStart, periodEnd }
+    return {
+      skipped: true,
+      reason: 'Period already processed',
+      periodStart,
+      periodEnd,
+      processed: 0,
+      totalProfitUsd: 0,
+    }
   }
-
-  await logFinancialAudit({
-    eventType: 'profit.run_claimed',
-    referenceId: `${periodStart}:${periodEnd}`,
-    metadata: { tradingDays },
-  })
 
   const { data: investments, error } = await db
     .from('investments')
-    .select('id, user_id, amount, current_value, roi_percentage, status, plan_id, start_date')
+    .select(
+      `
+      id,
+      user_id,
+      amount,
+      current_value,
+      roi_percentage,
+      status,
+      plan_id,
+      start_date,
+      created_at,
+      compound_mode,
+      accumulated_profit,
+      investment_plans (name, compound_mode, capital_lock_days)
+    `
+    )
     .eq('status', 'Active')
 
   if (error) throw new Error(error.message)
@@ -75,21 +95,63 @@ async function runInvestmentProfits(input: InvestmentProfitRunInput) {
     if (amount <= 0 || weeklyRoi <= 0) continue
 
     const startDate = investment.start_date
-      ? formatDate(new Date(investment.start_date as string))
-      : null
-    if (startDate && startDate > periodEnd) continue
+      ? formatProfitPeriodDate(new Date(investment.start_date as string))
+      : formatProfitPeriodDate(new Date(investment.created_at as string))
+    if (startDate > periodEnd) continue
 
-    const profit = Math.round(calculateProfit(amount, weeklyRoi) * 100) / 100
+    const plan = investment.investment_plans as {
+      name?: string
+      compound_mode?: boolean
+    } | null
+    const compoundMode = Boolean(investment.compound_mode ?? plan?.compound_mode ?? false)
+    const currentValue = Number(investment.current_value ?? amount)
+
+    const profit = calculateDailyProfit({
+      principalUsd: amount,
+      weeklyRoiPercent: weeklyRoi,
+      compoundMode,
+      currentValueUsd: currentValue,
+    })
     if (profit <= 0) continue
 
     const userId = investment.user_id as string
+    const investmentId = investment.id as string
     const referenceId = generatePaymentReference('profit')
-    const nextValue = Number(investment.current_value ?? amount) + profit
+    const dailyRate = roundRate(calculateDailyRate(weeklyRoi))
+    const principalBase = compoundMode ? currentValue : amount
+    const planName = plan?.name ?? 'Investment Plan'
+
+    const { data: claimedProfit, error: profitClaimError } = await db.rpc(
+      'claim_investment_daily_profit',
+      {
+        p_investment_id: investmentId,
+        p_user_id: userId,
+        p_period_date: periodStart,
+        p_amount_usd: profit,
+        p_daily_rate: dailyRate,
+        p_principal_usd: principalBase,
+        p_reference_id: referenceId,
+      }
+    )
+
+    if (profitClaimError) throw new Error(profitClaimError.message)
+    if (!claimedProfit) continue
+
+    const nextValue = roundProfitUsd(currentValue + profit)
+    const nextAccumulated = roundProfitUsd(
+      Number(investment.accumulated_profit ?? 0) + profit
+    )
 
     await db
       .from('investments')
-      .update({ current_value: nextValue })
-      .eq('id', investment.id)
+      .update({
+        current_value: nextValue,
+        daily_profit: profit,
+        accumulated_profit: nextAccumulated,
+        last_profit_calculation_at: new Date().toISOString(),
+        next_payout_at: nextPayoutAt,
+      })
+      .eq('id', investmentId)
 
     const { data: portfolio } = await db
       .from('portfolios')
@@ -99,31 +161,69 @@ async function runInvestmentProfits(input: InvestmentProfitRunInput) {
 
     if (portfolio) {
       const invested = Number(portfolio.total_invested ?? 0)
-      const currentValue = Number(portfolio.current_value ?? 0) + profit
-      const profitLoss = currentValue - invested
-      const roi = invested > 0 ? (profitLoss / invested) * 100 : 0
+      const portfolioValue = roundProfitUsd(Number(portfolio.current_value ?? 0) + profit)
+      const profitLoss = roundProfitUsd(portfolioValue - invested)
+      const roi = invested > 0 ? roundProfitUsd((profitLoss / invested) * 100) : 0
 
       await db
         .from('portfolios')
         .update({
-          current_value: currentValue,
+          current_value: portfolioValue,
           profit_loss: profitLoss,
-          roi_percentage: Math.round(roi * 100) / 100,
+          roi_percentage: roi,
           updated_at: new Date().toISOString(),
         })
         .eq('id', portfolio.id)
     }
 
-    await creditInvestorWallet(userId, profit)
-    await db.from('transactions').insert({
+    const { data: txRow } = await db
+      .from('transactions')
+      .insert({
+        user_id: userId,
+        type: 'investment_profit',
+        amount: profit,
+        status: 'Completed',
+        description: `+${profit.toFixed(2)} ${planName} daily profit`,
+        reference_id: referenceId,
+        investment_id: investmentId,
+      })
+      .select('id')
+      .single()
+
+    if (txRow?.id) {
+      await db
+        .from('investment_profit_history')
+        .update({ transaction_id: txRow.id })
+        .eq('id', claimedProfit.id)
+    }
+
+    await db.from('investment_payouts').insert({
+      investment_id: investmentId,
       user_id: userId,
-      type: 'profit',
-      amount: profit,
-      status: 'Completed',
-      description: profitDescription,
+      amount_usd: profit,
+      payout_type: 'daily',
+      period_start: periodStart,
+      period_end: periodEnd,
+      status: 'completed',
+      transaction_id: txRow?.id ?? null,
       reference_id: referenceId,
-      investment_id: investment.id,
     })
+
+    await db.from('investment_daily_snapshots').upsert(
+      {
+        investment_id: investmentId,
+        user_id: userId,
+        snapshot_date: periodStart,
+        principal_usd: amount,
+        accumulated_profit_usd: nextAccumulated,
+        current_value_usd: nextValue,
+        daily_rate: dailyRate,
+        daily_profit_usd: profit,
+      },
+      { onConflict: 'investment_id,snapshot_date' }
+    )
+
+    await creditInvestorWallet(userId, profit)
 
     await accrueReferralCommissionsForProfit({
       sourceUserId: userId,
@@ -136,7 +236,7 @@ async function runInvestmentProfits(input: InvestmentProfitRunInput) {
     processed += 1
   }
 
-  const roundedTotal = Math.round(totalProfitUsd * 100) / 100
+  const roundedTotal = roundProfitUsd(totalProfitUsd)
 
   const { error: finalizeError } = await db.rpc('finalize_profit_run_period', {
     p_period_start: periodStart,
@@ -150,44 +250,24 @@ async function runInvestmentProfits(input: InvestmentProfitRunInput) {
     eventType: 'profit.run_completed',
     referenceId: `${periodStart}:${periodEnd}`,
     amountUsd: roundedTotal,
-    metadata: { processed, tradingDays },
+    metadata: { processed, engine: 'calendar_daily_v2' },
   })
 
   return {
     skipped: false,
     periodStart,
     periodEnd,
-    tradingDays,
     processed,
     totalProfitUsd: roundedTotal,
   }
 }
 
 export async function runDailyInvestmentProfits() {
-  const tradingDay = getPreviousTradingDay()
-  const periodStart = formatDate(tradingDay)
-  const periodEnd = periodStart
-
-  return runInvestmentProfits({
-    periodStart,
-    periodEnd,
-    tradingDays: 1,
-    profitDescription: `Daily XAU/USD profit (${periodStart})`,
-    calculateProfit: (amount, weeklyRoi) => amount * dailyProfitMultiplier(weeklyRoi),
-  })
+  const periodDate = getPreviousCalendarDay()
+  return runInvestmentProfitsForPeriod(periodDate)
 }
 
 export async function runWeeklyInvestmentProfits() {
-  const { start, end, tradingDays } = getPreviousTradingWeek()
-  const periodStart = formatDate(start)
-  const periodEnd = formatDate(end)
-
-  return runInvestmentProfits({
-    periodStart,
-    periodEnd,
-    tradingDays,
-    profitDescription: `Weekly XAU/USD profit (${tradingDays} trading days)`,
-    calculateProfit: (amount, weeklyRoi) =>
-      amount * weeklyProfitMultiplier(weeklyRoi, tradingDays),
-  })
+  const periodDate = getPreviousCalendarDay()
+  return runInvestmentProfitsForPeriod(periodDate)
 }

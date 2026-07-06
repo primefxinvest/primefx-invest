@@ -483,7 +483,7 @@ export async function settleApprovedTransaction(tx: {
     return
   }
 
-  if (type === 'bonus' || type === 'profit' || type === 'referral') {
+  if (type === 'bonus' || type === 'profit' || type === 'investment_profit' || type === 'referral') {
     await creditInvestorWallet(userId, amount)
   }
 }

@@ -32,7 +32,7 @@ function transactionPortfolioDelta(tx: TransactionRow): number | null {
 
   const description = (tx.description ?? '').toLowerCase()
 
-  if (type === 'profit') return amount
+  if (type === 'profit' || type === 'investment_profit') return amount
 
   if (type === 'investment') {
     if (description.includes('withdrawal requested')) return null

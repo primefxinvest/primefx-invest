@@ -10,7 +10,7 @@ function normalizeTransactionType(type?: string | null) {
   const value = (type ?? 'deposit').toLowerCase()
   if (value.includes('withdraw')) return 'Withdrawal'
   if (value.includes('investment')) return 'Investment'
-  if (value.includes('profit')) return 'Profit'
+  if (value.includes('profit') || value.includes('investment_profit')) return 'Profit'
   if (value.includes('bonus') || value.includes('referral')) return 'Bonus'
   if (value.includes('transfer')) return 'Transfer'
   return 'Deposit'

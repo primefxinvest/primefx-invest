@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import { AdminServiceRoleBanner } from '@/components/admin/AdminServiceRoleBanner'
-import { AdminSupportSessionDetailView } from '@/components/admin/AdminSupportSessionDetailView'
+import { AdminSupportSessionChat } from '@/components/admin/AdminSupportSessionChat'
 import { requireAdminModule } from '@/lib/admin/auth'
 import { getAdminAssistanceSessionDetail } from '@/lib/admin/queries'
 import { withAdminData } from '@/lib/admin/safe-query'
@@ -41,5 +41,5 @@ export default async function AdminSupportSessionPage({
     notFound()
   }
 
-  return <AdminSupportSessionDetailView session={data.session} messages={data.messages} />
+  return <AdminSupportSessionChat session={data.session} initialMessages={data.messages} />
 }

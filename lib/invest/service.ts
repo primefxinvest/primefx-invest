@@ -6,6 +6,7 @@ import { isAccountStatusFinanciallyBlocked } from '@/lib/security/account-access
 import { generatePaymentReference } from '@/lib/payments/reference'
 import { notifyInvestmentCreated } from '@/lib/notifications/service'
 import { markReferralActiveOnFirstActivity } from '@/lib/referral/commission-service'
+import { getNextDailyPayoutAt, getCapitalWithdrawalUnlockAt, resolvePlanCapitalLockDays } from '@/lib/invest/profit-engine'
 import { syncInvestorTierFromActivePlans } from '@/lib/invest/tier-sync'
 import {
   assertSufficientBalance,
@@ -66,7 +67,7 @@ export async function executeInvestment(
   const { data: plan, error: planError } = await db
     .from('investment_plans')
     .select(
-      'id, name, minimum_investment, max_investment, is_active, visibility, weekly_roi, investor_count'
+      'id, name, minimum_investment, max_investment, is_active, visibility, weekly_roi, investor_count, compound_mode, capital_lock_days'
     )
     .eq('id', input.planId)
     .maybeSingle()
@@ -137,6 +138,14 @@ export async function executeInvestment(
     await debitInvestorWallet(input.userId, amount)
     walletDebited = true
 
+    const compoundMode = Boolean(plan.compound_mode ?? false)
+    const lockDays = resolvePlanCapitalLockDays(
+      String(plan.name),
+      plan.capital_lock_days != null ? Number(plan.capital_lock_days) : null
+    )
+    const createdAt = new Date()
+    const unlockAt = getCapitalWithdrawalUnlockAt(createdAt, lockDays)
+
     const { data: investment, error: investmentError } = await db
       .from('investments')
       .insert({
@@ -147,6 +156,12 @@ export async function executeInvestment(
         roi_percentage: Number(plan.weekly_roi ?? 0),
         status: 'Active',
         reference_id: referenceId,
+        compound_mode: compoundMode,
+        accumulated_profit: 0,
+        daily_profit: 0,
+        next_payout_at: getNextDailyPayoutAt(createdAt).toISOString(),
+        capital_withdrawal_unlock_at: unlockAt?.toISOString() ?? null,
+        start_date: createdAt.toISOString(),
       })
       .select('id')
       .single()

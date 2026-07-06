@@ -28,7 +28,7 @@ export const ESCALATION_MARKER = '[ESCALATE:'
 export const ESCALATION_MARKER_END = ']'
 
 export const ASSISTANCE_ATTACHMENT_BUCKET = 'assistance-attachments'
-export const MAX_ATTACHMENT_SIZE = 5 * 1024 * 1024
+export const MAX_ATTACHMENT_SIZE = 20 * 1024 * 1024
 export const ALLOWED_ATTACHMENT_TYPES = [
   'image/jpeg',
   'image/png',

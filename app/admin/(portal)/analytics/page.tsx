@@ -19,6 +19,13 @@ const EMPTY_ANALYTICS = {
   pendingWithdrawals: 0,
   kycPending: 0,
   monthlyVolume: [],
+  investmentLiabilities: {
+    totalLiabilitiesUsd: 0,
+    dailyPayoutObligationUsd: 0,
+    weeklyPayoutObligationUsd: 0,
+    monthlyPayoutObligationUsd: 0,
+    activeInvestments: 0,
+  },
 }
 
 export default async function AdminAnalyticsPage() {

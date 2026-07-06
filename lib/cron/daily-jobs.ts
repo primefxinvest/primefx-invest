@@ -114,11 +114,7 @@ async function executeDailyCron(): Promise<DailyCronResult> {
   const depositSync = await syncAllOpenDeposits()
 
   let profits: DailyCronResult['profits']
-  if (utcDay >= 1 && utcDay <= 5) {
-    profits = await runDailyInvestmentProfits()
-  } else {
-    profits = { skipped: true, reason: 'Weekend — no Mon–Fri trading session to settle' }
-  }
+  profits = await runDailyInvestmentProfits()
 
   let weekly: DailyCronResult['weekly'] = null
 

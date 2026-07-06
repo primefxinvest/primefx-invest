@@ -14,7 +14,7 @@ export type AssistanceCategory =
   | 'account'
   | 'general'
 
-export type AssistanceMessageRole = 'user' | 'assistant' | 'system'
+export type AssistanceMessageRole = 'user' | 'assistant' | 'system' | 'agent'
 
 export interface AssistanceAttachment {
   name: string
@@ -45,6 +45,7 @@ export interface AssistanceSession {
   escalationReason: string | null
   ticketId: string | null
   ticketNumber: string | null
+  assignedAgentId: string | null
   createdAt: string
   updatedAt: string
 }

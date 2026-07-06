@@ -11,7 +11,6 @@ import {
   Layers,
   Crown,
   Gem,
-  Briefcase,
 } from 'lucide-react'
 import { KpiCard, KpiGrid } from '@/components/shared/kpi'
 import { ScrollTable } from '@/components/shared/ScrollTable'
@@ -30,6 +29,7 @@ import DistributionMap from '@/components/portfolio/DistributionMap'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { useCapitalWithdrawalRequestsRealtime } from '@/lib/hooks/useCapitalWithdrawalRealtime'
+import { useInvestmentProfitRealtime } from '@/lib/hooks/useInvestmentProfitRealtime'
 import { pageStackClass, gridGapClass } from '@/lib/layout/spacing'
 import { dashboardCardClass, dashboardSectionTitleClass } from '@/lib/layout/surfaces'
 import {
@@ -109,6 +109,15 @@ export default function PortfolioPage() {
     },
   })
 
+  useInvestmentProfitRealtime({
+    userId: user.id,
+    enabled: Boolean(user.id),
+    onChange: () => {
+      void reloadOverview()
+      void reloadInvestments()
+    },
+  })
+
   const capitalWithdrawalByInvestment = useMemo(() => {
     const map = new Map<string, (typeof capitalWithdrawals)[number]>()
     capitalWithdrawals.forEach((request) => {
@@ -142,8 +151,14 @@ export default function PortfolioPage() {
     profitLoss: '$0.00',
     roi: '0%',
     activePlans: 0,
+    completedPlans: 0,
     totalWeeklyEarnings: '$0.00',
+    totalDailyEarnings: '$0.00',
+    totalMonthlyEarnings: '$0.00',
     totalProfitsEarned: '$0.00',
+    totalWithdrawn: '$0.00',
+    lifetimeRoi: '0%',
+    averageRoi: '0%',
   }
 
   const profitLossValue = portfolioOverview.profitLoss
@@ -277,28 +292,53 @@ export default function PortfolioPage() {
             iconBg="bg-blue-50 text-[#0052ff]"
           />
           <KpiCard
-            label="Total Profit"
-            value={portfolioOverview.profitLoss}
-            caption="Net gain or loss"
+            label="Total Earned"
+            value={portfolioOverview.totalProfitsEarned ?? portfolioOverview.profitLoss}
+            caption="Lifetime investment profits"
             valueClassName={isProfitNegative ? 'text-red-600' : 'text-emerald-600'}
             icon={<BarChart2 className="h-4 w-4 sm:h-5 sm:w-5" />}
             iconBg="bg-violet-50 text-violet-600"
           />
           <KpiCard
-            label="Active Investments"
-            value={String(portfolioOverview.activePlans)}
-            caption="Independent positions"
-            icon={<Briefcase className="h-4 w-4 sm:h-5 sm:w-5" />}
-            iconBg="bg-slate-100 text-slate-600"
-          />
-          <KpiCard
-            label="Weekly Earnings"
-            value={portfolioOverview.totalWeeklyEarnings ?? '$0.00'}
-            caption="Target across active plans"
+            label="Daily Earnings"
+            value={portfolioOverview.totalDailyEarnings ?? '$0.00'}
+            caption="Across active investments"
             icon={<TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />}
             iconBg="bg-emerald-50 text-emerald-600"
           />
+          <KpiCard
+            label="Lifetime ROI"
+            value={portfolioOverview.lifetimeRoi ?? portfolioOverview.roi}
+            caption={`Avg ${portfolioOverview.averageRoi ?? '0%'} per position`}
+            icon={<BarChart2 className="h-4 w-4 sm:h-5 sm:w-5" />}
+            iconBg="bg-slate-100 text-slate-600"
+          />
         </KpiGrid>
+
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-xl border border-border bg-card px-4 py-3">
+            <p className="text-xs text-muted-foreground">Weekly earnings</p>
+            <p className="mt-1 text-sm font-bold text-foreground">
+              {portfolioOverview.totalWeeklyEarnings ?? '$0.00'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-card px-4 py-3">
+            <p className="text-xs text-muted-foreground">Monthly earnings</p>
+            <p className="mt-1 text-sm font-bold text-foreground">
+              {portfolioOverview.totalMonthlyEarnings ?? '$0.00'}
+            </p>
+          </div>
+          <div className="rounded-xl border border-border bg-card px-4 py-3">
+            <p className="text-xs text-muted-foreground">Active investments</p>
+            <p className="mt-1 text-sm font-bold text-foreground">{portfolioOverview.activePlans}</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card px-4 py-3">
+            <p className="text-xs text-muted-foreground">Completed</p>
+            <p className="mt-1 text-sm font-bold text-foreground">
+              {portfolioOverview.completedPlans ?? 0}
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* 2 & 3. Performance + Allocation */}

@@ -14,7 +14,6 @@ import {
 import { useTranslations } from 'next-intl'
 import { ChatTypingIndicator } from '@/components/chat/ChatTypingIndicator'
 import { TypewriterText } from '@/components/chat/TypewriterText'
-import { getMessageText } from '@/lib/ai/message-utils'
 import type { AssistanceChatState } from '@/lib/hooks/useAssistanceChat'
 import { useTypewriter } from '@/lib/hooks/useTypewriter'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
@@ -63,6 +62,7 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
     pendingAttachments,
     clientError,
     session: sessionData,
+    humanConnected,
     welcomeText,
     hasConversationHistory,
     submitMessage,
@@ -123,8 +123,20 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
 
             {messages.map((message, index) => {
               const isUser = message.role === 'user'
-              const text = getMessageText(message)
+              const isAgent = message.role === 'agent'
+              const isSystem = message.role === 'system'
+              const text = message.text
               if (!text) return null
+
+              if (isSystem) {
+                return (
+                  <div key={message.id} className="flex justify-center px-2">
+                    <p className="rounded-full bg-emerald-50 px-3 py-1.5 text-center text-[11px] font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300">
+                      {text}
+                    </p>
+                  </div>
+                )
+              }
 
               return (
                 <div
@@ -142,8 +154,19 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
                       )}
                     </div>
                   ) : (
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#0052ff] to-[#2563eb] shadow-sm">
-                      <Sparkles className="h-3.5 w-3.5 text-white" aria-hidden />
+                    <div
+                      className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl shadow-sm',
+                        isAgent
+                          ? 'bg-gradient-to-br from-violet-600 to-indigo-600'
+                          : 'bg-gradient-to-br from-[#0052ff] to-[#2563eb]'
+                      )}
+                    >
+                      {isAgent ? (
+                        <Headphones className="h-3.5 w-3.5 text-white" aria-hidden />
+                      ) : (
+                        <Sparkles className="h-3.5 w-3.5 text-white" aria-hidden />
+                      )}
                     </div>
                   )}
                   <div
@@ -152,12 +175,19 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
                       isUser ? 'items-end' : 'items-start'
                     )}
                   >
+                    {isAgent ? (
+                      <span className="px-1 text-[10px] font-semibold text-violet-600">
+                        {t('humanTitle')}
+                      </span>
+                    ) : null}
                     <div
                       className={cn(
                         'rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed shadow-sm',
                         isUser
                           ? 'rounded-tr-md bg-primary text-primary-foreground'
-                          : 'rounded-tl-md border border-border bg-card text-foreground'
+                          : isAgent
+                            ? 'rounded-tl-md border border-violet-200 bg-violet-50 text-foreground dark:border-violet-900 dark:bg-violet-950/30'
+                            : 'rounded-tl-md border border-border bg-card text-foreground'
                       )}
                     >
                       <p className="whitespace-pre-wrap">{text}</p>
@@ -227,12 +257,18 @@ export function AssistanceMessagesTab({ chat }: AssistanceMessagesTabProps) {
               </div>
             ) : null}
 
-            {sessionData?.status === 'escalated' && !chat.hasAgentReply ? (
+            {sessionData?.status === 'escalated' && humanConnected && !chat.hasAgentReply ? (
               <div className="rounded-xl border border-border bg-muted/40 p-3 text-center">
-                <p className="text-xs text-muted-foreground">{t('escalation.waiting')}</p>
+                <div className="mx-auto mb-2 flex items-center justify-center gap-2">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-60" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                  </span>
+                  <p className="text-xs font-medium text-foreground">{t('escalation.waiting')}</p>
+                </div>
                 {sessionData.ticketNumber ? (
-                  <p className="mt-1 font-mono text-[11px] font-medium text-foreground">
-                    {sessionData.ticketNumber}
+                  <p className="font-mono text-[11px] font-medium text-muted-foreground">
+                    {t('ticketLabel')} {sessionData.ticketNumber}
                   </p>
                 ) : null}
               </div>

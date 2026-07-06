@@ -289,14 +289,18 @@ export interface AdminAssistanceSessionRow {
   userId: string
   userEmail: string
   userName: string | null
+  userAvatarUrl: string | null
   status: string
   category: string | null
   escalationReason: string | null
   ticketId: string | null
   ticketNumber: string | null
+  assignedAgentId: string | null
+  assignedAgentName: string | null
   messageCount: number
   lastMessage: string | null
   lastMessageRole: string | null
+  unreadCount: number
   createdAt: string
   updatedAt: string
 }

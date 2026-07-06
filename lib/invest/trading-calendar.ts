@@ -53,10 +53,10 @@ export function getPreviousTradingDay(): Date {
 }
 
 export function weeklyProfitMultiplier(weeklyRoiPercent: number, tradingDays: number): number {
-  const dailyRate = weeklyRoiPercent / 100 / 5
+  const dailyRate = weeklyRoiPercent / 100 / 7
   return dailyRate * tradingDays
 }
 
 export function dailyProfitMultiplier(weeklyRoiPercent: number): number {
-  return weeklyProfitMultiplier(weeklyRoiPercent, 1)
+  return weeklyRoiPercent / 100 / 7
 }

@@ -182,3 +182,59 @@ export async function notifySupportTicketReply(
     metadata: { ticketId, event: 'support_ticket_reply' },
   })
 }
+
+export async function notifyAssistanceAgentReply(
+  userId: string,
+  sessionId: string,
+  subject: string
+) {
+  return createUserNotification({
+    userId,
+    title: 'Support specialist replied',
+    message: `A PrimeFx specialist responded to "${subject}". Open Live Chat to continue.`,
+    type: 'general',
+    metadata: { sessionId, event: 'assistance_agent_reply' },
+  })
+}
+
+export async function notifySupportEscalation(input: {
+  userId: string
+  ticketId: string
+  ticketNumber: string
+  issue: string
+}) {
+  await createUserNotification({
+    userId: input.userId,
+    title: 'Connected to PrimeFx Support',
+    message: `You are now connected to a specialist. Ticket ${input.ticketNumber} has been created.`,
+    type: 'general',
+    metadata: {
+      ticketId: input.ticketId,
+      ticketNumber: input.ticketNumber,
+      event: 'support_escalation',
+    },
+  })
+
+  const db = getDb()
+  if (!db) return
+
+  const { data: admins } = await db
+    .from('admin_profiles')
+    .select('user_id, tier')
+    .eq('is_active', true)
+    .in('tier', [1, 3])
+
+  for (const admin of admins ?? []) {
+    await createUserNotification({
+      userId: String(admin.user_id),
+      title: 'New support escalation',
+      message: `${input.ticketNumber}: ${input.issue.slice(0, 120)}`,
+      type: 'general',
+      metadata: {
+        ticketId: input.ticketId,
+        ticketNumber: input.ticketNumber,
+        event: 'admin_support_escalation',
+      },
+    })
+  }
+}

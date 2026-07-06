@@ -966,6 +966,7 @@
     "minimize": "Minimize chat",
     "ticketLabel": "Ticket",
     "unavailable": "PrimeFx Assistance is temporarily unavailable. Please try again shortly.",
+    "infrastructureMissing": "Support chat is being set up. Please try again shortly or email support.",
     "requestFailed": "Could not send your message. Please try again.",
     "attachmentFailed": "Could not upload attachment",
     "resolved": "Glad we could help! Chat marked as resolved.",
@@ -1024,6 +1025,7 @@
       "checkedContext": "Checked account context and withdrawal queue",
       "attemptedResolution": "Attempted automated resolution",
       "failed": "Could not escalate. Please try again or email support.",
+      "connected": "You are now connected to a PrimeFx Support Specialist.",
       "success": "Connected to support. Ticket {ticket} created.",
       "waiting": "A support specialist will respond shortly. Your conversation history has been shared with our team."
     }
@@ -1053,6 +1055,8 @@
     "tabTickets": "My Tickets",
     "tabFaq": "FAQ",
     "tabHelpCenter": "Help Center",
+    "recentArticles": "Recent articles",
+    "trendingIssues": "Trending issues",
     "readArticle": "Read article",
     "faqNoResults": "No matching articles",
     "faqNoResultsDescription": "Try a different search term or create a support ticket.",

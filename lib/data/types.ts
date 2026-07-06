@@ -27,8 +27,55 @@ export interface PortfolioMetrics {
 
 export interface InvestmentSummaryStats {
   activeCount: number
+  completedCount?: number
   totalWeeklyEarnings: string
+  totalDailyEarnings?: string
+  totalMonthlyEarnings?: string
   totalProfitsEarned: string
+  totalWithdrawn?: string
+  lifetimeRoi?: string
+  averageRoi?: string
+}
+
+export interface InvestmentProfitHistoryItem {
+  id: string
+  periodDate: string
+  amountUsd: number
+  dailyRate: number
+  principalUsd: number
+  createdAt: string
+}
+
+export interface InvestmentDetailData {
+  id: string
+  displayId: string
+  referenceId: string | null
+  plan: string
+  category: string
+  investedAmount: number
+  currentValue: number
+  weeklyReturnPercent: number
+  weeklyReturn: string
+  dailyReturnPercent: number
+  dailyReturn: string
+  dailyProfit: number
+  accumulatedProfit: number
+  totalEarned: number
+  roiPercent: number
+  roi: string
+  status: string
+  createdAt: string
+  createdAtIso: string
+  nextPayoutAt: string | null
+  nextPayoutLabel: string
+  withdrawalUnlockAt: string | null
+  capitalLockDays: number
+  isCapitalUnlocked: boolean
+  lockProgressPercent: number
+  lockDaysRemaining: number
+  lockCountdown: string
+  compoundMode: boolean
+  profitHistory: InvestmentProfitHistoryItem[]
 }
 
 export interface PortfolioInvestmentWithdrawalItem {
@@ -51,13 +98,26 @@ export interface PortfolioInvestmentItem {
   invested: string
   investedAmount: number
   currentValue: string
+  currentValueAmount: number
   weeklyReturn: string
   weeklyReturnPercent: number
+  dailyReturn: string
+  dailyReturnPercent: number
   createdAt: string
+  createdAtIso: string
   nextPayoutDate: string
+  nextPayoutAt: string | null
   accumulatedProfit: string
+  accumulatedProfitAmount: number
   roi: string
+  roiPercent: number
   status: string
+  withdrawalUnlockAt: string | null
+  capitalLockDays: number
+  isCapitalUnlocked: boolean
+  lockProgressPercent: number
+  lockDaysRemaining: number
+  lockCountdown: string
   withdrawalHistory: PortfolioInvestmentWithdrawalItem[]
 }
 

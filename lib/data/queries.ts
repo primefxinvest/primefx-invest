@@ -31,13 +31,21 @@ import { mapDbPlansToInvestmentPlans, PLAN_UI_META, getPlanCategoryColorClass } 
 import {
   buildInvestmentSequenceMap,
   calculateAccumulatedProfit,
+  calculateDailyEarnings,
+  calculateMonthlyEarnings,
   calculateWeeklyEarnings,
   computeInvestmentSummaryStats,
   formatInvestmentDisplayId,
+  getCapitalLockDaysRemaining,
+  getCapitalLockProgress,
+  getCapitalWithdrawalUnlockAt,
   getNextWeeklyPayoutDate,
+  isCapitalWithdrawalUnlocked,
+  resolvePlanCapitalLockDays,
   resolveWeeklyRoiPercent,
   type InvestmentPositionInput,
 } from '@/lib/invest/investment-metrics'
+import { calculateDailyRate, formatCapitalLockCountdown } from '@/lib/invest/profit-engine'
 import {
   buildMonthlyReturnPoints,
   buildPortfolioChartData,
@@ -66,6 +74,8 @@ import type {
   PaymentMethod,
   InvestmentSummaryStats,
   PortfolioInvestmentItem,
+  InvestmentDetailData,
+  InvestmentProfitHistoryItem,
   PortfolioInvestmentWithdrawalItem,
   PortfolioMetrics,
   ReferralData,
@@ -224,8 +234,14 @@ function emptyPortfolioMetrics(): PortfolioMetrics {
 function emptyInvestmentSummaryStats(): InvestmentSummaryStats {
   return {
     activeCount: 0,
+    completedCount: 0,
     totalWeeklyEarnings: formatCurrency(0),
+    totalDailyEarnings: formatCurrency(0),
+    totalMonthlyEarnings: formatCurrency(0),
     totalProfitsEarned: formatCurrency(0),
+    totalWithdrawn: formatCurrency(0),
+    lifetimeRoi: formatPercent(0),
+    averageRoi: formatPercent(0),
   }
 }
 
@@ -247,11 +263,20 @@ function buildInvestmentSummaryStatsFromRows(
     }
   })
 
-  const stats = computeInvestmentSummaryStats(positions)
+  const stats = computeInvestmentSummaryStats(
+    positions,
+    investments.filter((row) => String(row.status ?? '').toLowerCase() !== 'active').length
+  )
   return {
     activeCount: stats.activeCount,
+    completedCount: stats.completedCount,
     totalWeeklyEarnings: formatCurrency(stats.totalWeeklyEarnings),
+    totalDailyEarnings: formatCurrency(stats.totalDailyEarnings),
+    totalMonthlyEarnings: formatCurrency(stats.totalMonthlyEarnings),
     totalProfitsEarned: formatCurrency(stats.totalProfitsEarned, { signed: true }),
+    totalWithdrawn: formatCurrency(stats.totalWithdrawn),
+    lifetimeRoi: formatPercent(stats.lifetimeRoi),
+    averageRoi: formatPercent(stats.averageRoi),
   }
 }
 
@@ -1018,8 +1043,14 @@ export async function fetchPortfolioOverview() {
     profitLoss: metrics.totalProfit,
     roi: metrics.roiPercentage,
     activePlans: investmentStats.activeCount,
+    completedPlans: investmentStats.completedCount ?? 0,
     totalWeeklyEarnings: investmentStats.totalWeeklyEarnings,
+    totalDailyEarnings: investmentStats.totalDailyEarnings ?? '$0.00',
+    totalMonthlyEarnings: investmentStats.totalMonthlyEarnings ?? '$0.00',
     totalProfitsEarned: investmentStats.totalProfitsEarned,
+    totalWithdrawn: investmentStats.totalWithdrawn ?? '$0.00',
+    lifetimeRoi: investmentStats.lifetimeRoi ?? '0%',
+    averageRoi: investmentStats.averageRoi ?? '0%',
   }
 }
 
@@ -1066,6 +1097,85 @@ export async function fetchPortfolioInvestments(): Promise<{
   return { active, completed }
 }
 
+export async function fetchInvestmentDetail(investmentId: string): Promise<InvestmentDetailData | null> {
+  const userId = await requireUserId()
+  if (!userId) return null
+
+  const { data, error } = await supabase
+    .from('investments')
+    .select('*, investment_plans(*)')
+    .eq('id', investmentId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error || !data) return null
+
+  const { data: allInvestments } = await getUserInvestments(userId)
+  const sequenceMap = buildInvestmentSequenceMap(
+    (allInvestments ?? []).map((row) => ({
+      id: row.id as string,
+      created_at: row.created_at as string,
+    }))
+  )
+
+  const withdrawalHistory = await fetchWithdrawalHistoryByInvestment(userId)
+  const mapped = mapInvestmentRow(
+    data as Record<string, unknown>,
+    sequenceMap.get(investmentId) ?? 0,
+    withdrawalHistory.get(investmentId) ?? []
+  )
+
+  const { data: profitRows } = await supabase
+    .from('investment_profit_history')
+    .select('id, period_date, amount_usd, daily_rate, principal_usd, created_at')
+    .eq('investment_id', investmentId)
+    .order('period_date', { ascending: false })
+    .limit(60)
+
+  const profitHistory: InvestmentProfitHistoryItem[] = (profitRows ?? []).map((row) => ({
+    id: String(row.id),
+    periodDate: String(row.period_date),
+    amountUsd: toNumber(row.amount_usd),
+    dailyRate: toNumber(row.daily_rate),
+    principalUsd: toNumber(row.principal_usd),
+    createdAt: String(row.created_at),
+  }))
+
+  const dailyProfit = calculateDailyEarnings(mapped.investedAmount, mapped.weeklyReturnPercent)
+
+  return {
+    id: mapped.id,
+    displayId: mapped.displayId,
+    referenceId: mapped.referenceId,
+    plan: mapped.plan,
+    category: mapped.category,
+    investedAmount: mapped.investedAmount,
+    currentValue: mapped.currentValueAmount,
+    weeklyReturnPercent: mapped.weeklyReturnPercent,
+    weeklyReturn: mapped.weeklyReturn,
+    dailyReturnPercent: mapped.dailyReturnPercent,
+    dailyReturn: mapped.dailyReturn,
+    dailyProfit,
+    accumulatedProfit: mapped.accumulatedProfitAmount,
+    totalEarned: mapped.accumulatedProfitAmount,
+    roiPercent: mapped.roiPercent,
+    roi: mapped.roi,
+    status: mapped.status,
+    createdAt: mapped.createdAt,
+    createdAtIso: mapped.createdAtIso,
+    nextPayoutAt: mapped.nextPayoutAt,
+    nextPayoutLabel: mapped.nextPayoutDate,
+    withdrawalUnlockAt: mapped.withdrawalUnlockAt,
+    capitalLockDays: mapped.capitalLockDays,
+    isCapitalUnlocked: mapped.isCapitalUnlocked,
+    lockProgressPercent: mapped.lockProgressPercent,
+    lockDaysRemaining: mapped.lockDaysRemaining,
+    lockCountdown: mapped.lockCountdown,
+    compoundMode: Boolean((data as { compound_mode?: boolean }).compound_mode ?? false),
+    profitHistory,
+  }
+}
+
 export async function fetchCapitalWithdrawalRequests(): Promise<CapitalWithdrawalRequestItem[]> {
   const userId = await requireUserId()
   if (!userId) return []
@@ -1098,6 +1208,7 @@ function mapInvestmentRow(
   const plan = investment.investment_plans as {
     name?: string
     weekly_roi?: number | string | null
+    capital_lock_days?: number | null
   } | undefined
   const planName = plan?.name ?? 'Investment'
   const meta = PLAN_UI_META[planName]
@@ -1109,11 +1220,23 @@ function mapInvestmentRow(
     toNumber(investment.roi_percentage as string | number | null | undefined),
     planName
   )
+  const dailyReturnPercent = Math.round(calculateDailyRate(weeklyReturnPercent) * 1000000) / 10000
   const displayWeekly =
     meta?.displayWeeklyRoi ?? `${weeklyReturnPercent}%`
-  const roi = invested > 0 ? ((current - invested) / invested) * 100 : 0
+  const roiPercent = invested > 0 ? ((current - invested) / invested) * 100 : 0
   const accumulated = calculateAccumulatedProfit(invested, current)
   const referenceId = (investment.reference_id as string | null) ?? null
+  const createdAtIso = String(investment.created_at ?? '')
+  const lockDays = resolvePlanCapitalLockDays(
+    planName,
+    plan?.capital_lock_days != null ? Number(plan.capital_lock_days) : null
+  )
+  const unlockAt =
+    (investment.capital_withdrawal_unlock_at as string | null) ??
+    getCapitalWithdrawalUnlockAt(createdAtIso, lockDays)?.toISOString() ??
+    null
+  const isUnlocked = isCapitalWithdrawalUnlocked(unlockAt)
+  const nextPayoutAt = (investment.next_payout_at as string | null) ?? null
 
   return {
     id: investment.id as string,
@@ -1126,13 +1249,28 @@ function mapInvestmentRow(
     invested: formatCurrency(invested),
     investedAmount: invested,
     currentValue: formatCurrency(current),
+    currentValueAmount: current,
     weeklyReturn: displayWeekly,
     weeklyReturnPercent,
-    createdAt: formatDate(investment.created_at as string),
-    nextPayoutDate: formatDate(getNextWeeklyPayoutDate().toISOString()),
+    dailyReturn: `${dailyReturnPercent.toFixed(3)}%`,
+    dailyReturnPercent,
+    createdAt: formatDate(createdAtIso),
+    createdAtIso,
+    nextPayoutDate: formatDate(nextPayoutAt ?? getNextWeeklyPayoutDate().toISOString()),
+    nextPayoutAt,
     accumulatedProfit: formatCurrency(accumulated, { signed: true }),
-    roi: formatPercent(roi, { signed: true }),
+    accumulatedProfitAmount: accumulated,
+    roi: formatPercent(roiPercent, { signed: true }),
+    roiPercent,
     status: capitalize((investment.status as string) ?? 'Active'),
+    withdrawalUnlockAt: unlockAt,
+    capitalLockDays: lockDays,
+    isCapitalUnlocked: isUnlocked,
+    lockProgressPercent: unlockAt
+      ? getCapitalLockProgress(createdAtIso, unlockAt)
+      : 100,
+    lockDaysRemaining: unlockAt ? getCapitalLockDaysRemaining(unlockAt) : 0,
+    lockCountdown: unlockAt ? formatCapitalLockCountdown(unlockAt) : 'Available now',
     withdrawalHistory,
   }
 }

@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useMemo, useTransition } from 'react'
+import { Loader2, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 import { submitCapitalWithdrawalAction } from '@/lib/invest/capital-actions'
 import { formatCurrency, formatDateTime } from '@/lib/data/format'
@@ -25,17 +25,20 @@ export function CapitalWithdrawButton({
   investmentId,
   planName,
   pendingRequest,
+  isCapitalUnlocked = true,
+  lockCountdown,
+  capitalLockDays = 0,
   onRequested,
 }: {
   investmentId: string
   planName: string
   pendingRequest?: CapitalWithdrawalRequestItem
+  isCapitalUnlocked?: boolean
+  lockCountdown?: string
+  capitalLockDays?: number
   onRequested?: () => void
 }) {
   const [pending, startTransition] = useTransition()
-  const [localRequest, setLocalRequest] = useState<CapitalWithdrawalRequestItem | null>(null)
-
-  const activeRequest = pendingRequest ?? localRequest
 
   const handleClick = () => {
     startTransition(async () => {
@@ -45,17 +48,6 @@ export function CapitalWithdrawButton({
         return
       }
 
-      const nextRequest: CapitalWithdrawalRequestItem = {
-        id: result.requestId,
-        investmentId,
-        amountUsd: result.amountUsd,
-        status: 'pending_notice',
-        requestedAt: new Date().toISOString(),
-        availableAt: result.availableAt,
-        referenceId: result.referenceId,
-      }
-
-      setLocalRequest(nextRequest)
       onRequested?.()
 
       toast.success('Capital withdrawal requested', {
@@ -65,10 +57,10 @@ export function CapitalWithdrawButton({
   }
 
   const statusContent = useMemo(() => {
-    if (!activeRequest) return null
+    if (!pendingRequest) return null
 
-    const available = isCapitalWithdrawalAvailable(activeRequest.availableAt)
-    const amountLabel = formatCurrency(activeRequest.amountUsd)
+    const available = isCapitalWithdrawalAvailable(pendingRequest.availableAt)
+    const amountLabel = formatCurrency(pendingRequest.amountUsd)
 
     if (available) {
       return {
@@ -80,10 +72,10 @@ export function CapitalWithdrawButton({
 
     return {
       label: 'Withdrawal pending',
-      detail: `${amountLabel} · available ${formatAvailableDate(activeRequest.availableAt)}`,
+      detail: `${amountLabel} · available ${formatAvailableDate(pendingRequest.availableAt)}`,
       className: 'text-amber-700',
     }
-  }, [activeRequest])
+  }, [pendingRequest])
 
   if (statusContent) {
     return (
@@ -93,7 +85,25 @@ export function CapitalWithdrawButton({
         </p>
         <p className="mt-0.5 text-[10px] text-slate-500">{statusContent.detail}</p>
         <p className="mt-0.5 text-[10px] text-slate-400">
-          Requested {formatDateTime(activeRequest!.requestedAt)}
+          Requested {formatDateTime(pendingRequest!.requestedAt)}
+        </p>
+      </div>
+    )
+  }
+
+  if (!isCapitalUnlocked && capitalLockDays > 0) {
+    return (
+      <div className="text-right">
+        <button
+          type="button"
+          disabled
+          className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-slate-200 px-2.5 py-1 text-[11px] font-semibold text-slate-400"
+        >
+          <Lock className="h-3 w-3" />
+          Withdraw capital
+        </button>
+        <p className="mt-1 text-[10px] font-medium text-amber-700">
+          Available in: {lockCountdown ?? `${capitalLockDays} days`}
         </p>
       </div>
     )

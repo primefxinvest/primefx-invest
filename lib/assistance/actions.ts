@@ -7,6 +7,8 @@ import {
   buildEscalationSummary,
   formatEscalationSummaryForTicket,
 } from '@/lib/assistance/escalation'
+import { isTableMissingError } from '@/lib/assistance/infrastructure'
+import { ensureAssistanceStorageBucket } from '@/lib/assistance/storage'
 import type {
   AssistanceAttachment,
   AssistanceMessage,
@@ -19,6 +21,10 @@ import {
   ASSISTANCE_ATTACHMENT_BUCKET,
   MAX_ATTACHMENT_SIZE,
 } from '@/lib/assistance/constants'
+import { notifySupportEscalation } from '@/lib/notifications/service'
+
+const CONNECTED_MESSAGE =
+  'You are now connected to a PrimeFx Support Specialist. A team member will join shortly.'
 
 function mapSession(row: Record<string, unknown>, ticketNumber?: string | null): AssistanceSession {
   return {
@@ -28,6 +34,7 @@ function mapSession(row: Record<string, unknown>, ticketNumber?: string | null):
     escalationReason: (row.escalation_reason as string) ?? null,
     ticketId: (row.ticket_id as string) ?? null,
     ticketNumber: ticketNumber ?? null,
+    assignedAgentId: (row.assigned_agent_id as string) ?? null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   }
@@ -57,38 +64,10 @@ async function requireAuthUser() {
   return { supabase, user }
 }
 
-export async function getOrCreateAssistanceSession(): Promise<{
-  ok: boolean
-  data?: AssistanceSessionPayload
-  error?: string
-}> {
-  const { supabase, user } = await requireAuthUser()
-  if (!user) return { ok: false, error: 'Not authenticated' }
-
-  const { data: existing } = await supabase
-    .from('assistance_sessions')
-    .select('*')
-    .eq('user_id', user.id)
-    .in('status', ['active', 'escalated'])
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
-  let sessionRow = existing
-
-  if (!sessionRow) {
-    const { data: created, error: createError } = await supabase
-      .from('assistance_sessions')
-      .insert([{ user_id: user.id }])
-      .select('*')
-      .single()
-
-    if (createError || !created) {
-      return { ok: false, error: createError?.message ?? 'Failed to create session' }
-    }
-    sessionRow = created
-  }
-
+async function loadSessionPayload(
+  supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>,
+  sessionRow: Record<string, unknown>
+): Promise<AssistanceSessionPayload> {
   const { data: messageRows } = await supabase
     .from('assistance_messages')
     .select('*')
@@ -105,29 +84,73 @@ export async function getOrCreateAssistanceSession(): Promise<{
     ticketNumber = (ticket?.ticket_number as string) ?? null
   }
 
-  let hasAgentReply = false
-  if (sessionRow.ticket_id) {
-    const { count } = await supabase
-      .from('support_ticket_messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('ticket_id', sessionRow.ticket_id)
-      .eq('sender_type', 'admin')
-    hasAgentReply = (count ?? 0) > 0
-  }
+  const messages = (messageRows ?? []).map(mapMessage)
+  const hasAgentReply = messages.some((m) => m.role === 'agent')
 
   return {
-    ok: true,
-    data: {
-      session: mapSession(sessionRow, ticketNumber),
-      messages: (messageRows ?? []).map(mapMessage),
-      hasAgentReply,
-    },
+    session: mapSession(sessionRow, ticketNumber),
+    messages,
+    hasAgentReply,
   }
+}
+
+export async function getOrCreateAssistanceSession(): Promise<{
+  ok: boolean
+  data?: AssistanceSessionPayload
+  error?: string
+  infrastructureMissing?: boolean
+}> {
+  const { supabase, user } = await requireAuthUser()
+  if (!user) return { ok: false, error: 'Not authenticated' }
+
+  const { data: existing, error: existingError } = await supabase
+    .from('assistance_sessions')
+    .select('*')
+    .eq('user_id', user.id)
+    .in('status', ['active', 'escalated'])
+    .order('updated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (existingError) {
+    if (isTableMissingError(existingError.message)) {
+      return {
+        ok: false,
+        infrastructureMissing: true,
+        error: 'Support chat is being set up. Please try again shortly or email support.',
+      }
+    }
+    return { ok: false, error: existingError.message }
+  }
+
+  let sessionRow = existing
+
+  if (!sessionRow) {
+    const { data: created, error: createError } = await supabase
+      .from('assistance_sessions')
+      .insert([{ user_id: user.id }])
+      .select('*')
+      .single()
+
+    if (createError) {
+      if (isTableMissingError(createError.message)) {
+        return {
+          ok: false,
+          infrastructureMissing: true,
+          error: 'Support chat is being set up. Please try again shortly or email support.',
+        }
+      }
+      return { ok: false, error: createError.message ?? 'Failed to create session' }
+    }
+    sessionRow = created
+  }
+
+  return { ok: true, data: await loadSessionPayload(supabase, sessionRow) }
 }
 
 export async function saveAssistanceMessage(input: {
   sessionId: string
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant' | 'system' | 'agent'
   content: string
   metadata?: AssistanceMessage['metadata']
 }) {
@@ -170,28 +193,53 @@ export async function saveAssistanceMessage(input: {
 }
 
 export async function escalateAssistanceSession(input: {
-  sessionId: string
+  sessionId?: string
   escalationReason: string
   messages: { role: string; content: string }[]
   aiActions?: string[]
 }): Promise<{
   ok: boolean
+  sessionId?: string
   ticketNumber?: string
   ticketId?: string
   summary?: EscalationSummary
+  connectedMessage?: string
   error?: string
+  infrastructureMissing?: boolean
 }> {
   const { supabase, user } = await requireAuthUser()
   if (!user) return { ok: false, error: 'Not authenticated' }
 
-  const { data: session } = await supabase
+  let sessionId = input.sessionId
+
+  if (!sessionId) {
+    const created = await getOrCreateAssistanceSession()
+    if (!created.ok || !created.data) {
+      return {
+        ok: false,
+        error: created.error,
+        infrastructureMissing: created.infrastructureMissing,
+      }
+    }
+    sessionId = created.data.session.id
+  }
+
+  const { data: session, error: sessionError } = await supabase
     .from('assistance_sessions')
     .select('*')
-    .eq('id', input.sessionId)
+    .eq('id', sessionId)
     .eq('user_id', user.id)
     .maybeSingle()
 
+  if (sessionError) {
+    if (isTableMissingError(sessionError.message)) {
+      return { ok: false, infrastructureMissing: true, error: sessionError.message }
+    }
+    return { ok: false, error: sessionError.message }
+  }
+
   if (!session) return { ok: false, error: 'Session not found' }
+
   if (session.ticket_id) {
     const { data: existingTicket } = await supabase
       .from('support_tickets')
@@ -200,8 +248,10 @@ export async function escalateAssistanceSession(input: {
       .maybeSingle()
     return {
       ok: true,
+      sessionId,
       ticketId: String(session.ticket_id),
       ticketNumber: String(existingTicket?.ticket_number ?? ''),
+      connectedMessage: CONNECTED_MESSAGE,
     }
   }
 
@@ -234,7 +284,7 @@ export async function escalateAssistanceSession(input: {
         category: summary.category,
         issue_summary: summary.issue,
         ai_summary: aiSummary,
-        assistance_session_id: input.sessionId,
+        assistance_session_id: sessionId,
       },
     ])
     .select('id, ticket_number')
@@ -253,23 +303,35 @@ export async function escalateAssistanceSession(input: {
       ticket_id: ticket.id,
       updated_at: new Date().toISOString(),
     })
-    .eq('id', input.sessionId)
+    .eq('id', sessionId)
 
   await supabase.from('assistance_messages').insert([
     {
-      session_id: input.sessionId,
+      session_id: sessionId,
       role: 'system',
-      content: `Escalated to human support. Ticket ${ticket.ticket_number} created.`,
-      metadata: { escalationSuggested: true, escalationReason: input.escalationReason },
+      content: CONNECTED_MESSAGE,
+      metadata: { escalationSuggested: false, escalationReason: input.escalationReason },
     },
   ])
 
+  await notifySupportEscalation({
+    userId: user.id,
+    ticketId: String(ticket.id),
+    ticketNumber: String(ticket.ticket_number),
+    issue: summary.issue,
+  })
+
   revalidatePath('/support')
+  revalidatePath('/admin/support')
+  revalidatePath('/admin/support/messages')
+
   return {
     ok: true,
+    sessionId,
     ticketId: String(ticket.id),
     ticketNumber: String(ticket.ticket_number),
     summary,
+    connectedMessage: CONNECTED_MESSAGE,
   }
 }
 
@@ -297,9 +359,14 @@ export async function uploadAssistanceAttachment(formData: FormData): Promise<{
 
   const file = formData.get('file')
   if (!(file instanceof File)) return { ok: false, error: 'No file provided' }
-  if (file.size > MAX_ATTACHMENT_SIZE) return { ok: false, error: 'File too large (max 5MB)' }
+  if (file.size > MAX_ATTACHMENT_SIZE) return { ok: false, error: 'File too large (max 20MB)' }
   if (!ALLOWED_ATTACHMENT_TYPES.includes(file.type)) {
     return { ok: false, error: 'Unsupported file type' }
+  }
+
+  const bucketReady = await ensureAssistanceStorageBucket()
+  if (!bucketReady.ok) {
+    return { ok: false, error: bucketReady.error ?? 'Storage unavailable' }
   }
 
   const ext = file.name.split('.').pop() ?? 'bin'
@@ -346,4 +413,17 @@ export async function updateAssistanceCategory(sessionId: string, category: stri
     .eq('user_id', user.id)
 
   return { ok: true as const }
+}
+
+export async function sendEscalatedUserMessage(input: {
+  sessionId: string
+  content: string
+  attachments?: AssistanceAttachment[]
+}) {
+  return saveAssistanceMessage({
+    sessionId: input.sessionId,
+    role: 'user',
+    content: input.content,
+    metadata: input.attachments?.length ? { attachments: input.attachments } : {},
+  })
 }
