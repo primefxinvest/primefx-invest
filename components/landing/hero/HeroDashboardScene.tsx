@@ -1,13 +1,6 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
-import {
-  m,
-  useMotionValue,
-  useSpring,
-  useTransform,
-  type MotionValue,
-} from 'framer-motion'
+import { useEffect, useRef, useState, memo, type ReactNode } from 'react'
 import {
   Activity,
   BarChart3,
@@ -20,10 +13,10 @@ import {
   TrendingUp,
   Users,
   Wallet,
-  Zap,
 } from 'lucide-react'
 import { useReducedMotion } from '@/lib/motion/use-reduced-motion'
 import { cn } from '@/lib/utils'
+import './hero-dashboard.css'
 
 function MiniSparkline({ color = '#10b981', className }: { color?: string; className?: string }) {
   return (
@@ -45,345 +38,201 @@ function MiniSparkline({ color = '#10b981', className }: { color?: string; class
   )
 }
 
-type FloatingCardProps = {
-  children: React.ReactNode
-  className?: string
-  delay?: number
-  depth?: number
-  mouseX: MotionValue<number>
-  mouseY: MotionValue<number>
-  reduced: boolean
+type FloatingWidgetProps = {
+  children: ReactNode
+  className: string
+  delayIndex: 0 | 1 | 2 | 3 | 4
+  compact?: boolean
 }
 
-function FloatingCard({
+const FloatingWidget = memo(function FloatingWidget({
   children,
   className,
-  delay = 0,
-  depth = 1,
-  mouseX,
-  mouseY,
-  reduced,
-}: FloatingCardProps) {
-  const parallaxX = useTransform(mouseX, [-0.5, 0.5], [-8 * depth, 8 * depth])
-  const parallaxY = useTransform(mouseY, [-0.5, 0.5], [-6 * depth, 6 * depth])
-
+  delayIndex,
+  compact = false,
+}: FloatingWidgetProps) {
   return (
-    <m.div
-      className={cn('absolute', className)}
-      style={{
-        x: reduced ? 0 : parallaxX,
-        y: reduced ? 0 : parallaxY,
-        willChange: 'transform',
-      }}
+    <div
+      className={cn(
+        'hero-widget-float absolute z-30',
+        `hero-widget-float--${delayIndex}`,
+        className
+      )}
     >
-      <m.div
-        className="rounded-2xl border border-white/70 bg-white/75 p-3 shadow-xl shadow-blue-900/10 backdrop-blur-xl"
-        animate={reduced ? undefined : { y: [0, -10, 0] }}
-        transition={{
-          y: { duration: 5 + delay, repeat: Infinity, ease: 'easeInOut', delay },
-        }}
-        whileHover={reduced ? undefined : { scale: 1.04, y: -4 }}
+      <div
+        className={cn(
+          'rounded-xl border border-white/50 bg-white/55 backdrop-blur-md',
+          compact ? 'p-2 shadow-md shadow-blue-900/5' : 'p-3 shadow-lg shadow-blue-900/6'
+        )}
       >
         {children}
-      </m.div>
-    </m.div>
+      </div>
+    </div>
   )
-}
+})
 
 const MARKET_TICKERS = [
-  { symbol: 'BTC', change: '+2.41%', up: true },
-  { symbol: 'EUR/USD', change: '+0.18%', up: true },
-  { symbol: 'NASDAQ', change: '+1.24%', up: true },
-  { symbol: 'Gold', change: '+0.87%', up: true },
-  { symbol: 'S&P500', change: '-0.12%', up: false },
+  { symbol: 'BTC', change: '+2.41%' },
+  { symbol: 'EUR/USD', change: '+0.18%' },
+  { symbol: 'NASDAQ', change: '+1.24%' },
 ]
 
-const AI_MESSAGES = [
-  'Portfolio optimized',
-  'Risk within target',
-  'New opportunity detected',
-]
-
-export default function HeroDashboardScene() {
+function HeroDashboardScene() {
   const reduced = useReducedMotion()
   const containerRef = useRef<HTMLDivElement>(null)
-  const [hovering, setHovering] = useState(false)
+  const [animationsActive, setAnimationsActive] = useState(false)
 
-  const mouseX = useMotionValue(0)
-  const mouseY = useMotionValue(0)
-  const springX = useSpring(mouseX, { stiffness: 120, damping: 20 })
-  const springY = useSpring(mouseY, { stiffness: 120, damping: 20 })
+  useEffect(() => {
+    if (reduced) return
 
-  const rotateX = useTransform(springY, [-0.5, 0.5], [6, -6])
-  const rotateY = useTransform(springX, [-0.5, 0.5], [-10, 10])
-  const glowX = useTransform(springX, [-0.5, 0.5], ['40%', '60%'])
+    const element = containerRef.current
+    if (!element) return
 
-  const handleMouseMove = useCallback(
-    (event: React.MouseEvent<HTMLDivElement>) => {
-      if (reduced) return
-      const rect = containerRef.current?.getBoundingClientRect()
-      if (!rect) return
-      mouseX.set((event.clientX - rect.left) / rect.width - 0.5)
-      mouseY.set((event.clientY - rect.top) / rect.height - 0.5)
-    },
-    [mouseX, mouseY, reduced]
-  )
+    const observer = new IntersectionObserver(
+      ([entry]) => setAnimationsActive(entry.isIntersecting),
+      { rootMargin: '80px', threshold: 0 }
+    )
 
-  const handleMouseLeave = useCallback(() => {
-    setHovering(false)
-    mouseX.set(0)
-    mouseY.set(0)
-  }, [mouseX, mouseY])
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [reduced])
+
+  const paused = reduced || !animationsActive
 
   return (
-    <m.div
+    <div
       ref={containerRef}
-      className="relative mx-auto h-[520px] w-full max-w-[580px] sm:h-[560px] lg:mx-0 lg:max-w-none"
-      initial={{ opacity: 0, scale: 0.94, y: 24 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1], delay: 0.15 }}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setHovering(true)}
-      onMouseLeave={handleMouseLeave}
-      style={{ perspective: 1400 }}
+      className={cn(
+        'hero-scene-enter relative mx-auto h-[280px] w-full max-w-[580px] md:h-[560px] lg:mx-0 lg:max-w-none',
+        paused && 'hero-scene-paused'
+      )}
     >
-      <m.div
-        className="pointer-events-none absolute inset-4 rounded-[2rem] bg-blue-500/20 blur-3xl"
-        style={{ x: reduced ? 0 : glowX }}
-        animate={reduced ? undefined : { opacity: hovering ? 0.55 : 0.35 }}
-      />
+      <div className="hidden md:contents">
+        <FloatingWidget className="right-0 top-2 w-36" delayIndex={0}>
+          <p className="text-[10px] font-medium text-gray-500">Profit Today</p>
+          <p className="text-lg font-bold text-emerald-500">+$842.50</p>
+          <MiniSparkline />
+        </FloatingWidget>
 
-      <FloatingCard
-        className="right-0 top-2 z-30 hidden w-36 sm:block"
-        delay={0.2}
-        depth={1.4}
-        mouseX={springX}
-        mouseY={springY}
-        reduced={reduced}
-      >
-        <p className="text-[10px] font-medium text-gray-500">Profit Today</p>
-        <p className="text-lg font-bold text-emerald-500">+$842.50</p>
-        <MiniSparkline />
-      </FloatingCard>
+        <FloatingWidget className="-right-3 top-36 w-36" delayIndex={1}>
+          <div className="flex items-center gap-1.5">
+            <Users className="h-3.5 w-3.5 text-purple-500" />
+            <p className="text-[10px] font-medium text-gray-500">Total Investors</p>
+          </div>
+          <p className="text-lg font-bold text-gray-900">120,482</p>
+        </FloatingWidget>
 
-      <FloatingCard
-        className="-left-2 top-16 z-30 w-32"
-        delay={0.6}
-        depth={1.2}
-        mouseX={springX}
-        mouseY={springY}
-        reduced={reduced}
-      >
-        <div className="flex items-center gap-1.5">
-          <TrendingUp className="h-3.5 w-3.5 text-[#0052ff]" />
-          <p className="text-[10px] font-semibold text-gray-700">Weekly ROI</p>
-        </div>
-        <p className="mt-1 text-xl font-bold text-[#0052ff]">+3.2%</p>
-      </FloatingCard>
+        <FloatingWidget className="bottom-28 left-0 hidden w-40 lg:block" delayIndex={2}>
+          <div className="flex items-center gap-1.5">
+            <Activity className="h-3.5 w-3.5 text-emerald-500" />
+            <p className="text-[10px] font-semibold text-gray-700">Live Trades</p>
+          </div>
+          <p className="mt-0.5 text-sm font-bold text-gray-900">2,847 active</p>
+        </FloatingWidget>
+      </div>
 
-      <FloatingCard
-        className="-right-3 top-36 z-30 hidden w-36 md:block"
-        delay={1}
-        depth={1.6}
-        mouseX={springX}
-        mouseY={springY}
-        reduced={reduced}
+      <FloatingWidget
+        className="right-0 top-0 w-28 md:-left-2 md:top-16 md:w-32"
+        delayIndex={3}
+        compact
       >
         <div className="flex items-center gap-1.5">
-          <Users className="h-3.5 w-3.5 text-purple-500" />
-          <p className="text-[10px] font-medium text-gray-500">Total Investors</p>
+          <TrendingUp className="h-3 w-3 text-[#0052ff] md:h-3.5 md:w-3.5" />
+          <p className="text-[9px] font-semibold text-gray-700 md:text-[10px]">Weekly ROI</p>
         </div>
-        <p className="text-lg font-bold text-gray-900">120,482</p>
-      </FloatingCard>
+        <p className="mt-0.5 text-base font-bold text-[#0052ff] md:mt-1 md:text-xl">+3.2%</p>
+      </FloatingWidget>
 
-      <FloatingCard
-        className="bottom-28 left-0 z-30 hidden w-40 lg:block"
-        delay={0.4}
-        depth={1.3}
-        mouseX={springX}
-        mouseY={springY}
-        reduced={reduced}
+      <FloatingWidget
+        className="bottom-4 right-0 w-28 md:bottom-20 md:w-36"
+        delayIndex={4}
+        compact
       >
         <div className="flex items-center gap-1.5">
-          <Activity className="h-3.5 w-3.5 text-emerald-500" />
-          <p className="text-[10px] font-semibold text-gray-700">Live Trades</p>
+          <Wallet className="h-3 w-3 text-[#0052ff] md:h-3.5 md:w-3.5" />
+          <p className="text-[9px] font-medium text-gray-500 md:text-[10px]">Total Deposits</p>
         </div>
-        <p className="mt-0.5 text-sm font-bold text-gray-900">2,847 active</p>
-        <m.div
-          className="mt-1 flex gap-1"
-          animate={reduced ? undefined : { opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 2, repeat: Infinity }}
-        >
-          {[0, 1, 2].map((i) => (
-            <span key={i} className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-          ))}
-        </m.div>
-      </FloatingCard>
+        <p className="text-base font-bold text-gray-900 md:text-lg">$150M+</p>
+      </FloatingWidget>
 
-      <FloatingCard
-        className="bottom-20 right-0 z-30 w-36"
-        delay={0.8}
-        depth={1.5}
-        mouseX={springX}
-        mouseY={springY}
-        reduced={reduced}
-      >
-        <div className="flex items-center gap-1.5">
-          <Wallet className="h-3.5 w-3.5 text-[#0052ff]" />
-          <p className="text-[10px] font-medium text-gray-500">Total Deposits</p>
-        </div>
-        <p className="text-lg font-bold text-gray-900">$150M+</p>
-      </FloatingCard>
-
-      <m.div
-        className="absolute left-1/2 top-1/2 z-20 w-full max-w-[480px] -translate-x-1/2 -translate-y-[45%]"
-        style={{
-          rotateX: reduced ? 0 : rotateX,
-          rotateY: reduced ? 0 : rotateY,
-          transformStyle: 'preserve-3d',
-          willChange: 'transform',
-        }}
-      >
-        <div className="relative overflow-hidden rounded-[1.75rem] border border-white/80 bg-white/80 shadow-2xl shadow-blue-900/15 backdrop-blur-2xl">
-          <div
-            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/90 via-transparent to-blue-50/50"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-blue-400/20 blur-2xl"
-            aria-hidden
-          />
-
-          <div className="relative flex overflow-hidden">
-            <div className="flex w-12 shrink-0 flex-col items-center gap-4 bg-gradient-to-b from-[#0f1f4d] to-[#162a5c] py-5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0052ff] shadow-lg shadow-blue-500/40">
-                <span className="text-xs font-bold text-white">P</span>
-              </div>
-              {[Home, BarChart3, Calendar, Wallet, Settings].map((Icon, i) => (
-                <Icon
-                  key={i}
-                  className={cn('h-4 w-4', i === 0 ? 'text-white' : 'text-white/35')}
-                />
-              ))}
-            </div>
-
-            <div className="min-w-0 flex-1 p-4">
-              <div className="mb-3 flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">
-                    Welcome back, <span className="text-[#0052ff]">Investor</span>
-                  </p>
-                  <p className="text-xs text-gray-500">Portfolio overview</p>
+      <div className="absolute left-1/2 top-6 z-20 w-full max-w-[300px] -translate-x-1/2 md:top-1/2 md:max-w-[480px] md:-translate-y-[45%]">
+        <div className="hero-dashboard-float">
+          <div className="relative origin-top scale-[0.92] overflow-hidden rounded-[1.25rem] border border-white/50 bg-white/45 shadow-lg shadow-blue-900/5 backdrop-blur-xl md:scale-100 md:rounded-[1.75rem] md:bg-white/50 md:shadow-xl md:shadow-blue-900/8">
+            <div className="relative flex overflow-hidden">
+              <div className="flex w-9 shrink-0 flex-col items-center gap-3 bg-gradient-to-b from-[#0f1f4d] to-[#162a5c] py-3 md:w-12 md:gap-4 md:py-5">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#0052ff] md:h-7 md:w-7">
+                  <span className="text-[10px] font-bold text-white md:text-xs">P</span>
                 </div>
-                <m.div
-                  className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5"
-                  animate={reduced ? undefined : { scale: [1, 1.05, 1] }}
-                  transition={{ duration: 3, repeat: Infinity }}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  <span className="text-[9px] font-semibold text-emerald-600">Live</span>
-                </m.div>
+                {[Home, BarChart3, Calendar, Wallet, Settings].map((Icon, i) => (
+                  <Icon
+                    key={i}
+                    className={cn('h-3 w-3 md:h-4 md:w-4', i === 0 ? 'text-white' : 'text-white/35')}
+                  />
+                ))}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-xl border border-gray-100/80 bg-gradient-to-br from-gray-50/90 to-white p-3">
-                  <p className="text-[10px] font-medium text-gray-500">Portfolio Value</p>
-                  <p className="text-lg font-bold text-gray-900">$24,567.89</p>
-                  <p className="text-[10px] font-semibold text-emerald-500">+22.81%</p>
-                  <MiniSparkline />
+              <div className="min-w-0 flex-1 p-2.5 md:p-4">
+                <div className="mb-2 flex items-start justify-between gap-2 md:mb-3">
+                  <div>
+                    <p className="text-[11px] font-semibold text-gray-900 md:text-sm">
+                      Welcome back, <span className="text-[#0052ff]">Investor</span>
+                    </p>
+                    <p className="text-[10px] text-gray-500 md:text-xs">Portfolio overview</p>
+                  </div>
+                  <div className="flex items-center gap-1 rounded-full bg-emerald-50 px-1.5 py-0.5 md:px-2">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="text-[8px] font-semibold text-emerald-600 md:text-[9px]">Live</span>
+                  </div>
                 </div>
 
-                <div className="relative overflow-hidden rounded-xl border border-purple-100/80 bg-gradient-to-br from-purple-50/80 to-white p-3">
-                  <div className="flex items-center gap-1.5">
-                    <Sparkles className="h-3.5 w-3.5 text-purple-600" />
-                    <span className="text-[10px] font-bold text-purple-700">PrimeAI</span>
+                <div className="grid grid-cols-2 gap-1.5 md:gap-2">
+                  <div className="rounded-lg border border-gray-100/80 bg-gradient-to-br from-gray-50/90 to-white p-2 md:rounded-xl md:p-3">
+                    <p className="text-[9px] font-medium text-gray-500 md:text-[10px]">Portfolio Value</p>
+                    <p className="text-sm font-bold text-gray-900 md:text-lg">$24,567.89</p>
+                    <p className="text-[9px] font-semibold text-emerald-500 md:text-[10px]">+22.81%</p>
+                    <MiniSparkline className="h-5 md:h-7" />
                   </div>
-                  <div className="relative mx-auto mt-2 flex h-14 w-14 items-center justify-center">
-                    <m.div
-                      className="absolute inset-0 rounded-full border-2 border-purple-300/50"
-                      animate={reduced ? undefined : { scale: [1, 1.25, 1], opacity: [0.6, 0, 0.6] }}
-                      transition={{ duration: 2.5, repeat: Infinity }}
-                    />
-                    <m.div
-                      className="absolute inset-1 rounded-full bg-gradient-to-br from-[#0052ff] to-purple-600 shadow-lg shadow-purple-500/30"
-                      animate={reduced ? undefined : { boxShadow: ['0 0 20px rgba(99,102,241,0.3)', '0 0 35px rgba(0,82,255,0.45)', '0 0 20px rgba(99,102,241,0.3)'] }}
-                      transition={{ duration: 3, repeat: Infinity }}
-                    />
-                    <Bot className="relative h-5 w-5 text-white" />
-                  </div>
-                  <m.div
-                    className="mt-1 flex items-center justify-center gap-1"
-                    animate={reduced ? undefined : { opacity: [0.5, 1, 0.5] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    {[0, 1, 2].map((i) => (
-                      <m.span
-                        key={i}
-                        className="h-1 w-1 rounded-full bg-purple-500"
-                        animate={reduced ? undefined : { y: [0, -3, 0] }}
-                        transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
-                      />
-                    ))}
-                  </m.div>
-                </div>
 
-                <div className="col-span-2 rounded-xl border border-gray-100/80 bg-white/90 p-2.5">
-                  <div className="mb-1.5 flex items-center gap-1.5">
-                    <Globe className="h-3 w-3 text-[#0052ff]" />
-                    <p className="text-[10px] font-bold text-gray-800">Market Insights</p>
+                  <div className="relative overflow-hidden rounded-lg border border-purple-100/80 bg-gradient-to-br from-purple-50/80 to-white p-2 md:rounded-xl md:p-3">
+                    <div className="flex items-center gap-1">
+                      <Sparkles className="h-3 w-3 text-purple-600" />
+                      <span className="text-[9px] font-bold text-purple-700 md:text-[10px]">PrimeAI</span>
+                    </div>
+                    <div className="relative mx-auto mt-1 flex h-10 w-10 items-center justify-center md:mt-2 md:h-14 md:w-14">
+                      <div className="absolute inset-0.5 rounded-full bg-gradient-to-br from-[#0052ff] to-purple-600 md:inset-1" />
+                      <Bot className="relative h-4 w-4 text-white md:h-5 md:w-5" />
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {MARKET_TICKERS.map((ticker) => (
-                      <div
-                        key={ticker.symbol}
-                        className="flex items-center gap-1 rounded-lg bg-gray-50 px-2 py-1"
-                      >
-                        <span className="text-[9px] font-semibold text-gray-700">
-                          {ticker.symbol}
-                        </span>
-                        <span
-                          className={cn(
-                            'text-[9px] font-bold',
-                            ticker.up ? 'text-emerald-500' : 'text-red-500'
-                          )}
+
+                  <div className="col-span-2 rounded-lg border border-gray-100/80 bg-white/90 p-2 md:rounded-xl md:p-2.5">
+                    <div className="mb-1 flex items-center gap-1">
+                      <Globe className="h-2.5 w-2.5 text-[#0052ff] md:h-3 md:w-3" />
+                      <p className="text-[9px] font-bold text-gray-800 md:text-[10px]">Market Insights</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1 md:gap-1.5">
+                      {MARKET_TICKERS.map((ticker) => (
+                        <div
+                          key={ticker.symbol}
+                          className="flex items-center gap-1 rounded-md bg-gray-50 px-1.5 py-0.5 md:rounded-lg md:px-2 md:py-1"
                         >
-                          {ticker.change}
-                        </span>
-                      </div>
-                    ))}
+                          <span className="text-[8px] font-semibold text-gray-700 md:text-[9px]">
+                            {ticker.symbol}
+                          </span>
+                          <span className="text-[8px] font-bold text-emerald-500 md:text-[9px]">
+                            {ticker.change}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </m.div>
-
-      {AI_MESSAGES.map((message, index) => (
-        <m.div
-          key={message}
-          className="absolute z-40 hidden rounded-xl border border-purple-100/80 bg-white/90 px-2.5 py-1.5 text-[9px] font-medium text-purple-700 shadow-lg backdrop-blur-sm lg:block"
-          style={{
-            left: `${58 + index * 4}%`,
-            top: `${28 + index * 12}%`,
-          }}
-          initial={{ opacity: 0, y: 8 }}
-          animate={
-            reduced
-              ? { opacity: 0.9, y: 0 }
-              : { opacity: [0, 1, 1, 0], y: [8, 0, 0, -6] }
-          }
-          transition={{
-            duration: 4,
-            repeat: Infinity,
-            delay: index * 1.4,
-            ease: 'easeInOut',
-          }}
-        >
-          <Zap className="mr-1 inline h-2.5 w-2.5" />
-          {message}
-        </m.div>
-      ))}
-    </m.div>
+      </div>
+    </div>
   )
 }
+
+export default memo(HeroDashboardScene)
