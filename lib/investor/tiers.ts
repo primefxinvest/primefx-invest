@@ -18,6 +18,7 @@ export const INVESTOR_TIERS: Record<InvestorTierKey, InvestorTierConfig> = {
       'standard_support',
       'basic_primeai_access',
       'academy_access',
+      'market_insights',
     ],
   },
   growth: {
@@ -116,9 +117,7 @@ export function hasInvestorFeature(
 }
 
 /** Minimum tier required for gated platform routes */
-export const ROUTE_MIN_TIER: Partial<Record<string, InvestorTierKey>> = {
-  '/market-insights': 'growth',
-}
+export const ROUTE_MIN_TIER: Partial<Record<string, InvestorTierKey>> = {}
 
 export function getRouteRequiredTier(path: string): InvestorTierKey | undefined {
   return ROUTE_MIN_TIER[path]
@@ -126,7 +125,6 @@ export function getRouteRequiredTier(path: string): InvestorTierKey | undefined 
 
 /** Features that unlock at each tier (for upgrade prompts) */
 export const FEATURE_MIN_TIER: Partial<Record<InvestorFeature, InvestorTierKey>> = {
-  market_insights: 'growth',
   portfolio_analysis: 'prime',
   advanced_portfolio_analysis: 'elite',
   early_plan_access: 'prime',

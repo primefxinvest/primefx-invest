@@ -1,8 +1,10 @@
 /**
- * Calendar-based daily profit engine.
+ * 24-hour interval daily profit engine.
  * daily_rate = weekly_return_percent / 7
  * daily_profit = principal × daily_rate
  */
+
+export const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 const PROFIT_SCALE = 100
 const RATE_SCALE = 1_000_000
@@ -50,11 +52,9 @@ export function calculateMonthlyEarningsFromCalendar(
   return roundProfitUsd(calculateWeeklyEarningsFromCalendar(principalUsd, weeklyRoiPercent) * (30 / 7))
 }
 
+/** Next payout is 24 hours after the given timestamp. */
 export function getNextDailyPayoutAt(from: Date = new Date()): Date {
-  const next = new Date(
-    Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate() + 1, 0, 0, 0, 0)
-  )
-  return next
+  return new Date(from.getTime() + MS_PER_DAY)
 }
 
 export function getPreviousCalendarDay(from: Date = new Date()): Date {
@@ -63,6 +63,39 @@ export function getPreviousCalendarDay(from: Date = new Date()): Date {
   )
   cursor.setUTCDate(cursor.getUTCDate() - 1)
   return cursor
+}
+
+export type DueProfitPeriod = {
+  periodDate: string
+  payoutAt: Date
+}
+
+/** List every unpaid 24-hour profit period that is due as of `now`. */
+export function getDueProfitPeriods(input: {
+  startAt: Date
+  existingPeriodDates: ReadonlySet<string>
+  now: Date
+}): DueProfitPeriod[] {
+  const due: DueProfitPeriod[] = []
+  let payoutAt = new Date(input.startAt.getTime() + MS_PER_DAY)
+
+  while (payoutAt.getTime() <= input.now.getTime()) {
+    const periodDate = formatProfitPeriodDate(payoutAt)
+    if (!input.existingPeriodDates.has(periodDate)) {
+      due.push({ periodDate, payoutAt })
+    }
+    payoutAt = new Date(payoutAt.getTime() + MS_PER_DAY)
+  }
+
+  return due
+}
+
+export function countDueProfitPeriods(input: {
+  startAt: Date
+  existingPeriodDates: ReadonlySet<string>
+  now: Date
+}): number {
+  return getDueProfitPeriods(input).length
 }
 
 export function formatProfitPeriodDate(date: Date): string {

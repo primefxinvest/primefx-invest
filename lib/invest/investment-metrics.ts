@@ -69,7 +69,7 @@ export function calculateMonthlyEarnings(amount: number, weeklyRoiPercent: numbe
   return Math.round(calculateDailyEarnings(amount, weeklyRoiPercent) * 30 * 100) / 100
 }
 
-/** Next daily payout at start of next UTC day. */
+/** Next daily payout 24 hours after the reference timestamp. */
 export function getNextWeeklyPayoutDate(from: Date = new Date()): Date {
   return getNextDailyPayoutAt(from)
 }

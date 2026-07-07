@@ -116,6 +116,13 @@ const PERMISSIONS_MATRIX: Record<AdminModule, Record<string, boolean>> = {
     compliance_admin: true,
     content_admin: false,
   },
+  investment_management: {
+    super_admin: true,
+    finance_admin: true,
+    support_admin: false,
+    compliance_admin: true,
+    content_admin: false,
+  },
 }
 
 export function canAccessModule(tier: AdminTier, module: AdminModule): boolean {
@@ -140,6 +147,7 @@ export const ADMIN_NAV_ITEMS: Array<{
   { href: '/admin/kyc', label: 'KYC Verification', module: 'kyc_aml_compliance', icon: 'FileText' },
   { href: '/admin/verifications', label: 'Didit Sessions', module: 'kyc_aml_compliance', icon: 'ShieldCheck' },
   { href: '/admin/plans', label: 'Investment Plans', module: 'investment_plan_management', icon: 'Zap' },
+  { href: '/admin/investments', label: 'Investment Management', module: 'investment_management', icon: 'TrendingUp' },
   { href: '/admin/wallets', label: 'Wallet Management', module: 'financial_management', icon: 'Wallet' },
   { href: '/admin/transactions', label: 'Transactions', module: 'financial_management', icon: 'TrendingUp' },
   { href: '/admin/rewards', label: 'Rewards', module: 'rewards_referral', icon: 'Award' },

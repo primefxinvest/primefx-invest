@@ -1,19 +1,33 @@
 import type { MarketItem } from '@/lib/data/types'
 
-export type MarketCategory = 'crypto' | 'forex' | 'commodities' | 'other'
+export type MarketCategory = 'crypto' | 'forex' | 'commodities' | 'stocks' | 'indices' | 'other'
 
 export function categorizeMarketAsset(symbol: string): MarketCategory {
   const upper = symbol.toUpperCase()
+  if (
+    upper.includes('NASDAQ') ||
+    upper.includes('S&P') ||
+    upper.includes('SPX') ||
+    upper.includes('DOW')
+  ) {
+    return 'indices'
+  }
   if (
     upper.includes('BTC') ||
     upper.includes('ETH') ||
     upper.includes('USDT') ||
     upper.includes('SOL') ||
-    upper.includes('BNB')
+    upper.includes('BNB') ||
+    upper.includes('XRP') ||
+    upper.includes('ADA') ||
+    upper.includes('DOGE') ||
+    upper.includes('TON') ||
+    upper.includes('AVAX') ||
+    upper.includes('LINK')
   ) {
     return 'crypto'
   }
-  if (upper.includes('/') && (upper.includes('USD') || upper.includes('EUR') || upper.includes('GBP'))) {
+  if (upper.includes('/') && (upper.includes('USD') || upper.includes('EUR') || upper.includes('GBP') || upper.includes('JPY'))) {
     return 'forex'
   }
   if (
@@ -24,6 +38,9 @@ export function categorizeMarketAsset(symbol: string): MarketCategory {
     upper.includes('WTI')
   ) {
     return 'commodities'
+  }
+  if (upper.includes('NYSE') || upper.includes('AAPL') || upper.includes('TSLA') || upper.includes('MSFT')) {
+    return 'stocks'
   }
   return 'other'
 }

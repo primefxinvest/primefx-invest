@@ -15,6 +15,7 @@ export type AdminModule =
   | 'platform_configuration'
   | 'support_tickets'
   | 'audit_logs'
+  | 'investment_management'
 
 export interface AdminProfile {
   id: string

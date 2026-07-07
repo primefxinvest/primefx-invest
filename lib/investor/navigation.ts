@@ -15,7 +15,7 @@ export const INVESTOR_NAV_ITEMS: InvestorNavItem[] = [
   { href: '/primeai', label: 'PrimeAI' },
   { href: '/academy', label: 'Academy' },
   { href: '/rewards', label: 'Rewards' },
-  { href: '/market-insights', label: 'Market Insights', requiredTier: 'growth' },
+  { href: '/market-insights', label: 'Market Insights' },
   { href: '/support', label: 'Support' },
 ]
 
