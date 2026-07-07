@@ -47,24 +47,46 @@ function emptyMemberMetrics(): MemberInvestmentMetrics {
   }
 }
 
+const PROFIT_TRANSACTION_TYPES = ['profit', 'investment_profit'] as const
+
+export function isActiveInvestmentStatus(status: unknown): boolean {
+  return String(status ?? '').toLowerCase() === 'active'
+}
+
+export function isActiveReferralStatus(status: unknown): boolean {
+  return String(status ?? '').toLowerCase() === 'active'
+}
+
+/** Active investor = active investment position (matches rank + commission rules). */
+export function isActiveNetworkInvestor(input: {
+  hasActiveInvestment?: boolean
+}): boolean {
+  return Boolean(input.hasActiveInvestment)
+}
+
 async function syncReferralActiveStatuses(admin: SupabaseClient, memberIds: string[]) {
   if (!memberIds.length) return
 
   for (const batch of chunk(memberIds, BATCH_SIZE)) {
-    const { data: activeInvestors } = await admin
+    const { data: investments } = await admin
       .from('investments')
-      .select('user_id')
+      .select('user_id, status')
       .in('user_id', batch)
-      .eq('status', 'Active')
 
-    const activeIds = [...new Set((activeInvestors ?? []).map((row) => row.user_id as string))]
+    const activeIds = [
+      ...new Set(
+        (investments ?? [])
+          .filter((row) => isActiveInvestmentStatus(row.status))
+          .map((row) => row.user_id as string)
+      ),
+    ]
     if (!activeIds.length) continue
 
     await admin
       .from('referrals')
       .update({ status: 'Active' })
       .in('referred_user_id', activeIds)
-      .eq('status', 'Pending')
+      .neq('status', 'Active')
   }
 }
 
@@ -78,23 +100,41 @@ async function fetchInvestmentMetrics(
   if (!memberIds.length) return metrics
 
   for (const batch of chunk(memberIds, BATCH_SIZE)) {
-    const { data: investments } = await admin
+    const { data: investments, error } = await admin
       .from('investments')
-      .select('user_id, amount, current_value, status, investment_plans(name)')
+      .select('user_id, amount, current_value, status, plan_id')
       .in('user_id', batch)
+
+    if (error) continue
+
+    const planNames = new Map<string, string>()
+    const planIds = [
+      ...new Set(
+        (investments ?? [])
+          .map((row) => row.plan_id as string | null)
+          .filter(Boolean) as string[]
+      ),
+    ]
+
+    if (planIds.length > 0) {
+      const { data: plans } = await admin
+        .from('investment_plans')
+        .select('id, name')
+        .in('id', planIds)
+
+      plans?.forEach((plan) => {
+        planNames.set(plan.id as string, String(plan.name ?? ''))
+      })
+    }
 
     for (const row of investments ?? []) {
       const userId = row.user_id as string
       const current = metrics.get(userId) ?? emptyMemberMetrics()
       const amount = Number(row.amount ?? 0)
-      const status = String(row.status ?? '')
-      const planData = row.investment_plans as { name?: string } | { name?: string }[] | null
-      const planName = Array.isArray(planData)
-        ? planData[0]?.name
-        : planData?.name
+      const planName = planNames.get(String(row.plan_id ?? '')) || null
 
       current.totalVolumeUsd += amount
-      if (status.toLowerCase() === 'active') {
+      if (isActiveInvestmentStatus(row.status)) {
         current.activeVolumeUsd += Number(row.current_value ?? amount)
         current.hasActiveInvestment = true
         if (!current.primaryPlan && planName) {
@@ -121,8 +161,8 @@ async function fetchProfitByMember(
       .from('transactions')
       .select('user_id, amount')
       .in('user_id', batch)
-      .eq('type', 'profit')
-      .eq('status', 'completed')
+      .in('type', [...PROFIT_TRANSACTION_TYPES])
+      .ilike('status', 'completed')
 
     for (const row of rows ?? []) {
       const userId = row.user_id as string
@@ -181,8 +221,8 @@ async function fetchProfitTrend(
       .from('transactions')
       .select('amount, created_at')
       .in('user_id', batch)
-      .eq('type', 'profit')
-      .eq('status', 'completed')
+      .in('type', [...PROFIT_TRANSACTION_TYPES])
+      .ilike('status', 'completed')
 
     for (const row of rows ?? []) {
       const amount = Number(row.amount ?? 0)
@@ -272,17 +312,24 @@ export async function fetchMemberRankNames(
 }
 
 export async function fetchReferralStatuses(
-  memberIds: string[]
+  memberIds: string[],
+  referrerId?: string
 ): Promise<Map<string, string>> {
   const admin = createAdminSupabaseClient()
   const statuses = new Map<string, string>()
   if (!admin || !memberIds.length) return statuses
 
   for (const batch of chunk(memberIds, BATCH_SIZE)) {
-    const { data } = await admin
+    let query = admin
       .from('referrals')
       .select('referred_user_id, status')
       .in('referred_user_id', batch)
+
+    if (referrerId) {
+      query = query.eq('referrer_id', referrerId)
+    }
+
+    const { data } = await query
 
     for (const row of data ?? []) {
       statuses.set(row.referred_user_id as string, String(row.status ?? 'Pending'))

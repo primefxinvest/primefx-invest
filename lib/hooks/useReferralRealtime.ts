@@ -34,6 +34,11 @@ export function useReferralRealtime(onRefresh: () => void, enabled = true) {
       )
       .on(
         'postgres_changes',
+        { event: '*', schema: 'public', table: 'investments' },
+        scheduleRefresh
+      )
+      .on(
+        'postgres_changes',
         { event: '*', schema: 'public', table: 'user_referral_stats' },
         scheduleRefresh
       )

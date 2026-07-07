@@ -14,14 +14,6 @@ PrimeFx Diamond — 1,000 Members — $2,000 Bonus + 3 Days Vacation Trip (Asia 
 PrimeFx Ambassador — 2,500 Members — Company Car, AcademyFx Office, $1,000 Monthly Salary, 0.5% of all team profits every week`,
   },
   {
-    id: 'profit-sharing',
-    title: 'Referral Profit Sharing Program',
-    body: `Level 1 (L1): 5% of profits every week
-Level 2 (L2): 2% of profits every week
-Level 3 (L3): 1% of profits every week
-Level 4 (L4): 0.5% of profits every week`,
-  },
-  {
     id: 'management',
     title: '1. Investment Management',
     body: 'PrimeFx Invest provides its members with a team of professional traders specialized in Gold (XAU/USD) trading. The entrusted capital is managed according to a trading strategy and risk management approach established by the PrimeFx trading team.',

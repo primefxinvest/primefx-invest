@@ -1,5 +1,5 @@
 import { Link } from '@/i18n/navigation'
-import { REFERRAL_FLOW, REFERRAL_LEVELS } from '@/lib/how-primefx-works/content'
+import { REFERRAL_FLOW } from '@/lib/how-primefx-works/content'
 import { InfoCard, SectionHeader, SectionShell } from './shared'
 
 export function HowPrimefxReferralSection() {
@@ -33,39 +33,6 @@ export function HowPrimefxReferralSection() {
           >
             Open Referral Dashboard →
           </Link>
-        </InfoCard>
-
-        <InfoCard>
-          <h3 className="text-lg font-bold text-gray-900">Commission levels</h3>
-          <p className="mt-2 text-sm text-gray-600">
-            Profit-share commissions are tiered by referral depth. Rates are applied to referred
-            members&apos; weekly profits according to program rules.
-          </p>
-
-          <div className="mt-5 space-y-3">
-            {REFERRAL_LEVELS.map((level) => (
-              <div
-                key={level.level}
-                className="flex items-center justify-between gap-4 rounded-xl border border-gray-100 bg-gray-50 px-4 py-3"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="flex size-8 items-center justify-center rounded-lg bg-[#0052ff]/10 text-xs font-bold text-[#0052ff]">
-                    {level.label}
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">Level {level.level}</p>
-                    <p className="text-xs text-gray-500">{level.description}</p>
-                  </div>
-                </div>
-                <span className="text-lg font-bold text-[#0052ff]">{level.rate}</span>
-              </div>
-            ))}
-          </div>
-
-          <p className="mt-4 text-xs text-gray-500">
-            Commission eligibility and rates are defined in the referral program terms. Past
-            performance of referrals does not guarantee future earnings.
-          </p>
         </InfoCard>
       </div>
     </SectionShell>

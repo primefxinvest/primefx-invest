@@ -23,6 +23,7 @@ import {
   fetchNetworkMetrics,
   fetchPendingCommissionUsd,
   fetchReferralStatuses,
+  isActiveReferralStatus,
 } from '@/lib/referral/team-metrics'
 
 export type ReferralProgramPageData = {
@@ -128,7 +129,7 @@ export async function fetchReferralProgramOverviewServer(
   const supabase = await createServerSupabaseClient()
   const admin = createAdminSupabaseClient()
 
-  const [{ data: user }, { data: referrals }] = await Promise.all([
+  const [{ data: user }, { data: initialReferrals }] = await Promise.all([
     supabase.from('users').select('referral_code').eq('id', userId).maybeSingle(),
     supabase
       .from('referrals')
@@ -137,7 +138,7 @@ export async function fetchReferralProgramOverviewServer(
       .order('created_at', { ascending: false }),
   ])
 
-  const referralRows = referrals ?? []
+  let referralRows = initialReferrals ?? []
 
   let totalCommissionEarnings = 0
   if (admin) {
@@ -190,21 +191,43 @@ export async function fetchReferralProgramOverviewServer(
 
   const referredUsers = await fetchReferralMemberProfiles(allMemberIds)
 
-  const [networkMetrics, referralStatuses, memberRankNames, commissionsBySource, pendingCommissionUsd] =
+  // Sync investment-backed referral statuses before reading metrics and statuses.
+  const networkMetrics = await fetchNetworkMetrics(allMemberIds)
+
+  const { data: refreshedReferrals } = await supabase
+    .from('referrals')
+    .select('id, referred_user_id, bonus_earned, status, created_at')
+    .eq('referrer_id', userId)
+    .order('created_at', { ascending: false })
+
+  referralRows = refreshedReferrals ?? referralRows
+
+  const [referralStatuses, memberRankNames, commissionsBySource, pendingCommissionUsd] =
     await Promise.all([
-      fetchNetworkMetrics(allMemberIds),
       fetchReferralStatuses(allMemberIds),
       fetchMemberRankNames(allMemberIds),
       fetchCommissionsBySource(userId, allMemberIds),
       fetchPendingCommissionUsd(userId),
     ])
 
-  void refreshUserReferralStats(userId)
+  await refreshUserReferralStats(userId)
 
   const formatTrend = (current: number, previous: number) => {
     if (previous === 0) return current > 0 ? '+100%' : null
     const pct = ((current - previous) / previous) * 100
     return `${pct >= 0 ? '+' : ''}${Math.round(pct)}%`
+  }
+
+  const resolveMemberStatus = (
+    metrics: ReturnType<typeof networkMetrics.memberMetrics.get>,
+    directStatus?: string | null,
+    networkStatus?: string | null
+  ): string => {
+    if (metrics?.hasActiveInvestment || isActiveReferralStatus(directStatus)) {
+      return 'Active'
+    }
+    if (isActiveReferralStatus(networkStatus)) return 'Active'
+    return directStatus ?? networkStatus ?? 'Pending'
   }
 
   const buildReferralListItem = (
@@ -215,10 +238,11 @@ export async function fetchReferralProgramOverviewServer(
     const profile = referredUsers.get(memberId)
     const metrics = networkMetrics.memberMetrics.get(memberId)
     const commission = commissionsBySource.get(memberId)
-    const status =
-      (directRow?.status as string) ??
-      referralStatuses.get(memberId) ??
-      (metrics?.hasActiveInvestment ? 'Active' : 'Pending')
+    const status = resolveMemberStatus(
+      metrics,
+      directRow?.status as string | undefined,
+      referralStatuses.get(memberId)
+    )
 
     const commissionEarned = commission?.total ?? (directRow ? toNumber(directRow.bonus_earned) : 0)
     const teamVolumeUsd = metrics?.activeVolumeUsd ?? 0
@@ -279,6 +303,9 @@ export async function fetchReferralProgramOverviewServer(
     .map((row) => new Date(row.created_at as string))
     .filter((date) => !Number.isNaN(date.getTime()))
 
+  const activeInvestorsFromList = referralList.filter((row) => row.status === 'Active').length
+  const activeInvestors = Math.max(networkMetrics.activeInvestorCount, activeInvestorsFromList)
+
   return {
     referralData,
     referrals: referralList,
@@ -286,7 +313,7 @@ export async function fetchReferralProgramOverviewServer(
       lifetimeEarningsOverride: totalEarnings,
       levelEarnings,
       memberCount: Number(stats?.total_member_count ?? referralRows.length),
-      activeInvestors: networkMetrics.activeInvestorCount,
+      activeInvestors,
       teamVolumeUsd: networkMetrics.teamVolumeUsd,
       teamProfitUsd: networkMetrics.teamProfitUsd,
       teamVolumeTrend: networkMetrics.volumeTrend,

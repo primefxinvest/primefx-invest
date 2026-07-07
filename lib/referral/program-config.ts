@@ -7,10 +7,10 @@ export const REFERRAL_INVESTMENT_COMMISSION_RATE = 0.02
 export const REFERRAL_COMMISSION_WEEKLY_PAYOUT = true
 
 export const REFERRAL_PROFIT_SHARE_LEVELS = [
-  { level: 1, label: 'L1', rate: 0.05, description: '5% of profits every week' },
-  { level: 2, label: 'L2', rate: 0.02, description: '2% of profits every week' },
-  { level: 3, label: 'L3', rate: 0.01, description: '1% of profits every week' },
-  { level: 4, label: 'L4', rate: 0.005, description: '0.5% of profits every week' },
+  { level: 1, label: 'L1', rate: 0.05, description: 'Level 1 weekly referral commission' },
+  { level: 2, label: 'L2', rate: 0.02, description: 'Level 2 weekly referral commission' },
+  { level: 3, label: 'L3', rate: 0.01, description: 'Level 3 weekly referral commission' },
+  { level: 4, label: 'L4', rate: 0.005, description: 'Level 4 weekly referral commission' },
 ] as const
 
 /** Ambassador override: % of all downline profits every week. */

@@ -23,7 +23,6 @@ import {
 import { INTERNAL_TRANSFER_FEE_USD } from '@/lib/fees/constants'
 import { formatDisplayFeeUsd } from '@/lib/fees/display'
 import { PLAN_UI_META } from '@/lib/invest/plan-mapper'
-import { REFERRAL_PROFIT_SHARE_LEVELS } from '@/lib/referral/program-config'
 
 export const TRUST_BADGES = [
   'Global Access',
@@ -171,13 +170,6 @@ export const REFERRAL_FLOW = [
   { step: 6, title: 'Earnings in wallet', description: 'Referral earnings appear in your wallet balance.' },
   { step: 7, title: 'Withdraw anytime', description: 'Withdraw referral earnings like any other balance.' },
 ] as const
-
-export const REFERRAL_LEVELS = REFERRAL_PROFIT_SHARE_LEVELS.map((row) => ({
-  level: row.level,
-  label: row.label,
-  rate: `${row.rate * 100}%`,
-  description: row.description,
-}))
 
 export const DEPOSIT_ASSETS = [
   { symbol: 'USDT', networks: ['TRC20', 'ERC20', 'BEP20'] },
