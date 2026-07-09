@@ -158,3 +158,30 @@ export async function claimWithdrawalForProcessing(
   if (error) throw new Error(error.message)
   return data as Record<string, unknown> | null
 }
+
+export async function fetchUserWithdrawalRequests(userId: string, limit = 50) {
+  const db = getDb()
+  const { data, error } = await db
+    .from('withdrawal_requests')
+    .select(
+      'id, amount_usd, fee_usd, net_amount_usd, method_label, status, requested_at, available_at, reference_id, processed_at'
+    )
+    .eq('user_id', userId)
+    .order('requested_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw new Error(error.message)
+  return data ?? []
+}
+
+export async function getWithdrawalRequestById(requestId: string) {
+  const db = getDb()
+  const { data, error } = await db
+    .from('withdrawal_requests')
+    .select('*')
+    .eq('id', requestId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+  return data
+}

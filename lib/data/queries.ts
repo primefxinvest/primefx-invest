@@ -30,7 +30,6 @@ import { getCachedUserTransactions } from '@/lib/data/user-transactions-cache'
 import { mapDbPlansToInvestmentPlans, PLAN_UI_META, getPlanCategoryColorClass } from '@/lib/invest/plan-mapper'
 import {
   buildInvestmentSequenceMap,
-  calculateAccumulatedProfit,
   calculateDailyEarnings,
   calculateMonthlyEarnings,
   calculateWeeklyEarnings,
@@ -52,6 +51,7 @@ import {
   computePortfolioPerformanceStats,
   type PortfolioChartPeriod,
 } from '@/lib/data/portfolio-performance'
+import { fetchLifetimeProfitUsd, fetchUserInvestmentProfitMap, formatLifetimeProfitUsd, sumLifetimeProfitUsd } from '@/lib/data/lifetime-profit'
 import { mapDbTransactionToItem } from '@/lib/data/transaction-map'
 import type { InvestmentDbRow, TransactionDbRow } from '@/lib/data/db-rows'
 import { formatCurrency, formatDate, formatDateTime, formatPercent, formatRelativeTime, toNumber } from '@/lib/data/format'
@@ -96,6 +96,7 @@ import type {
   UserPreferencesData,
   WalletActivitySummary,
   WalletData,
+  WalletWithdrawalRequestItem,
   WalletHealthData,
   DashboardCoreData,
 } from '@/lib/data/types'
@@ -177,19 +178,40 @@ export async function fetchInvestmentPlans(): Promise<InvestmentPlan[]> {
   return mapDbPlansToInvestmentPlans(data)
 }
 
+function mapInvestmentDbRowsToPositions(investments: InvestmentDbRow[]): InvestmentPositionInput[] {
+  return investments.map((row) => {
+    const planName = row.investment_plans?.name ?? undefined
+    const amount = toNumber(row.amount)
+    return {
+      id: String(row.id ?? ''),
+      amount,
+      currentValue: toNumber(row.current_value ?? row.amount),
+      weeklyRoiPercent: resolveWeeklyRoiPercent(toNumber(row.roi_percentage), planName),
+      status: String(row.status ?? 'Active'),
+      createdAt: row.created_at,
+      planName,
+      referenceId: (row.reference_id as string | null) ?? null,
+    }
+  })
+}
+
 export async function fetchPortfolioMetrics(): Promise<PortfolioMetrics> {
   const userId = await requireUserId()
   if (!userId) {
     return emptyPortfolioMetrics()
   }
 
-  const { data: portfolio } = await getUserPortfolio(userId)
-  const { data: transactions } = await getUserTransactionsSince(userId, metricsTransactionWindowStart())
+  const [{ data: portfolio }, { data: transactions }, lifetimeProfitUsd] = await Promise.all([
+    getUserPortfolio(userId),
+    getUserTransactionsSince(userId, metricsTransactionWindowStart()),
+    fetchLifetimeProfitUsd(userId),
+  ])
   const txs = transactions ?? []
   const totalInvested = toNumber(portfolio?.total_invested)
   const currentValue = toNumber(portfolio?.current_value)
-  const profit = toNumber(portfolio?.profit_loss)
-  const roi = toNumber(portfolio?.roi_percentage)
+  const profit = lifetimeProfitUsd
+  const roi =
+    totalInvested > 0 ? Math.round((profit / totalInvested) * 10000) / 100 : toNumber(portfolio?.roi_percentage)
 
   const investedThis = sumTransactionsInMonth(txs, 0, (type) => type.includes('investment'))
   const investedLast = sumTransactionsInMonth(txs, -1, (type) => type.includes('investment'))
@@ -252,26 +274,16 @@ function emptyInvestmentSummaryStats(): InvestmentSummaryStats {
 }
 
 function buildInvestmentSummaryStatsFromRows(
-  investments: InvestmentDbRow[]
+  investments: InvestmentDbRow[],
+  lifetimeProfitUsd: number
 ): InvestmentSummaryStats {
-  const positions: InvestmentPositionInput[] = investments.map((row) => {
-    const planName = row.investment_plans?.name ?? undefined
-    const amount = toNumber(row.amount)
-    return {
-      id: String(row.id ?? ''),
-      amount,
-      currentValue: toNumber(row.current_value ?? row.amount),
-      weeklyRoiPercent: resolveWeeklyRoiPercent(toNumber(row.roi_percentage), planName),
-      status: String(row.status ?? 'Active'),
-      createdAt: row.created_at,
-      planName,
-      referenceId: (row.reference_id as string | null) ?? null,
-    }
-  })
+  const positions = mapInvestmentDbRowsToPositions(investments)
 
   const stats = computeInvestmentSummaryStats(
     positions,
-    investments.filter((row) => String(row.status ?? '').toLowerCase() !== 'active').length
+    investments.filter((row) => String(row.status ?? '').toLowerCase() !== 'active').length,
+    0,
+    lifetimeProfitUsd
   )
   return {
     activeCount: stats.activeCount,
@@ -279,7 +291,7 @@ function buildInvestmentSummaryStatsFromRows(
     totalWeeklyEarnings: formatCurrency(stats.totalWeeklyEarnings),
     totalDailyEarnings: formatCurrency(stats.totalDailyEarnings),
     totalMonthlyEarnings: formatCurrency(stats.totalMonthlyEarnings),
-    totalProfitsEarned: formatCurrency(stats.totalProfitsEarned, { signed: true }),
+    totalProfitsEarned: formatLifetimeProfitUsd(lifetimeProfitUsd),
     totalWithdrawn: formatCurrency(stats.totalWithdrawn),
     lifetimeRoi: formatPercent(stats.lifetimeRoi),
     averageRoi: formatPercent(stats.averageRoi),
@@ -367,14 +379,18 @@ export async function fetchAssetAllocation(): Promise<AssetAllocationItem[]> {
 
 function buildPortfolioMetricsFromRows(
   portfolio: Record<string, unknown> | null | undefined,
-  transactions: Array<{ type?: string | null; amount?: unknown; created_at: string }>
+  transactions: Array<{ type?: string | null; amount?: unknown; created_at: string }>,
+  lifetimeProfitUsd: number
 ): PortfolioMetrics {
   const windowStart = metricsTransactionWindowStart()
   const txs = transactions.filter((tx) => new Date(tx.created_at) >= windowStart)
   const totalInvested = toNumber(portfolio?.total_invested as string | number | null | undefined)
   const currentValue = toNumber(portfolio?.current_value as string | number | null | undefined)
-  const profit = toNumber(portfolio?.profit_loss as string | number | null | undefined)
-  const roi = toNumber(portfolio?.roi_percentage as string | number | null | undefined)
+  const profit = lifetimeProfitUsd
+  const roi =
+    totalInvested > 0
+      ? Math.round((profit / totalInvested) * 10000) / 100
+      : toNumber(portfolio?.roi_percentage as string | number | null | undefined)
 
   const investedThis = sumTransactionsInMonth(txs, 0, (type) => type.includes('investment'))
   const investedLast = sumTransactionsInMonth(txs, -1, (type) => type.includes('investment'))
@@ -448,7 +464,7 @@ async function buildWalletDataFromRow(
 
   const breakdown = [
     { label: 'Available Balance', value: available, color: '#10b981' },
-    { label: 'Pending Balance', value: pending, color: '#f97316' },
+    { label: 'Reserved Balance', value: pending, color: '#f97316' },
     { label: 'Bonus Balance', value: bonus, color: '#8b5cf6' },
   ]
 
@@ -457,6 +473,8 @@ async function buildWalletDataFromRow(
     primeFxId: formatPrimeFxId(userId),
     availableBalance: formatCurrency(available),
     pendingBalance: formatCurrency(pending),
+    reservedBalance: formatCurrency(pending),
+    withdrawableBalance: formatCurrency(available),
     bonusBalance: formatCurrency(bonus),
     totalBalance: formatCurrency(total),
     balanceBreakdown: breakdown.map((item) => ({
@@ -481,33 +499,38 @@ export async function fetchDashboardCoreData(): Promise<DashboardCoreData> {
     }
   }
 
-  const [{ data: portfolio }, { data: wallet }, { data: investments }, transactions] =
+  const [{ data: portfolio }, { data: wallet }, { data: investments }, transactions, lifetimeProfitUsd] =
     await Promise.all([
       getUserPortfolio(userId),
       getWallet(userId),
       getUserInvestments(userId),
       getCachedUserTransactions(userId),
+      fetchLifetimeProfitUsd(userId),
     ])
 
   const investmentRows = (investments ?? []) as InvestmentDbRow[]
   const txRows = transactions as TransactionDbRow[]
 
-  const [walletData, metrics, allocation] = await Promise.all([
+  const [walletData, metrics, allocation, investmentStats] = await Promise.all([
     buildWalletDataFromRow(userId, wallet),
     Promise.resolve(
       buildPortfolioMetricsFromRows(
         portfolio,
-        txRows as Array<{ type?: string | null; amount?: unknown; created_at: string }>
+        txRows as Array<{ type?: string | null; amount?: unknown; created_at: string }>,
+        lifetimeProfitUsd
       )
     ),
     Promise.resolve(buildAssetAllocationFromInvestments(investmentRows)),
+    Promise.resolve(buildInvestmentSummaryStatsFromRows(investmentRows, lifetimeProfitUsd)),
   ])
-
-  const investmentStats = buildInvestmentSummaryStatsFromRows(investmentRows)
 
   return {
     metrics,
-    investmentStats,
+    investmentStats: {
+      ...investmentStats,
+      totalProfitsEarned: metrics.totalProfit,
+      lifetimeRoi: metrics.roiPercentage,
+    },
     wallet: walletData,
     allocation,
     investments: investmentRows,
@@ -552,7 +575,7 @@ export async function fetchWalletData(): Promise<WalletData> {
 
   const breakdown = [
     { label: 'Available Balance', value: available, color: '#10b981' },
-    { label: 'Pending Balance', value: pending, color: '#f97316' },
+    { label: 'Reserved Balance', value: pending, color: '#f97316' },
     { label: 'Bonus Balance', value: bonus, color: '#8b5cf6' },
   ]
 
@@ -561,6 +584,8 @@ export async function fetchWalletData(): Promise<WalletData> {
     primeFxId: formatPrimeFxId(userId),
     availableBalance: formatCurrency(available),
     pendingBalance: formatCurrency(pending),
+    reservedBalance: formatCurrency(pending),
+    withdrawableBalance: formatCurrency(available),
     bonusBalance: formatCurrency(bonus),
     totalBalance: formatCurrency(total),
     balanceBreakdown: breakdown.map((item) => ({
@@ -574,6 +599,8 @@ function emptyWalletData(): WalletData {
   return {
     availableBalance: formatCurrency(0),
     pendingBalance: formatCurrency(0),
+    reservedBalance: formatCurrency(0),
+    withdrawableBalance: formatCurrency(0),
     bonusBalance: formatCurrency(0),
     totalBalance: formatCurrency(0),
     balanceBreakdown: [],
@@ -1065,21 +1092,46 @@ export async function fetchReferralList() {
 
 export async function fetchPortfolioOverview() {
   const userId = await requireUserId()
-  const metrics = await fetchPortfolioMetrics()
-  const { data: investments } = userId ? await getUserInvestments(userId) : { data: [] }
-  const investmentStats = buildInvestmentSummaryStatsFromRows((investments ?? []) as InvestmentDbRow[])
+  if (!userId) {
+    return {
+      totalInvested: '$0.00',
+      currentValue: '$0.00',
+      profitLoss: '$0.00',
+      roi: '0%',
+      activePlans: 0,
+      completedPlans: 0,
+      totalWeeklyEarnings: '$0.00',
+      totalDailyEarnings: '$0.00',
+      totalMonthlyEarnings: '$0.00',
+      totalProfitsEarned: '$0.00',
+      totalWithdrawn: '$0.00',
+      lifetimeRoi: '0%',
+      averageRoi: '0%',
+    }
+  }
+
+  const [metrics, { data: investments }, lifetimeProfitUsd] = await Promise.all([
+    fetchPortfolioMetrics(),
+    getUserInvestments(userId),
+    fetchLifetimeProfitUsd(userId),
+  ])
+  const investmentStats = buildInvestmentSummaryStatsFromRows(
+    (investments ?? []) as InvestmentDbRow[],
+    lifetimeProfitUsd
+  )
+  const lifetimeProfit = formatLifetimeProfitUsd(lifetimeProfitUsd)
 
   return {
     totalInvested: metrics.totalInvested,
     currentValue: metrics.currentValue,
-    profitLoss: metrics.totalProfit,
+    profitLoss: lifetimeProfit,
     roi: metrics.roiPercentage,
     activePlans: investmentStats.activeCount,
     completedPlans: investmentStats.completedCount ?? 0,
     totalWeeklyEarnings: investmentStats.totalWeeklyEarnings,
     totalDailyEarnings: investmentStats.totalDailyEarnings ?? '$0.00',
     totalMonthlyEarnings: investmentStats.totalMonthlyEarnings ?? '$0.00',
-    totalProfitsEarned: investmentStats.totalProfitsEarned,
+    totalProfitsEarned: lifetimeProfit,
     totalWithdrawn: investmentStats.totalWithdrawn ?? '$0.00',
     lifetimeRoi: investmentStats.lifetimeRoi ?? '0%',
     averageRoi: investmentStats.averageRoi ?? '0%',
@@ -1093,9 +1145,10 @@ export async function fetchPortfolioInvestments(): Promise<{
   const userId = await requireUserId()
   if (!userId) return { active: [], completed: [] }
 
-  const [{ data }, withdrawalHistory] = await Promise.all([
+  const [{ data }, withdrawalHistory, investmentProfitMap] = await Promise.all([
     getUserInvestments(userId),
     fetchWithdrawalHistoryByInvestment(userId),
+    fetchUserInvestmentProfitMap(userId),
   ])
 
   if (!data?.length) return { active: [], completed: [] }
@@ -1113,7 +1166,8 @@ export async function fetchPortfolioInvestments(): Promise<{
       mapInvestmentRow(
         row as Record<string, unknown>,
         sequenceMap.get(row.id as string) ?? 0,
-        withdrawalHistory.get(row.id as string) ?? []
+        withdrawalHistory.get(row.id as string) ?? [],
+        investmentProfitMap.get(row.id as string) ?? 0
       )
     )
   const completed = data
@@ -1122,7 +1176,8 @@ export async function fetchPortfolioInvestments(): Promise<{
       mapCompletedInvestmentRow(
         row as Record<string, unknown>,
         sequenceMap.get(row.id as string) ?? 0,
-        withdrawalHistory.get(row.id as string) ?? []
+        withdrawalHistory.get(row.id as string) ?? [],
+        investmentProfitMap.get(row.id as string) ?? 0
       )
     )
 
@@ -1154,7 +1209,8 @@ export async function fetchInvestmentDetail(investmentId: string): Promise<Inves
   const mapped = mapInvestmentRow(
     data as Record<string, unknown>,
     sequenceMap.get(investmentId) ?? 0,
-    withdrawalHistory.get(investmentId) ?? []
+    withdrawalHistory.get(investmentId) ?? [],
+    0
   )
 
   const { data: profitRows } = await supabase
@@ -1174,6 +1230,7 @@ export async function fetchInvestmentDetail(investmentId: string): Promise<Inves
   }))
 
   const dailyProfit = calculateDailyEarnings(mapped.investedAmount, mapped.weeklyReturnPercent)
+  const investmentLifetimeProfit = sumLifetimeProfitUsd(profitRows ?? [])
 
   return {
     id: mapped.id,
@@ -1188,8 +1245,8 @@ export async function fetchInvestmentDetail(investmentId: string): Promise<Inves
     dailyReturnPercent: mapped.dailyReturnPercent,
     dailyReturn: mapped.dailyReturn,
     dailyProfit,
-    accumulatedProfit: mapped.accumulatedProfitAmount,
-    totalEarned: mapped.accumulatedProfitAmount,
+    accumulatedProfit: investmentLifetimeProfit,
+    totalEarned: investmentLifetimeProfit,
     roiPercent: mapped.roiPercent,
     roi: mapped.roi,
     status: mapped.status,
@@ -1206,6 +1263,92 @@ export async function fetchInvestmentDetail(investmentId: string): Promise<Inves
     compoundMode: Boolean((data as { compound_mode?: boolean }).compound_mode ?? false),
     profitHistory,
   }
+}
+
+export async function fetchWalletWithdrawalRequests(): Promise<WalletWithdrawalRequestItem[]> {
+  const userId = await requireUserId()
+  if (!userId) return []
+
+  const {
+    formatWithdrawalDisplayStatus,
+    formatWithdrawalHoldRemaining,
+  } = await import('@/lib/wallet/withdrawal-status')
+  const {
+    estimateNetworkFeeUsd,
+    extractTransactionHash,
+    getBlockchainExplorerUrl,
+    getEstimatedBlockchainCompletionLabel,
+    resolveWithdrawalNetworkLabel,
+  } = await import('@/lib/wallet/withdrawal-blockchain')
+
+  const { data, error } = await supabase
+    .from('withdrawal_requests')
+    .select(
+      'id, amount_usd, fee_usd, net_amount_usd, method_label, status, requested_at, available_at, reference_id, processed_at, currency, payout_address, provider, metadata, payment_id'
+    )
+    .eq('user_id', userId)
+    .order('requested_at', { ascending: false })
+
+  if (error || !data?.length) return []
+
+  const referenceIds = data
+    .map((row) => row.reference_id as string | null)
+    .filter((id): id is string => Boolean(id))
+
+  const paymentsByOrder = new Map<string, Record<string, unknown>>()
+  if (referenceIds.length > 0) {
+    const { data: payments } = await supabase
+      .from('payments')
+      .select('order_id, status, metadata, provider_payment_id, pay_currency')
+      .in('order_id', referenceIds)
+
+    for (const payment of payments ?? []) {
+      paymentsByOrder.set(String(payment.order_id), payment as Record<string, unknown>)
+    }
+  }
+
+  return data.map((row) => {
+    const status = String(row.status ?? 'pending_notice')
+    const availableAt = row.available_at as string
+    const currency = (row.currency as string | null) ?? null
+    const metadata = (row.metadata as Record<string, unknown> | null) ?? {}
+    const referenceId = (row.reference_id as string | null) ?? null
+    const payment = referenceId ? paymentsByOrder.get(referenceId) : undefined
+    const paymentMetadata = (payment?.metadata as Record<string, unknown> | undefined) ?? {}
+    const transactionHash = extractTransactionHash(metadata, paymentMetadata)
+    const networkLabel = resolveWithdrawalNetworkLabel(currency)
+
+    return {
+      id: row.id as string,
+      amountUsd: toNumber(row.amount_usd),
+      feeUsd: toNumber(row.fee_usd),
+      netAmountUsd: toNumber(row.net_amount_usd),
+      networkFeeUsd: estimateNetworkFeeUsd(currency),
+      methodLabel: String(row.method_label ?? 'Withdrawal'),
+      status,
+      displayStatus: formatWithdrawalDisplayStatus(status),
+      requestedAt: row.requested_at as string,
+      availableAt,
+      referenceId,
+      processedAt: (row.processed_at as string | null) ?? null,
+      holdRemaining: formatWithdrawalHoldRemaining(availableAt),
+      currency,
+      payoutAddress: (row.payout_address as string | null) ?? null,
+      networkLabel,
+      provider: (row.provider as string | null) ?? null,
+      transactionHash,
+      explorerUrl: getBlockchainExplorerUrl(currency, transactionHash),
+      paymentStatus: payment ? String(payment.status ?? '') : null,
+      confirmations:
+        typeof paymentMetadata.confirmations === 'number'
+          ? paymentMetadata.confirmations
+          : status === 'completed'
+            ? 1
+            : null,
+      estimatedCompletion: getEstimatedBlockchainCompletionLabel(status),
+      metadata,
+    }
+  })
 }
 
 export async function fetchCapitalWithdrawalRequests(): Promise<CapitalWithdrawalRequestItem[]> {
@@ -1235,7 +1378,8 @@ export async function fetchCapitalWithdrawalRequests(): Promise<CapitalWithdrawa
 function mapInvestmentRow(
   investment: Record<string, unknown>,
   sequence: number,
-  withdrawalHistory: PortfolioInvestmentWithdrawalItem[] = []
+  withdrawalHistory: PortfolioInvestmentWithdrawalItem[] = [],
+  creditedProfitUsd = 0
 ): PortfolioInvestmentItem {
   const plan = investment.investment_plans as {
     name?: string
@@ -1256,7 +1400,7 @@ function mapInvestmentRow(
   const displayWeekly =
     meta?.displayWeeklyRoi ?? `${weeklyReturnPercent}%`
   const roiPercent = invested > 0 ? ((current - invested) / invested) * 100 : 0
-  const accumulated = calculateAccumulatedProfit(invested, current)
+  const accumulated = creditedProfitUsd
   const referenceId = (investment.reference_id as string | null) ?? null
   const createdAtIso = String(investment.created_at ?? '')
   const lockDays = resolvePlanCapitalLockDays(
@@ -1310,7 +1454,8 @@ function mapInvestmentRow(
 function mapCompletedInvestmentRow(
   investment: Record<string, unknown>,
   sequence = 0,
-  withdrawalHistory: PortfolioInvestmentWithdrawalItem[] = []
+  withdrawalHistory: PortfolioInvestmentWithdrawalItem[] = [],
+  creditedProfitUsd = 0
 ) {
   const plan = investment.investment_plans as {
     name?: string
@@ -1322,7 +1467,7 @@ function mapCompletedInvestmentRow(
   const finalValue = toNumber(
     (investment.current_value ?? investment.amount) as string | number | null | undefined
   )
-  const profit = finalValue - invested
+  const profit = creditedProfitUsd
   const weeklyReturnPercent = resolveWeeklyRoiPercent(
     toNumber(investment.roi_percentage as string | number | null | undefined),
     planName

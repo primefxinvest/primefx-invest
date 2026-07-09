@@ -259,7 +259,7 @@ function transactionAmount(tx: { amount?: unknown }) {
   return Math.abs(Number(tx.amount ?? 0))
 }
 
-const ACTIVE_WITHDRAWAL_REQUEST_STATUSES = ['pending_notice', 'ready', 'processing'] as const
+const ACTIVE_WITHDRAWAL_REQUEST_STATUSES = ['pending_notice', 'ready', 'approved', 'processing'] as const
 
 async function getWalletPendingBalance(userId: string) {
   const db = getDb()
@@ -448,28 +448,34 @@ export async function settleApprovedTransaction(tx: {
       const db = getDb()
       const { data: request } = await db
         .from('withdrawal_requests')
-        .select('id, status, amount_usd')
+        .select('id, status, amount_usd, available_at')
         .eq('reference_id', tx.reference_id)
         .maybeSingle()
 
-      if (request && ['ready', 'pending_notice'].includes(String(request.status))) {
-        const requestAmount = Number(request.amount_usd ?? amount)
-        await releaseWalletHold(userId, requestAmount)
-        await db
-          .from('withdrawal_requests')
-          .update({
-            status: 'completed',
-            processed_at: new Date().toISOString(),
-          })
-          .eq('id', request.id)
-        await logFinancialAudit({
-          eventType: 'withdrawal.completed',
-          userId,
-          referenceId: tx.reference_id,
-          amountUsd: requestAmount,
-          metadata: { source: 'admin_approval' },
-        })
-        return
+      if (request) {
+        const requestStatus = String(request.status ?? '').toLowerCase()
+
+        if (requestStatus === 'pending_notice') {
+          throw new Error(
+            'Withdrawal is still under the 7-day security hold. Approval is not available yet.'
+          )
+        }
+
+        if (requestStatus === 'ready') {
+          const { executeWithdrawalPayoutAfterApproval } = await import(
+            '@/lib/payments/withdrawal-payout'
+          )
+          await executeWithdrawalPayoutAfterApproval(String(request.id))
+          return
+        }
+
+        if (['approved', 'processing', 'completed'].includes(requestStatus)) {
+          const payment = await getPaymentByOrderId(tx.reference_id)
+          if (payment && payment.status !== 'completed') {
+            await updatePaymentStatus(tx.reference_id, 'completed')
+          }
+          return
+        }
       }
 
       const payment = await getPaymentByOrderId(tx.reference_id)

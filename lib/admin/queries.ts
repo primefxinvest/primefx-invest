@@ -875,18 +875,29 @@ export type AdminWithdrawalQueueRow = {
   kind: 'wallet' | 'capital'
   user_id: string
   user_email: string
+  primefx_id: string
   amount_usd: number
+  fee_usd: number
+  net_amount_usd: number
   status: string
   requested_at: string
   available_at: string
+  processed_at: string | null
   reference_id: string | null
+  currency: string | null
+  payout_address: string | null
+  method_label: string | null
+  network_label: string
 }
 
 export async function getAdminWithdrawalQueue(): Promise<AdminWithdrawalQueueRow[]> {
   const db = getDb()
+  const { formatPrimeFxId } = await import('@/lib/wallet/primefx-id')
+  const { resolveWithdrawalNetworkLabel } = await import('@/lib/wallet/withdrawal-blockchain')
+
   const [{ data: walletRows }, { data: capitalRows }, { data: users }] = await Promise.all([
-    db.from('withdrawal_requests').select('*').order('requested_at', { ascending: false }).limit(100),
-    db.from('investment_withdrawal_requests').select('*').order('requested_at', { ascending: false }).limit(100),
+    db.from('withdrawal_requests').select('*').order('requested_at', { ascending: false }),
+    db.from('investment_withdrawal_requests').select('*').order('requested_at', { ascending: false }),
     db.from('users').select('id, email'),
   ])
 
@@ -897,11 +908,19 @@ export async function getAdminWithdrawalQueue(): Promise<AdminWithdrawalQueueRow
     kind: 'wallet' as const,
     user_id: String(row.user_id),
     user_email: emailById.get(String(row.user_id)) ?? '—',
+    primefx_id: formatPrimeFxId(String(row.user_id)),
     amount_usd: Number(row.amount_usd ?? 0),
+    fee_usd: Number(row.fee_usd ?? 0),
+    net_amount_usd: Number(row.net_amount_usd ?? 0),
     status: String(row.status ?? 'pending'),
     requested_at: String(row.requested_at ?? ''),
     available_at: String(row.available_at ?? ''),
+    processed_at: (row.processed_at as string | null) ?? null,
     reference_id: (row.reference_id as string) ?? null,
+    currency: (row.currency as string | null) ?? null,
+    payout_address: (row.payout_address as string | null) ?? null,
+    method_label: (row.method_label as string | null) ?? null,
+    network_label: resolveWithdrawalNetworkLabel((row.currency as string | null) ?? null),
   }))
 
   const capital = (capitalRows ?? []).map((row) => ({
@@ -909,11 +928,19 @@ export async function getAdminWithdrawalQueue(): Promise<AdminWithdrawalQueueRow
     kind: 'capital' as const,
     user_id: String(row.user_id),
     user_email: emailById.get(String(row.user_id)) ?? '—',
+    primefx_id: formatPrimeFxId(String(row.user_id)),
     amount_usd: Number(row.amount_usd ?? 0),
+    fee_usd: 0,
+    net_amount_usd: Number(row.amount_usd ?? 0),
     status: String(row.status ?? 'pending'),
     requested_at: String(row.requested_at ?? ''),
     available_at: String(row.available_at ?? ''),
+    processed_at: (row.processed_at as string | null) ?? null,
     reference_id: (row.reference_id as string) ?? null,
+    currency: null,
+    payout_address: null,
+    method_label: 'Capital withdrawal',
+    network_label: '—',
   }))
 
   return [...wallet, ...capital].sort(

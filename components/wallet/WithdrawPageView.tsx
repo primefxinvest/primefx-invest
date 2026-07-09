@@ -1,14 +1,15 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import { ArrowDownLeft, ArrowUpRight, Clock, History, Wallet } from 'lucide-react'
+import { ArrowDownLeft, ArrowUpRight, History, Lock, Wallet } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/navigation'
 import { toast } from 'sonner'
 import { KycFinancialBanner } from '@/components/compliance/KycFinancialBanner'
 import { WalletPageHeader } from '@/components/wallet/layout/WalletPageHeader'
 import { WalletStatCard } from '@/components/wallet/layout/WalletStatCard'
-import { WalletHelpPanel, WalletRecentPanel } from '@/components/wallet/layout/WalletSidePanels'
+import { WalletHelpPanel } from '@/components/wallet/layout/WalletSidePanels'
+import { WithdrawalHistorySection } from '@/components/wallet/withdraw/WithdrawalHistorySection'
 import { WithdrawFormCard } from '@/components/wallet/withdraw/WithdrawFormCard'
 import { WithdrawSummaryCard } from '@/components/wallet/withdraw/WithdrawSummaryCard'
 import { WithdrawTrustPanel } from '@/components/wallet/withdraw/WithdrawTrustPanel'
@@ -29,12 +30,15 @@ import {
   type WithdrawAssetId,
 } from '@/lib/payments/withdraw-networks'
 import { initiateWithdrawal } from '@/lib/wallet/actions'
-import { walletTxStatusLabel, walletTxTypeLabel } from '@/lib/wallet/i18n'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import {
   calculateDisplayWithdrawalReceive,
   formatDisplayFeeUsd,
 } from '@/lib/fees/display'
+import { useAsyncData } from '@/lib/hooks/useAsyncData'
+import { useSessionUser } from '@/lib/hooks/useSessionUser'
+import { useWalletWithdrawalRealtime } from '@/lib/hooks/useWalletWithdrawalRealtime'
+import { fetchWalletWithdrawalRequests } from '@/lib/data/queries'
 import { pageStackClass, sectionStackClass } from '@/lib/layout/spacing'
 import { cn } from '@/lib/utils'
 
@@ -55,9 +59,9 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
   const t = useTranslations('wallet.withdraw')
   const tDeposit = useTranslations('wallet.deposit')
   const tBalances = useTranslations('wallet.balances')
-  const tWallet = useTranslations('wallet')
   const tCompliance = useTranslations('compliance')
   const router = useRouter()
+  const user = useSessionUser()
   const kyc = useFinancialKycAccess()
   const { requireVerifiedEmail, openVerificationModal } = useEmailVerification()
   const {
@@ -66,10 +70,20 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
     walletLoading,
     walletError,
     reloadWallet,
-    transactionsLoading,
-    transactionsError,
-    reloadTransactions,
   } = useWalletPageData()
+
+  const withdrawalHistoryQuery = useAsyncData(() => fetchWalletWithdrawalRequests(), [])
+
+  useWalletWithdrawalRealtime({
+    userId: user.id,
+    enabled: Boolean(user.id),
+    onUpdate: () => {
+      void withdrawalHistoryQuery.reload({ silent: true })
+      reloadWallet()
+    },
+  })
+
+  const withdrawalHistory = withdrawalHistoryQuery.data ?? []
 
   const availableApiCurrencies = useMemo(() => {
     if (initialPaymentOptions.withdrawalCurrencies.length > 0) {
@@ -96,48 +110,39 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
     return Number(match) || 0
   }, [wallet?.availableBalance])
 
-  const pendingWithdrawals = useMemo(
-    () => transactions.filter((tx) => tx.type === 'Withdrawal' && tx.status.toLowerCase() === 'pending'),
-    [transactions]
-  )
+  const reserved = useMemo(() => {
+    const match = wallet?.reservedBalance?.replace(/[^0-9.-]/g, '')
+    return Number(match) || 0
+  }, [wallet?.reservedBalance])
 
-  const pendingTotal = useMemo(
-    () => pendingWithdrawals.reduce((sum, tx) => sum + Math.abs(tx.amountValue), 0),
-    [pendingWithdrawals]
-  )
+  const withdrawableAmount = useMemo(() => {
+    const match = wallet?.withdrawableBalance?.replace(/[^0-9.-]/g, '')
+    return Number(match) || available
+  }, [wallet?.withdrawableBalance, available])
 
-  const totalWithdrawn = useMemo(
+  const activeHoldCount = useMemo(
     () =>
-      transactions
-        .filter((tx) => tx.type === 'Withdrawal' && tx.status.toLowerCase() === 'completed')
-        .reduce((sum, tx) => sum + Math.abs(tx.amountValue), 0),
-    [transactions]
+      withdrawalHistory.filter((row) =>
+        ['pending_notice', 'ready', 'approved', 'processing'].includes(row.status)
+      ).length,
+    [withdrawalHistory]
   )
 
-  const withdrawableAmount = Math.max(0, available - pendingTotal)
+  const totalWithdrawn = useMemo(() => {
+    const fromRequests = withdrawalHistory
+      .filter((row) => row.status === 'completed')
+      .reduce((sum, row) => sum + row.amountUsd, 0)
+    if (fromRequests > 0) return fromRequests
+    return transactions
+      .filter((tx) => tx.type === 'Withdrawal' && tx.status.toLowerCase() === 'completed')
+      .reduce((sum, tx) => sum + Math.abs(tx.amountValue), 0)
+  }, [withdrawalHistory, transactions])
+
   const amountNum = Number(amount) || 0
   const minWithdrawal = INVESTOR_RULES.financial.minimumWithdrawal
   const withdrawBlocked = kyc.loading || kyc.fetchError || !kyc.verified || !cryptoWithdrawalsEnabled
 
   const displayFees = calculateDisplayWithdrawalReceive(amountNum, networkId)
-
-  const recentWithdrawals = useMemo(
-    () =>
-      transactions
-        .filter((tx) => tx.type === 'Withdrawal')
-        .slice(0, 5)
-        .map((tx) => ({
-          id: tx.id,
-          label: walletTxTypeLabel(tWallet, tx.type),
-          sublabel: tx.referenceId,
-          amount: tx.amount,
-          status: walletTxStatusLabel(tWallet, tx.status),
-          statusKey: tx.status.toLowerCase(),
-          time: `${tx.date}${tx.time ? ` · ${tx.time}` : ''}`,
-          positive: false,
-        })),
-    [transactions, tWallet]
-  )
 
   const handleSubmit = () => {
     if (!requireVerifiedEmail()) return
@@ -203,6 +208,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
       toast.success(t('submitted'), { description: t('submittedDesc') })
       setAmount('')
       setAddress('')
+      void withdrawalHistoryQuery.reload({ silent: true })
       router.refresh()
     })
   }
@@ -251,16 +257,16 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
           />
           <WalletStatCard
             compact
-            label={t('pendingWithdrawal')}
-            value={`$${pendingTotal.toFixed(2)}`}
-            subtext={`${pendingWithdrawals.length} ${pendingWithdrawals.length === 1 ? t('request') : t('requests')}`}
-            icon={Clock}
+            label="Reserved Balance"
+            value={wallet?.reservedBalance ?? `$${reserved.toFixed(2)}`}
+            subtext={`${activeHoldCount} active hold${activeHoldCount === 1 ? '' : 's'}`}
+            icon={Lock}
             iconClassName="bg-amber-50 text-amber-600"
           />
           <WalletStatCard
             compact
             label={t('withdrawableBalance')}
-            value={`$${withdrawableAmount.toFixed(2)}`}
+            value={wallet?.withdrawableBalance ?? `$${withdrawableAmount.toFixed(2)}`}
             subtext={tBalances('afterFees')}
             icon={ArrowUpRight}
             iconClassName="bg-indigo-50 text-indigo-600"
@@ -300,6 +306,17 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
           <div className="lg:hidden">
             <WithdrawTrustPanel />
           </div>
+
+          <WithdrawalHistorySection
+            withdrawals={withdrawalHistory}
+            loading={withdrawalHistoryQuery.loading && !withdrawalHistory.length}
+            error={withdrawalHistoryQuery.error}
+            onRetry={() => void withdrawalHistoryQuery.reload()}
+            onHoldExpired={() => {
+              void withdrawalHistoryQuery.reload({ silent: true })
+              reloadWallet()
+            }}
+          />
         </div>
 
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
@@ -316,16 +333,6 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
           <div className="hidden lg:block">
             <WithdrawTrustPanel />
           </div>
-
-          <WalletRecentPanel
-            title={t('recentWithdrawals')}
-            items={recentWithdrawals}
-            loading={transactionsLoading && !transactions.length}
-            error={transactionsError}
-            onRetry={reloadTransactions}
-            emptyTitle={t('noWithdrawalsTitle')}
-            emptyDescription={t('noWithdrawalsDesc')}
-          />
 
           <WalletHelpPanel />
         </aside>

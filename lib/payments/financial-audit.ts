@@ -12,6 +12,8 @@ export type FinancialAuditEvent =
   | 'deposit.credited'
   | 'deposit.duplicate_blocked'
   | 'withdrawal.claimed'
+  | 'withdrawal.approved'
+  | 'withdrawal.rejected'
   | 'withdrawal.payout_initiated'
   | 'withdrawal.completed'
   | 'withdrawal.failed'

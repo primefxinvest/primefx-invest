@@ -24,8 +24,8 @@ export function useDashboardCore(chartPeriod: PortfolioChartPeriod = 'This Year'
     })
   }, [data, chartPeriod])
 
-  const reloadCore = useCallback(() => {
-    void reload()
+  const reloadCore = useCallback((opts?: { silent?: boolean }) => {
+    void reload(opts)
   }, [reload])
 
   return {

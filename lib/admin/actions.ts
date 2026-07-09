@@ -750,9 +750,59 @@ export async function processDueFinancialJobsAction() {
 
   revalidatePath('/admin/transactions')
   revalidatePath('/admin/wallets')
+  revalidatePath('/admin/rewards')
   revalidatePath('/wallet')
   revalidatePath('/transactions')
   revalidatePath('/portfolio')
 
   return { success: true as const, ...result }
+}
+
+export async function approveWithdrawalQueueItem(requestId: string) {
+  const context = await getContext()
+  assertModuleAccess(context, 'financial_management')
+
+  const { executeWithdrawalPayoutAfterApproval } = await import('@/lib/payments/withdrawal-payout')
+  const result = await executeWithdrawalPayoutAfterApproval(requestId)
+
+  await logAdminAction({
+    context,
+    module: 'financial_management',
+    action: 'withdrawal_approved',
+    targetResource: requestId,
+    afterState: result as unknown as Record<string, unknown>,
+  })
+
+  revalidatePath('/admin/rewards')
+  revalidatePath('/admin/transactions')
+  revalidatePath('/wallet')
+  revalidatePath('/wallet/withdraw')
+  revalidatePath('/transactions')
+
+  return result
+}
+
+export async function rejectWithdrawalQueueItem(requestId: string, reason?: string) {
+  const context = await getContext()
+  assertModuleAccess(context, 'financial_management')
+
+  const { rejectWithdrawalRequest } = await import('@/lib/payments/withdrawal-payout')
+  const result = await rejectWithdrawalRequest(requestId, reason)
+
+  await logAdminAction({
+    context,
+    module: 'financial_management',
+    action: 'withdrawal_rejected',
+    targetResource: requestId,
+    afterState: result as unknown as Record<string, unknown>,
+    reasonCode: reason,
+  })
+
+  revalidatePath('/admin/rewards')
+  revalidatePath('/admin/transactions')
+  revalidatePath('/wallet')
+  revalidatePath('/wallet/withdraw')
+  revalidatePath('/transactions')
+
+  return result
 }

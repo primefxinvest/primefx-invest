@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { useDashboardCore } from '@/lib/hooks/useDashboardCore'
 import { useUserWalletRealtime } from '@/lib/hooks/useTransactionsRealtime'
+import { useInvestmentProfitRealtime } from '@/lib/hooks/useInvestmentProfitRealtime'
 import type { PortfolioChartPeriod } from '@/lib/data/portfolio-performance'
 import { formatDate } from '@/lib/data/format'
 import { pageStackClass, pageHeaderGapClass, gridGapClass } from '@/lib/layout/spacing'
@@ -49,14 +50,20 @@ export default function DashboardPage() {
     selectedPeriod as PortfolioChartPeriod
   )
 
-  const onWalletUpdate = useCallback(() => {
-    void reload()
+  const onProfitUpdate = useCallback(() => {
+    void reload({ silent: true })
   }, [reload])
 
   useUserWalletRealtime({
     userId: user.id,
     enabled: Boolean(user.id),
-    onUpdate: onWalletUpdate,
+    onUpdate: onProfitUpdate,
+  })
+
+  useInvestmentProfitRealtime({
+    userId: user.id,
+    enabled: Boolean(user.id),
+    onChange: onProfitUpdate,
   })
 
   const [today, setToday] = useState<{ label: string; iso: string } | null>(null)

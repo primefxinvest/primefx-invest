@@ -35,7 +35,7 @@ export async function POST(request: Request) {
 
   try {
     if (['finished', 'completed', 'sent'].includes(status)) {
-      await completeWithdrawalFromWebhook(orderId)
+      await completeWithdrawalFromWebhook(orderId, payload)
     } else if (['failed', 'rejected', 'cancelled'].includes(status)) {
       await failWithdrawalFromWebhook(
         orderId,

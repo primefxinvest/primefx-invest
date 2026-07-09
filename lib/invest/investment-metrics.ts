@@ -55,6 +55,13 @@ export function calculateAccumulatedProfit(amount: number, currentValue: number)
   return Math.max(0, Math.round((currentValue - amount) * 100) / 100)
 }
 
+/** Single source of truth: lifetime profit from active investment positions. */
+export function computeLifetimeProfitUsd(investments: InvestmentPositionInput[]): number {
+  return investments
+    .filter((row) => isActiveInvestmentStatus(row.status))
+    .reduce((sum, row) => sum + calculateAccumulatedProfit(row.amount, row.currentValue), 0)
+}
+
 /** Target weekly earnings based on principal × weekly ROI. */
 export function calculateWeeklyEarnings(amount: number, weeklyRoiPercent: number): number {
   return calculateWeeklyEarningsFromCalendar(amount, weeklyRoiPercent)
@@ -81,14 +88,15 @@ export function isActiveInvestmentStatus(status: string | null | undefined): boo
 export function computeInvestmentSummaryStats(
   investments: InvestmentPositionInput[],
   completedCount = 0,
-  totalWithdrawn = 0
+  totalWithdrawn = 0,
+  lifetimeProfitUsd?: number
 ): InvestmentSummaryStats {
   const active = investments.filter((row) => isActiveInvestmentStatus(row.status))
   const totalInvested = active.reduce((sum, row) => sum + row.amount, 0)
-  const totalProfitsEarned = active.reduce(
-    (sum, row) => sum + calculateAccumulatedProfit(row.amount, row.currentValue),
-    0
-  )
+  const totalProfitsEarned =
+    lifetimeProfitUsd !== undefined
+      ? Math.max(0, Math.round(lifetimeProfitUsd * 100) / 100)
+      : 0
   const totalDailyEarnings = active.reduce(
     (sum, row) => sum + calculateDailyEarnings(row.amount, row.weeklyRoiPercent),
     0

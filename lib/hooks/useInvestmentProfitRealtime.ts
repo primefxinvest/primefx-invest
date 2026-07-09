@@ -1,11 +1,18 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { invalidateLifetimeProfitCaches } from '@/lib/data/invalidate-lifetime-profit-caches'
 import { supabase } from '@/lib/supabase'
 
 function dispatchInvestmentUpdated() {
   if (typeof window === 'undefined') return
   window.dispatchEvent(new CustomEvent('primefx:investment-updated'))
+}
+
+function handleProfitChange(onChange?: () => void) {
+  invalidateLifetimeProfitCaches()
+  onChange?.()
+  dispatchInvestmentUpdated()
 }
 
 export function useInvestmentProfitRealtime(input: {
@@ -33,8 +40,7 @@ export function useInvestmentProfitRealtime(input: {
         },
         (payload) => {
           if (investmentId && payload.new?.investment_id !== investmentId) return
-          onChangeRef.current?.()
-          dispatchInvestmentUpdated()
+          handleProfitChange(onChangeRef.current)
         }
       )
       .on(
@@ -47,8 +53,7 @@ export function useInvestmentProfitRealtime(input: {
         },
         (payload) => {
           if (investmentId && payload.new?.id !== investmentId) return
-          onChangeRef.current?.()
-          dispatchInvestmentUpdated()
+          handleProfitChange(onChangeRef.current)
         }
       )
       .subscribe()

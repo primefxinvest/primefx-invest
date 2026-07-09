@@ -130,7 +130,7 @@ function DashboardPortfolioHeroInner({ metrics, investmentStats, wallet, loading
         />
         <StatCell
           label={t('totalProfit')}
-          value={investmentStats?.totalProfitsEarned ?? metrics?.totalProfit ?? '$0.00'}
+          value={metrics?.totalProfit ?? investmentStats?.totalProfitsEarned ?? '$0.00'}
         />
       </div>
     </HeroWrapper>

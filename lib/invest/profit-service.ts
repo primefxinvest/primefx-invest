@@ -161,6 +161,50 @@ async function loadPortfoliosByUser(
   return map
 }
 
+async function reconcilePortfolioFromInvestments(
+  db: ReturnType<typeof getDb>,
+  userId: string,
+  now: Date
+): Promise<void> {
+  const { data: portfolio, error: portfolioError } = await db
+    .from('portfolios')
+    .select('id, total_invested')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (portfolioError) throw new Error(portfolioError.message)
+  if (!portfolio) return
+
+  const { data: investments, error: investmentsError } = await db
+    .from('investments')
+    .select('amount, current_value')
+    .eq('user_id', userId)
+
+  if (investmentsError) throw new Error(investmentsError.message)
+  if (!investments?.length) return
+
+  const currentValue = roundProfitUsd(
+    investments.reduce((sum, row) => sum + Number(row.current_value ?? row.amount ?? 0), 0)
+  )
+  const invested = Number(portfolio.total_invested ?? 0)
+  const profitLoss = roundProfitUsd(currentValue - invested)
+  const roi = invested > 0 ? roundProfitUsd((profitLoss / invested) * 100) : 0
+
+  await db
+    .from('portfolios')
+    .update({
+      current_value: currentValue,
+      profit_loss: profitLoss,
+      roi_percentage: roi,
+      updated_at: now.toISOString(),
+    })
+    .eq('id', portfolio.id)
+}
+
+function isMissingDbFunctionError(message: string | undefined): boolean {
+  return Boolean(message?.includes('Could not find the function'))
+}
+
 async function creditSingleProfitPayout(input: {
   db: ReturnType<typeof getDb>
   investment: InvestmentRow
@@ -228,7 +272,27 @@ async function creditSingleProfitPayout(input: {
   investment.accumulated_profit = nextAccumulated
   investment.last_profit_calculation_at = payoutAtIso
 
-  const portfolio = portfolioCache.get(userId)
+  let portfolio = portfolioCache.get(userId)
+  if (!portfolio) {
+    const { data: portfolioRow, error: portfolioLoadError } = await db
+      .from('portfolios')
+      .select('id, user_id, current_value, profit_loss, total_invested')
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (portfolioLoadError) throw new Error(portfolioLoadError.message)
+
+    if (portfolioRow) {
+      portfolio = {
+        id: portfolioRow.id as string,
+        current_value: Number(portfolioRow.current_value ?? 0),
+        profit_loss: Number(portfolioRow.profit_loss ?? 0),
+        total_invested: Number(portfolioRow.total_invested ?? 0),
+      }
+      portfolioCache.set(userId, portfolio)
+    }
+  }
+
   if (portfolio) {
     const invested = portfolio.total_invested
     const portfolioValue = roundProfitUsd(portfolio.current_value + profit)
@@ -312,15 +376,29 @@ async function runInvestmentProfits(now: Date = new Date()): Promise<ProfitRunRe
   const db = getDb()
   const runDate = formatProfitPeriodDate(now)
 
-  const { data: claimedRun, error: claimError } = await db.rpc('claim_profit_run_period', {
+  const { data: claimedRunData, error: claimError } = await db.rpc('claim_profit_run_period', {
     p_period_start: runDate,
     p_period_end: runDate,
     p_trading_days: 1,
   })
 
-  if (claimError) throw new Error(claimError.message)
+  let claimedRun: typeof claimedRunData = claimedRunData
+  let runLedgerEnabled = true
 
-  const isRetryRun = !claimedRun
+  if (claimError) {
+    if (isMissingDbFunctionError(claimError.message)) {
+      runLedgerEnabled = false
+      await logFinancialAudit({
+        eventType: 'profit.run_skipped',
+        referenceId: `${runDate}:${runDate}`,
+        metadata: { reason: 'run_ledger_rpc_missing', fallback: 'investment_idempotency_only' },
+      })
+    } else {
+      throw new Error(claimError.message)
+    }
+  }
+
+  const isRetryRun = runLedgerEnabled && !claimedRun
 
   if (isRetryRun) {
     await logFinancialAudit({
@@ -342,7 +420,7 @@ async function runInvestmentProfits(now: Date = new Date()): Promise<ProfitRunRe
   )
 
   if (!investments.length) {
-    if (claimedRun) {
+    if (claimedRun && runLedgerEnabled) {
       await db.rpc('finalize_profit_run_period', {
         p_period_start: runDate,
         p_period_end: runDate,
@@ -371,6 +449,7 @@ async function runInvestmentProfits(now: Date = new Date()): Promise<ProfitRunRe
   let totalProfitUsd = 0
   let processed = 0
   let investmentsTouched = 0
+  const usersToReconcile = new Set<string>()
 
   for (const investment of investments) {
     const existingPeriodDates = historyMap.get(investment.id) ?? new Set<string>()
@@ -398,19 +477,26 @@ async function runInvestmentProfits(now: Date = new Date()): Promise<ProfitRunRe
       totalProfitUsd += result.profit
       processed += 1
       existingPeriodDates.add(period.periodDate)
+      usersToReconcile.add(investment.user_id)
     }
+  }
+
+  for (const userId of usersToReconcile) {
+    await reconcilePortfolioFromInvestments(db, userId, now)
   }
 
   const roundedTotal = roundProfitUsd(totalProfitUsd)
 
-  if (claimedRun) {
+  if (claimedRun && runLedgerEnabled) {
     const { error: finalizeError } = await db.rpc('finalize_profit_run_period', {
       p_period_start: runDate,
       p_period_end: runDate,
       p_total_profit_usd: roundedTotal,
     })
 
-    if (finalizeError) throw new Error(finalizeError.message)
+    if (finalizeError && !isMissingDbFunctionError(finalizeError.message)) {
+      throw new Error(finalizeError.message)
+    }
   }
 
   await logFinancialAudit({

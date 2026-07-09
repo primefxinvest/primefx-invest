@@ -168,11 +168,39 @@ export interface CapitalWithdrawalRequestItem {
   referenceId: string | null
 }
 
+export interface WalletWithdrawalRequestItem {
+  id: string
+  amountUsd: number
+  feeUsd: number
+  netAmountUsd: number
+  networkFeeUsd: number
+  methodLabel: string
+  status: string
+  displayStatus: string
+  requestedAt: string
+  availableAt: string
+  referenceId: string | null
+  processedAt: string | null
+  holdRemaining: string
+  currency: string | null
+  payoutAddress: string | null
+  networkLabel: string
+  provider: string | null
+  transactionHash: string | null
+  explorerUrl: string | null
+  paymentStatus: string | null
+  confirmations: number | null
+  estimatedCompletion: string
+  metadata: Record<string, unknown>
+}
+
 export interface WalletData {
   userId?: string
   primeFxId?: string
   availableBalance: string
   pendingBalance: string
+  reservedBalance: string
+  withdrawableBalance: string
   bonusBalance: string
   totalBalance: string
   balanceBreakdown: { label: string; value: number; percentage: number; color: string }[]

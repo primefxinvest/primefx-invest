@@ -39,6 +39,7 @@ import {
   fetchPortfolioInvestments,
   fetchPortfolioOverview,
 } from '@/lib/data/queries'
+import { CACHE_KEYS } from '@/lib/data/cache-keys'
 import type { PortfolioChartPeriod } from '@/lib/data/portfolio-performance'
 import { cn } from '@/lib/utils'
 
@@ -64,7 +65,7 @@ export default function PortfolioPage() {
   const { data: overview, loading: overviewLoading, error: overviewError, reload: reloadOverview } =
     useAsyncData(() => fetchPortfolioOverview(), [], undefined, {
       ...PORTFOLIO_CACHE_OPTS,
-      cacheKey: 'portfolio-overview',
+      cacheKey: CACHE_KEYS.portfolioOverview,
     })
   const { data: chartsBundle } = useAsyncData(
     () => fetchPortfolioChartsBundle(chartPeriod),
@@ -113,8 +114,8 @@ export default function PortfolioPage() {
     userId: user.id,
     enabled: Boolean(user.id),
     onChange: () => {
-      void reloadOverview()
-      void reloadInvestments()
+      void reloadOverview({ silent: true })
+      void reloadInvestments({ silent: true })
     },
   })
 

@@ -96,12 +96,86 @@ export async function notifyDepositFailed(userId: string, amountUsd: number, ref
 }
 
 export async function notifyWithdrawalSubmitted(userId: string, amountUsd: number, referenceId?: string) {
+  await createUserNotification({
+    userId,
+    title: 'Withdrawal request received',
+    message: `Your withdrawal request for $${amountUsd.toFixed(2)} has been received.`,
+    type: 'wallet',
+    metadata: { referenceId, amountUsd, event: 'withdrawal_submitted' },
+  })
+
   return createUserNotification({
     userId,
-    title: 'Withdrawal submitted',
-    message: `Your withdrawal of $${amountUsd.toFixed(2)} is being processed.`,
+    title: 'Security hold started',
+    message: `Your withdrawal of $${amountUsd.toFixed(2)} is under a 7-day security review. Funds are reserved until the hold expires.`,
     type: 'wallet',
-    metadata: { referenceId, amountUsd, event: 'withdrawal_pending' },
+    metadata: { referenceId, amountUsd, event: 'withdrawal_hold_started' },
+  })
+}
+
+export async function notifyWithdrawalHoldThreeDaysRemaining(
+  userId: string,
+  amountUsd: number,
+  referenceId: string
+) {
+  const id = await createUserNotificationOnce({
+    userId,
+    title: '3 days remaining on withdrawal hold',
+    message: `Your withdrawal of $${amountUsd.toFixed(2)} has 3 days remaining in the security hold before it becomes ready for payout.`,
+    type: 'wallet',
+    dedupeKey: `withdrawal_hold_3d:${referenceId}`,
+    metadata: { referenceId, amountUsd, event: 'withdrawal_hold_3d' },
+  })
+  return Boolean(id)
+}
+
+export async function notifyWithdrawalHoldOneDayRemaining(
+  userId: string,
+  amountUsd: number,
+  referenceId: string
+) {
+  const id = await createUserNotificationOnce({
+    userId,
+    title: '1 day remaining on withdrawal hold',
+    message: `Your withdrawal of $${amountUsd.toFixed(2)} has 1 day remaining in the security hold before it becomes ready for payout.`,
+    type: 'wallet',
+    dedupeKey: `withdrawal_hold_1d:${referenceId}`,
+    metadata: { referenceId, amountUsd, event: 'withdrawal_hold_1d' },
+  })
+  return Boolean(id)
+}
+
+export async function notifyWithdrawalReadyForPayout(
+  userId: string,
+  amountUsd: number,
+  referenceId?: string
+) {
+  return createUserNotification({
+    userId,
+    title: 'Ready for payout',
+    message: `Your withdrawal of $${amountUsd.toFixed(2)} has completed the security hold and is ready for payout.`,
+    type: 'wallet',
+    metadata: { referenceId, amountUsd, event: 'withdrawal_ready_for_payout' },
+  })
+}
+
+export async function notifyWithdrawalApproved(userId: string, amountUsd: number, referenceId?: string) {
+  return createUserNotification({
+    userId,
+    title: 'Withdrawal approved',
+    message: `Your withdrawal of $${amountUsd.toFixed(2)} has been approved and is being processed.`,
+    type: 'wallet',
+    metadata: { referenceId, amountUsd, event: 'withdrawal_approved' },
+  })
+}
+
+export async function notifyWithdrawalRejected(userId: string, amountUsd: number, referenceId?: string) {
+  return createUserNotification({
+    userId,
+    title: 'Withdrawal rejected',
+    message: `Your withdrawal of $${amountUsd.toFixed(2)} was rejected. Reserved funds have been returned to your available balance.`,
+    type: 'wallet',
+    metadata: { referenceId, amountUsd, event: 'withdrawal_rejected' },
   })
 }
 

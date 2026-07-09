@@ -11,11 +11,11 @@ import { listDueWithdrawalRequests } from '@/lib/wallet/withdrawals'
 import { syncAllOpenDeposits } from '@/lib/payments/deposit-sync'
 import { withCronJobLock } from '@/lib/cron/lock'
 
+/** Promote due wallet withdrawals and send hold reminders. */
 export async function processDueWalletWithdrawals() {
   const due = await listDueWithdrawalRequests()
   let processed = 0
-  let payoutInitiated = 0
-  let readyForManual = 0
+  let readyForPayout = 0
   let skipped = 0
   let failed = 0
   const results: Array<Record<string, unknown>> = []
@@ -30,20 +30,9 @@ export async function processDueWalletWithdrawals() {
         continue
       }
 
-      if (result.status === 'payout_initiated') {
-        payoutInitiated += 1
+      if (result.status === 'ready_for_payout') {
+        readyForPayout += 1
         processed += 1
-        continue
-      }
-
-      if (result.status === 'ready_for_manual_payout') {
-        readyForManual += 1
-        processed += 1
-        continue
-      }
-
-      if (result.status === 'deferred') {
-        skipped += 1
         continue
       }
 
@@ -58,13 +47,16 @@ export async function processDueWalletWithdrawals() {
     }
   }
 
+  const { processWithdrawalHoldReminders } = await import('@/lib/wallet/withdrawal-hold-reminders')
+  const holdReminders = await processWithdrawalHoldReminders()
+
   return {
     processed,
-    payoutInitiated,
-    readyForManual,
+    readyForPayout,
     skipped,
     failed,
     totalDue: due.length,
+    holdReminders,
     results,
   }
 }
@@ -148,11 +140,11 @@ export async function runDailyCron(): Promise<DailyCronResult> {
       lockReason: locked.reason,
       withdrawals: {
         processed: 0,
-        payoutInitiated: 0,
-        readyForManual: 0,
+        readyForPayout: 0,
         skipped: 0,
         failed: 0,
         totalDue: 0,
+        holdReminders: { threeDay: 0, oneDay: 0, skipped: 0, checked: 0 },
         results: [],
       },
       depositSync: { checked: 0, completed: 0, failed: 0, results: [] },

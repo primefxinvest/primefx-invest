@@ -296,7 +296,7 @@ export async function failDepositFromWebhook(
   }
 }
 
-export async function completeWithdrawalFromWebhook(orderId: string) {
+export async function completeWithdrawalFromWebhook(orderId: string, webhookPayload?: Record<string, unknown>) {
   const db = createAdminSupabaseClient()
   if (!db) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for withdrawal operations.')
@@ -308,26 +308,40 @@ export async function completeWithdrawalFromWebhook(orderId: string) {
     return { completed: false, reason: 'already_completed' as const }
   }
 
+  const { extractTransactionHash } = await import('@/lib/wallet/withdrawal-blockchain')
+  const txHash = extractTransactionHash(webhookPayload ?? {}, (payment?.metadata as Record<string, unknown>) ?? {})
+
   if (payment) {
-    await updatePaymentStatus(orderId, 'completed')
+    await updatePaymentStatus(orderId, 'completed', {
+      metadata: {
+        ...((payment.metadata as Record<string, unknown>) ?? {}),
+        ...(txHash ? { tx_hash: txHash, transaction_hash: txHash } : {}),
+        ...(webhookPayload ?? {}),
+      },
+    })
   }
 
   await completeTransaction(orderId, 'Completed')
 
   const { data: request } = await db
     .from('withdrawal_requests')
-    .select('id, user_id, amount_usd, status')
+    .select('id, user_id, amount_usd, status, metadata')
     .eq('reference_id', orderId)
     .maybeSingle()
 
   if (request && String(request.status) !== 'completed') {
+    const requestMetadata = (request.metadata as Record<string, unknown> | null) ?? {}
     await db
       .from('withdrawal_requests')
       .update({
         status: 'completed',
         processed_at: new Date().toISOString(),
+        metadata: txHash
+          ? { ...requestMetadata, tx_hash: txHash, transaction_hash: txHash }
+          : requestMetadata,
       })
       .eq('id', request.id)
+      .in('status', ['processing', 'approved'])
 
     await logFinancialAudit({
       eventType: 'withdrawal.completed',

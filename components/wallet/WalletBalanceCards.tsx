@@ -6,6 +6,7 @@ import { InvestorKpiCards } from '@/components/shared/kpi'
 import { MetricCardsSkeleton } from '@/components/shared/skeletons'
 import { useAsyncData } from '@/lib/hooks/useAsyncData'
 import { useUserWalletRealtime } from '@/lib/hooks/useTransactionsRealtime'
+import { useInvestmentProfitRealtime } from '@/lib/hooks/useInvestmentProfitRealtime'
 import { useSessionUser } from '@/lib/hooks/useSessionUser'
 import { fetchPortfolioMetrics, fetchWalletData } from '@/lib/data/queries'
 import { CACHE_KEYS } from '@/lib/data/cache-keys'
@@ -40,6 +41,15 @@ export default function WalletBalanceCards() {
     userId: user.id,
     enabled: Boolean(user.id),
     onUpdate: () => {
+      void reloadWallet({ silent: true })
+      void reloadMetrics({ silent: true })
+    },
+  })
+
+  useInvestmentProfitRealtime({
+    userId: user.id,
+    enabled: Boolean(user.id),
+    onChange: () => {
       void reloadWallet({ silent: true })
       void reloadMetrics({ silent: true })
     },
