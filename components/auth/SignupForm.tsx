@@ -2,12 +2,11 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Link, useRouter } from '@/i18n/navigation'
+import { Link } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Gift, Loader2, Lock, Mail, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { recordSignupVerificationEmailSentAction } from '@/lib/auth/email-verification-actions'
-import { formatGoogleAuthError, isGoogleAuthEnabled, signInWithGoogle } from '@/lib/auth/google-oauth'
+import { isGoogleAuthEnabled, signInWithGoogle } from '@/lib/auth/google-oauth'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { AuthFormShell } from '@/components/auth/AuthFormShell'
 import { AuthInput } from '@/components/auth/AuthInput'
@@ -17,32 +16,17 @@ import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter'
 import { persistReferralCode, readReferralCodeFromCookie } from '@/lib/referral/client'
 import { useResetOnPageShow } from '@/lib/hooks/useResetOnPageShow'
 import { Button } from '@/components/ui/button'
-
-function formatSignupError(err: unknown): string {
-  if (err instanceof Error) {
-    const message = err.message.trim()
-    if (message.includes('An unexpected response was received from the server')) {
-      return 'Signup service is temporarily unavailable. Please try again in a moment.'
-    }
-    if (message) return message
-  }
-  if (typeof err === 'string' && err.trim()) {
-    return err
-  }
-  return 'Signup failed. Please try again.'
-}
+import { ensureErrorMessage, mapSignupErrorMessage } from '@/lib/auth/signup-errors'
+import { saveVerificationPending } from '@/lib/auth/verification-pending'
 
 type SignupApiResponse = {
   success: boolean
-  message: string
+  message?: string
   data?: { userId?: string }
-  error?: { code?: string; detail?: string }
+  error?: { code?: string; detail?: string; message?: string }
 }
 
-async function postSignupJson<T extends SignupApiResponse>(
-  url: string,
-  body: Record<string, unknown>
-): Promise<T> {
+async function postSignupJson(url: string, body: Record<string, unknown>): Promise<SignupApiResponse> {
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -55,20 +39,25 @@ async function postSignupJson<T extends SignupApiResponse>(
     console.error('[signup] non-json response', { url, status: response.status, contentType })
     throw new Error(
       response.ok
-        ? 'Signup service returned an invalid response. Please try again.'
-        : `Signup service error (HTTP ${response.status}). Please try again.`
+        ? 'Signup service is temporarily unavailable. Please try again.'
+        : `Signup service is temporarily unavailable. Please try again (HTTP ${response.status}).`
     )
   }
 
-  const payload = (await response.json()) as T
+  const payload = (await response.json()) as SignupApiResponse
   return payload
+}
+
+function messageFromApi(payload: SignupApiResponse, fallback: string): string {
+  return ensureErrorMessage(
+    payload.message ?? payload.error?.detail ?? payload.error?.message ?? payload.error,
+    fallback
+  )
 }
 
 function SignupForm() {
   const t = useTranslations('auth')
   const tNav = useTranslations('nav')
-  const tCommon = useTranslations('common')
-  const router = useRouter()
   const searchParams = useSearchParams()
   const referralFromUrl = searchParams.get('ref')?.trim() || ''
   const [formData, setFormData] = useState({
@@ -120,6 +109,11 @@ function SignupForm() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
+  const showError = (value: unknown) => {
+    const message = ensureErrorMessage(value, 'Signup failed. Please try again.')
+    setError(message)
+  }
+
   const handleGoogleSignUp = () => {
     if (!agreedToTerms) {
       setError(t('agreeTermsGoogleRequired'))
@@ -132,23 +126,6 @@ function SignupForm() {
     }
     setGoogleLoading(true)
     signInWithGoogle('/dashboard')
-  }
-
-  const establishSession = async (userId: string, email: string) => {
-    const payload = await postSignupJson<SignupApiResponse>('/api/auth/post-signup-session', {
-      userId,
-      email,
-    })
-
-    if (!payload.success) {
-      console.error('[signup] session setup failed', payload)
-      return {
-        success: false as const,
-        error: payload.message || 'Could not sign you in after signup.',
-      }
-    }
-
-    return { success: true as const }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -178,10 +155,13 @@ function SignupForm() {
     setLoading(true)
 
     try {
-      const emailRedirectTo = `${window.location.origin}/auth/callback?redirect=/settings&verify=1`
+      const email = formData.email.trim().toLowerCase()
+      const emailRedirectTo = `${window.location.origin}/auth/callback?redirect=/dashboard&verify=1`
+
+      console.info('[signup] starting signUp', { email })
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
+        email,
         password: formData.password,
         options: {
           emailRedirectTo,
@@ -198,33 +178,35 @@ function SignupForm() {
           code: authError.code,
           status: authError.status,
         })
-        setError(authError.message || t('registerFailed'))
+        showError(mapSignupErrorMessage(authError.message))
         return
       }
 
       if (!authData.user) {
         console.error('[signup] signUp returned no user', { authData })
-        setError('Signup did not return a user record. Please try again.')
+        showError('Signup did not return a user record. Please try again.')
         return
       }
 
+      // Supabase returns a user with empty identities when the email is already registered.
       if (authData.user.identities?.length === 0) {
         console.error('[signup] duplicate email signup attempt', {
-          email: formData.email,
+          email,
           userId: authData.user.id,
         })
-        setError('An account with this email already exists. Please sign in instead.')
+        showError('An account with this email already exists. Please sign in instead.')
         return
       }
 
       console.info('[signup] auth user created', {
         userId: authData.user.id,
         hasSession: Boolean(authData.session),
+        emailConfirmedAt: authData.user.email_confirmed_at,
       })
 
-      const profile = await postSignupJson<SignupApiResponse>('/api/auth/bootstrap-profile', {
+      const profile = await postSignupJson('/api/auth/bootstrap-profile', {
         userId: authData.user.id,
-        email: formData.email,
+        email,
         fullName: formData.name,
         investorTier: formData.tier,
         referralCode: activeReferralCode ?? readReferralCodeFromCookie(),
@@ -232,34 +214,43 @@ function SignupForm() {
 
       if (!profile.success) {
         console.error('[signup] bootstrap profile failed', profile)
-        setError(profile.message || t('profileCreationFailed'))
+        showError(messageFromApi(profile, t('profileCreationFailed')))
         return
       }
 
-      if (!authData.session) {
-        const sessionResult = await establishSession(authData.user.id, formData.email)
-        if (!sessionResult.success) {
-          setError(sessionResult.error)
-          return
-        }
+      console.info('[bootstrap] profile ready', { userId: authData.user.id })
+
+      // Option A: never keep an automatic pre-verification session.
+      if (authData.session) {
+        console.info('[session] signing out pre-verification session')
+        await supabase.auth.signOut({ scope: 'local' })
       }
 
-      void recordSignupVerificationEmailSentAction().catch((recordError) => {
-        console.error('[signup] recordSignupVerificationEmailSentAction failed (non-blocking)', recordError)
+      void fetch('/api/auth/record-verification-sent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userId: authData.user.id }),
+      }).catch((recordError) => {
+        console.error('[signup] record-verification-sent failed (non-blocking)', recordError)
       })
 
-      router.refresh()
-      router.push('/dashboard')
+      saveVerificationPending({ userId: authData.user.id, email })
+
+      console.info('[signup] redirecting to confirm-email', { email })
+      window.location.assign(
+        `/auth/confirm-email?email=${encodeURIComponent(email)}`
+      )
     } catch (err) {
-      const message = formatSignupError(err)
       console.error('[signup] unexpected error', err)
-      setError(message)
+      showError(err)
     } finally {
       setLoading(false)
     }
   }
 
   const busy = loading || googleLoading
+  const safeError = error && error !== '{}' ? error : ''
 
   return (
     <AuthFormShell
@@ -280,9 +271,9 @@ function SignupForm() {
         </div>
       ) : null}
 
-      {error ? (
+      {safeError ? (
         <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
-          {error}
+          {safeError}
         </div>
       ) : null}
 
@@ -407,7 +398,7 @@ function SignupForm() {
           {loading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
-              {tCommon('loading')}
+              Creating your account…
             </>
           ) : (
             t('createAccount')

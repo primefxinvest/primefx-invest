@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { createPostSignupSession } from '@/lib/auth/signup-session'
 import { createRouteHandlerSupabaseClient } from '@/lib/supabase/route-handler'
+import { mapVerificationErrorMessage } from '@/lib/auth/signup-errors'
 
 export async function POST(request: NextRequest) {
   let body: { userId?: string; email?: string }
@@ -49,15 +50,22 @@ export async function POST(request: NextRequest) {
     })
 
     if (!result.success) {
+      console.error('[session] post-signup-session failed', {
+        userId,
+        code: result.code,
+        error: result.error,
+      })
       return NextResponse.json(
         {
           success: false,
-          message: result.error,
+          message: mapVerificationErrorMessage(result.error, 'Could not create session.'),
           error: { code: result.code ?? 'SESSION_FAILED', detail: result.error },
         },
         { status: 422 }
       )
     }
+
+    console.info('[session] post-verification session created', { userId })
 
     return applyCookiesTo(
       NextResponse.json({
@@ -67,11 +75,14 @@ export async function POST(request: NextRequest) {
       })
     )
   } catch (err) {
-    console.error('[api:post-signup-session] unhandled error', err)
+    console.error('[session] post-signup-session unhandled error', err)
     return NextResponse.json(
       {
         success: false,
-        message: 'Could not sign you in after signup. Please try logging in.',
+        message: mapVerificationErrorMessage(
+          err,
+          'Could not sign you in after verification. Please try logging in.'
+        ),
         error: { code: 'INTERNAL_ERROR' },
       },
       { status: 500 }

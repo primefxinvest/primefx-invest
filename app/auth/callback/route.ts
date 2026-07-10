@@ -16,11 +16,11 @@ function loginErrorRedirect(request: NextRequest, code: string, message?: string
   return NextResponse.redirect(loginUrl)
 }
 
-function emailVerificationRedirect(
+function emailVerificationFailedRedirect(
   request: NextRequest,
-  status: 'success' | 'failed' | 'expired' | 'already_verified'
+  status: 'failed' | 'expired' | 'already_verified'
 ) {
-  const url = new URL('/settings', getRequestOrigin(request))
+  const url = new URL('/auth/confirm-email', getRequestOrigin(request))
   url.searchParams.set('emailVerification', status)
   return url
 }
@@ -55,7 +55,10 @@ export async function GET(request: NextRequest) {
     return loginErrorRedirect(request, 'oauth_missing_code')
   }
 
-  const successUrl = new URL(nextPath, getRequestOrigin(request))
+  const successUrl = new URL(
+    isEmailVerificationFlow ? sanitizeRedirectPath(searchParams.get('redirect') || '/dashboard') : nextPath,
+    getRequestOrigin(request)
+  )
   const { supabase, applyCookiesTo } = createRouteHandlerSupabaseClient(
     request,
     () => NextResponse.redirect(successUrl)
@@ -64,6 +67,10 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
+    console.error('[session] exchangeCodeForSession failed', {
+      message: error.message,
+      isEmailVerificationFlow,
+    })
     const message = error.message.toLowerCase()
     if (isEmailVerificationFlow) {
       const status = message.includes('expired')
@@ -71,7 +78,9 @@ export async function GET(request: NextRequest) {
         : message.includes('already')
           ? 'already_verified'
           : 'failed'
-      return applyCookiesTo(NextResponse.redirect(emailVerificationRedirect(request, status)))
+      return applyCookiesTo(
+        NextResponse.redirect(emailVerificationFailedRedirect(request, status))
+      )
     }
     return loginErrorRedirect(request, 'oauth_failed', error.message)
   }
@@ -79,10 +88,6 @@ export async function GET(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  if (user?.email_confirmed_at && isEmailVerificationFlow) {
-    return applyCookiesTo(NextResponse.redirect(emailVerificationRedirect(request, 'success')))
-  }
 
   if (user?.email) {
     const metadata = user.user_metadata ?? {}
@@ -97,9 +102,19 @@ export async function GET(request: NextRequest) {
           'Investor',
         investorTier: (metadata.investor_tier as string | undefined) ?? 'Starter',
       })
-    } catch {
-      // Profile may already exist from the auth.users trigger — do not block sign-in.
+    } catch (bootstrapError) {
+      // Profile may already exist from signup bootstrap — do not block sign-in.
+      console.warn('[bootstrap] callback bootstrap non-fatal', bootstrapError)
     }
+  }
+
+  if (isEmailVerificationFlow) {
+    console.info('[verification] email confirmed via callback', {
+      userId: user?.id,
+      emailConfirmedAt: user?.email_confirmed_at,
+    })
+    const dashboardUrl = new URL('/dashboard', getRequestOrigin(request))
+    return applyCookiesTo(NextResponse.redirect(dashboardUrl))
   }
 
   return applyCookiesTo(NextResponse.redirect(successUrl))

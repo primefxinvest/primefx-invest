@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { bootstrapUserProfile } from '@/lib/auth/bootstrap-profile'
+import { mapSignupErrorMessage } from '@/lib/auth/signup-errors'
 
 type BootstrapProfileBody = {
   userId?: string
@@ -50,15 +51,22 @@ export async function POST(request: NextRequest) {
     })
 
     if (!result.success) {
+      console.error('[bootstrap] profile failed', {
+        userId,
+        code: result.code,
+        error: result.error,
+      })
       return NextResponse.json(
         {
           success: false,
-          message: result.error ?? 'Profile creation failed.',
+          message: mapSignupErrorMessage(result.error ?? 'Profile creation failed.'),
           error: { code: result.code ?? 'BOOTSTRAP_FAILED', detail: result.error },
         },
         { status: 422 }
       )
     }
+
+    console.info('[bootstrap] profile created', { userId })
 
     return NextResponse.json({
       success: true,
@@ -66,7 +74,7 @@ export async function POST(request: NextRequest) {
       data: { userId },
     })
   } catch (err) {
-    console.error('[api:bootstrap-profile] unhandled error', err)
+    console.error('[bootstrap] unhandled error', err)
     return NextResponse.json(
       {
         success: false,

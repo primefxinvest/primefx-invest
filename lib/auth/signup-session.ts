@@ -97,6 +97,16 @@ export async function createPostSignupSession(input: {
     }
   }
 
+  // Option A: only establish a session after the email is confirmed.
+  if (!authUser.email_confirmed_at) {
+    console.info('[session] refusing pre-verification session', { userId: input.userId })
+    return {
+      success: false,
+      error: 'Please verify your email before signing in.',
+      code: 'EMAIL_NOT_VERIFIED',
+    }
+  }
+
   const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
     type: 'magiclink',
     email: authUser.email,

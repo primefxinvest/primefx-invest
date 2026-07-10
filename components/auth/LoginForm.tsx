@@ -19,6 +19,30 @@ import { AuthDivider } from '@/components/auth/AuthDivider'
 import { AuthSecurityNotice } from '@/components/auth/AuthSecurityNotice'
 import { useResetOnPageShow } from '@/lib/hooks/useResetOnPageShow'
 import { Button } from '@/components/ui/button'
+import { ensureErrorMessage } from '@/lib/auth/signup-errors'
+import { saveVerificationPending } from '@/lib/auth/verification-pending'
+
+type UnverifiedHintResponse = {
+  success: boolean
+  data?: { unverified?: boolean; userId?: string; email?: string }
+}
+
+async function checkUnverifiedHint(email: string): Promise<UnverifiedHintResponse['data'] | null> {
+  try {
+    const response = await fetch('/api/auth/unverified-login-hint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email }),
+    })
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.includes('application/json')) return null
+    const payload = (await response.json()) as UnverifiedHintResponse
+    return payload.data ?? null
+  } catch {
+    return null
+  }
+}
 
 function LoginForm() {
   const t = useTranslations('auth')
@@ -33,6 +57,8 @@ function LoginForm() {
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState('')
+  const [unverifiedEmail, setUnverifiedEmail] = useState<string | null>(null)
+  const [resending, setResending] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
 
   const resetOAuthLoading = useCallback(() => {
@@ -67,6 +93,15 @@ function LoginForm() {
     router.push(`${MFA_VERIFY_ROUTE}?${params.toString()}`)
   }
 
+  const markUnverified = (value: string, userId?: string) => {
+    const normalized = value.trim().toLowerCase()
+    setUnverifiedEmail(normalized)
+    setError("Your email hasn't been verified yet.\nPlease verify your email first.")
+    if (userId) {
+      saveVerificationPending({ userId, email: normalized })
+    }
+  }
+
   const handleForgotPassword = async () => {
     if (!email) {
       setError(t('enterEmailForReset'))
@@ -78,7 +113,7 @@ function LoginForm() {
     })
 
     if (resetError) {
-      setError(resetError.message)
+      setError(ensureErrorMessage(resetError.message, t('loginFailed')))
       return
     }
 
@@ -89,13 +124,55 @@ function LoginForm() {
 
   const handleGoogleSignIn = () => {
     setError('')
+    setUnverifiedEmail(null)
     setGoogleLoading(true)
     signInWithGoogle(redirectTo.startsWith('/') ? redirectTo : '/dashboard')
+  }
+
+  const handleResendFromLogin = async () => {
+    if (!unverifiedEmail || resending) return
+    setResending(true)
+    try {
+      const hint = await checkUnverifiedHint(unverifiedEmail)
+      if (!hint?.unverified || !hint.userId) {
+        setError('We could not resend the verification email. Please open Confirm Email.')
+        return
+      }
+
+      saveVerificationPending({ userId: hint.userId, email: unverifiedEmail })
+      const response = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ userId: hint.userId, email: unverifiedEmail }),
+      })
+      const contentType = response.headers.get('content-type') ?? ''
+      if (!contentType.includes('application/json')) {
+        setError('We could not resend the verification email. Please try again.')
+        return
+      }
+      const payload = (await response.json()) as {
+        success: boolean
+        message?: string
+      }
+      if (!payload.success) {
+        setError(ensureErrorMessage(payload.message, 'We could not resend the verification email.'))
+        return
+      }
+      toast.success('Verification email sent', {
+        description: `Check ${unverifiedEmail} for the confirmation link.`,
+      })
+    } catch (err) {
+      setError(ensureErrorMessage(err, 'We could not resend the verification email.'))
+    } finally {
+      setResending(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setUnverifiedEmail(null)
     setLoading(true)
 
     try {
@@ -105,19 +182,55 @@ function LoginForm() {
         return
       }
 
+      const normalizedEmail = email.trim().toLowerCase()
       const { data, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       })
 
       if (authError) {
-        setError(authError.message || t('loginFailedCredentials'))
+        const lower = (authError.message || '').toLowerCase()
+        const looksUnverified =
+          lower.includes('email not confirmed') ||
+          lower.includes('not confirmed') ||
+          lower.includes('confirm your email')
+
+        if (looksUnverified) {
+          const hint = await checkUnverifiedHint(normalizedEmail)
+          markUnverified(normalizedEmail, hint?.userId)
+          setLoading(false)
+          return
+        }
+
+        // Supabase often returns "Invalid login credentials" for unverified accounts.
+        if (lower.includes('invalid login') || lower.includes('invalid credentials')) {
+          const hint = await checkUnverifiedHint(normalizedEmail)
+          if (hint?.unverified) {
+            markUnverified(normalizedEmail, hint.userId)
+            setLoading(false)
+            return
+          }
+        }
+
+        setError(
+          ensureErrorMessage(
+            authError.message,
+            'Incorrect email or password. Please try again.'
+          )
+        )
         setLoading(false)
         return
       }
 
       if (!data.user) {
-        setError(t('loginFailed'))
+        setError('We could not sign you in. Please try again.')
+        setLoading(false)
+        return
+      }
+
+      if (!data.user.email_confirmed_at) {
+        markUnverified(normalizedEmail, data.user.id)
+        await supabase.auth.signOut({ scope: 'local' })
         setLoading(false)
         return
       }
@@ -132,14 +245,17 @@ function LoginForm() {
 
       setRememberSessionPreference(rememberMe)
       finishLogin()
-    } catch {
-      setError(t('loginFailed'))
+    } catch (err) {
+      setError(ensureErrorMessage(err, 'We could not sign you in. Please try again.'))
     } finally {
       setLoading(false)
     }
   }
 
-  const busy = loading || googleLoading
+  const busy = loading || googleLoading || resending
+  const confirmEmailHref = unverifiedEmail
+    ? `/auth/confirm-email?email=${encodeURIComponent(unverifiedEmail)}`
+    : '/auth/confirm-email'
 
   return (
     <AuthFormShell
@@ -162,8 +278,37 @@ function LoginForm() {
       }
     >
       {displayError ? (
-        <div className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive">
+        <div
+          role="alert"
+          className="mb-5 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-2.5 text-sm text-destructive whitespace-pre-line"
+        >
           {displayError}
+          {unverifiedEmail ? (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-destructive/30 bg-white text-destructive hover:bg-destructive/5"
+                disabled={busy}
+                onClick={() => void handleResendFromLogin()}
+              >
+                {resending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                Resend email
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="bg-destructive text-white hover:bg-destructive/90"
+                disabled={busy}
+                onClick={() => {
+                  window.location.assign(confirmEmailHref)
+                }}
+              >
+                Go to Confirm Email
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
@@ -183,7 +328,10 @@ function LoginForm() {
           label={t('emailAddressLabel')}
           type="email"
           value={email}
-          onChange={setEmail}
+          onChange={(value) => {
+            setEmail(value)
+            setUnverifiedEmail(null)
+          }}
           placeholder={t('emailPlaceholder')}
           icon={<Mail className="h-4 w-4" />}
           disabled={busy}

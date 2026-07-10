@@ -32,14 +32,14 @@ async function bootstrapProfileAtomic(
 ): Promise<{ success: boolean; error?: string; code?: string }> {
   const rpcCheck = await checkBootstrapRpcExists(admin)
   if (!rpcCheck.exists) {
-    console.error('[signup:bootstrap] migration 046 missing', rpcCheck.error)
+    console.error('[bootstrap] migration 046 missing', rpcCheck.error)
     return { success: false, error: rpcCheck.error, code: 'MIGRATION_046_MISSING' }
   }
 
   const authUser = await waitForAuthUser(admin, input.userId)
   if (!authUser) {
     const message = `auth.users record not found for id ${input.userId} after signup.`
-    console.error('[signup:bootstrap] auth user missing before bootstrap', { userId: input.userId })
+    console.error('[bootstrap] auth user missing before bootstrap', { userId: input.userId })
     return { success: false, error: message, code: 'AUTH_USER_NOT_FOUND' }
   }
 
@@ -52,7 +52,7 @@ async function bootstrapProfileAtomic(
     })
 
     if (error) {
-      console.error('[signup:bootstrap] rpc error', {
+      console.error('[bootstrap] rpc error', {
         userId: input.userId,
         attempt,
         message: error.message,
@@ -77,7 +77,7 @@ async function bootstrapProfileAtomic(
     }
 
     const code = result?.error
-    console.error('[signup:bootstrap] rpc returned failure', {
+    console.error('[bootstrap] rpc returned failure', {
       userId: input.userId,
       attempt,
       code,
@@ -111,14 +111,14 @@ async function bootstrapProfileFallback(
     investorTier: string
   }
 ): Promise<{ success: boolean; error?: string; code?: string }> {
-  console.warn('[signup:bootstrap] using fallback path (migration 046 rpc unavailable)', {
+  console.warn('[bootstrap] using fallback path (migration 046 rpc unavailable)', {
     userId: input.userId,
   })
 
   const authUser = await waitForAuthUser(admin, input.userId)
   if (!authUser) {
     const message = `auth.users record not found for id ${input.userId} after signup.`
-    console.error('[signup:bootstrap] fallback auth user missing', { userId: input.userId })
+    console.error('[bootstrap] fallback auth user missing', { userId: input.userId })
     return { success: false, error: message, code: 'AUTH_USER_NOT_FOUND' }
   }
 
@@ -134,7 +134,7 @@ async function bootstrapProfileFallback(
   )
 
   if (userError) {
-    console.error('[signup:bootstrap] users upsert failed', {
+    console.error('[bootstrap] users upsert failed', {
       userId: input.userId,
       message: userError.message,
       code: userError.code,
@@ -156,7 +156,7 @@ async function bootstrapProfileFallback(
 
   if (walletError) {
     await rollbackPartialProfile(admin, input.userId)
-    console.error('[signup:bootstrap] wallet upsert failed', {
+    console.error('[bootstrap] wallet upsert failed', {
       userId: input.userId,
       message: walletError.message,
       code: walletError.code,
@@ -177,7 +177,7 @@ async function bootstrapProfileFallback(
 
     if (portfolioError) {
       await rollbackPartialProfile(admin, input.userId)
-      console.error('[signup:bootstrap] portfolio insert failed', {
+      console.error('[bootstrap] portfolio insert failed', {
         userId: input.userId,
         message: portfolioError.message,
         code: portfolioError.code,
@@ -206,7 +206,7 @@ export async function bootstrapUserProfile(input: {
     if (err instanceof RateLimitExceededError) {
       return { success: false, error: err.message, code: 'RATE_LIMIT_EXCEEDED' }
     }
-    console.error('[signup:bootstrap] unexpected error', err)
+    console.error('[bootstrap] unexpected error', err)
     return {
       success: false,
       error: 'Profile setup failed. Please try again.',
@@ -221,7 +221,7 @@ export async function bootstrapUserProfile(input: {
       keyIssue === 'wrong-role' || keyIssue === 'same-as-anon'
         ? 'SUPABASE_SERVICE_ROLE_KEY is set to the anon key. Use the service_role secret from Supabase → Project Settings → API.'
         : 'Server profile setup is not configured. Add SUPABASE_SERVICE_ROLE_KEY to the server environment.'
-    console.error('[signup:bootstrap] service role misconfigured', { keyIssue })
+    console.error('[bootstrap] service role misconfigured', { keyIssue })
     return { success: false, error, code: keyIssue ?? 'SERVICE_ROLE_MISSING' }
   }
 
@@ -242,7 +242,7 @@ export async function bootstrapUserProfile(input: {
     await ensureUserReferralCode(input.userId, input.fullName)
     await recordReferralForNewUser(input.userId, referralCode)
   } catch (err) {
-    console.error('[signup:bootstrap] referral setup failed (non-blocking)', {
+    console.error('[bootstrap] referral setup failed (non-blocking)', {
       userId: input.userId,
       err,
     })

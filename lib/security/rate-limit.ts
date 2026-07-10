@@ -16,6 +16,8 @@ export class RateLimitExceededError extends Error {
 export type RateLimitScope =
   | 'auth:login'
   | 'auth:signup'
+  | 'auth:verification-status'
+  | 'auth:change-pending-email'
   | 'chat'
   | 'assistance'
   | 'deposit'
@@ -33,6 +35,16 @@ const RATE_LIMITS: Record<
 > = {
   'auth:login': { maxHits: 20, windowSeconds: 60, message: 'Too many sign-in attempts. Try again shortly.' },
   'auth:signup': { maxHits: 10, windowSeconds: 60, message: 'Too many sign-up attempts. Try again shortly.' },
+  'auth:verification-status': {
+    maxHits: 60,
+    windowSeconds: 60,
+    message: 'Too many verification checks. Try again shortly.',
+  },
+  'auth:change-pending-email': {
+    maxHits: 5,
+    windowSeconds: 3600,
+    message: 'Too many email change attempts. Try again later.',
+  },
   chat: { maxHits: 40, windowSeconds: 3600, message: 'PrimeAI rate limit reached. Try again later.' },
   assistance: { maxHits: 60, windowSeconds: 3600, message: 'Support chat rate limit reached. Try again later.' },
   deposit: { maxHits: 15, windowSeconds: 3600, message: 'Too many deposit attempts. Try again later.' },

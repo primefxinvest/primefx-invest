@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Sign in to PrimeFx Invest</title>
+  <style>
+    @media only screen and (max-width: 620px) {
+      .container { width: 100% !important; }
+      .px { padding-left: 20px !important; padding-right: 20px !important; }
+      .btn a { display: block !important; width: 100% !important; box-sizing: border-box !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background-color:#050816;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#050816;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" class="container" width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;width:100%;">
+          <tr>
+            <td align="center" style="padding-bottom:24px;">
+              <img src="{{ .SiteURL }}/logo.png" alt="PrimeFx Invest" width="48" height="48" style="display:block;border:0;border-radius:12px;" />
+            </td>
+          </tr>
+          <tr>
+            <td class="px" style="background-color:#0b1224;border:1px solid #1e293b;border-radius:20px;padding:40px 36px;">
+              <p style="margin:0 0 10px;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:#64748b;font-weight:700;">Secure sign-in</p>
+              <h1 style="margin:0 0 16px;font-size:28px;line-height:1.25;font-weight:700;color:#f8fafc;">Your PrimeFx sign-in link</h1>
+              <p style="margin:0 0 28px;font-size:16px;line-height:1.65;color:#cbd5e1;">
+                Use the button below to securely access your account. This link expires soon.
+              </p>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" class="btn" style="margin:0 0 28px;">
+                <tr>
+                  <td align="center" bgcolor="#0052ff" style="border-radius:14px;">
+                    <a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:16px 34px;font-size:16px;font-weight:700;color:#ffffff;text-decoration:none;border-radius:14px;background:linear-gradient(135deg,#0052ff 0%,#2563eb 100%);">
+                      Continue to PrimeFx
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              <p style="margin:0;font-size:13px;line-height:1.65;color:#94a3b8;">
+                <strong style="color:#f8fafc;">Security notice:</strong> If you did not request this email, you can ignore it. Never share this link.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding:24px 16px;">
+              <p style="margin:0;font-size:13px;color:#64748b;">
+                Need help? <a href="mailto:support@primefxinvest.com" style="color:#60a5fa;text-decoration:none;">support@primefxinvest.com</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
