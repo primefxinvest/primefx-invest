@@ -10,6 +10,7 @@ import { holdWalletFunds, restoreWalletHold } from '@/lib/payments/wallet-ledger
 import { INVESTOR_RULES } from '@/lib/investor/rules'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
+import { isMissingDbFunctionError } from '@/lib/db/missing-rpc'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -155,7 +156,23 @@ export async function claimWithdrawalForProcessing(
     p_target_status: targetStatus,
   })
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    if (isMissingDbFunctionError(error.message)) {
+      const now = new Date().toISOString()
+      const { data: fallback, error: fallbackError } = await db
+        .from('withdrawal_requests')
+        .update({ status: targetStatus })
+        .eq('id', requestId)
+        .eq('status', 'pending_notice')
+        .lte('available_at', now)
+        .select('*')
+        .maybeSingle()
+
+      if (fallbackError) throw new Error(fallbackError.message)
+      return fallback as Record<string, unknown> | null
+    }
+    throw new Error(error.message)
+  }
   return data as Record<string, unknown> | null
 }
 

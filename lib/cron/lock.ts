@@ -2,6 +2,7 @@ import 'server-only'
 
 import { randomUUID } from 'crypto'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
+import { isMissingDbFunctionError } from '@/lib/db/missing-rpc'
 import { logFinancialAudit } from '@/lib/payments/financial-audit'
 
 function getDb() {
@@ -27,6 +28,13 @@ export async function withCronJobLock<T>(
   })
 
   if (error) {
+    if (isMissingDbFunctionError(error.message)) {
+      console.warn(
+        `[cron] acquire_cron_job_lock RPC missing — running "${jobName}" without distributed lock`
+      )
+      const result = await fn()
+      return { skipped: false, result }
+    }
     throw new Error(error.message)
   }
 
