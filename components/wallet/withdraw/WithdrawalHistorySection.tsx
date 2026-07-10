@@ -5,6 +5,7 @@ import { ChevronDown } from 'lucide-react'
 import type { WalletWithdrawalRequestItem } from '@/lib/data/types'
 import { WithdrawalDetailCard } from '@/components/wallet/withdraw/WithdrawalDetailCard'
 import { useWithdrawalHoldCountdown } from '@/lib/hooks/useWithdrawalHoldCountdown'
+import { getWithdrawalAdminUnlockLabel } from '@/lib/wallet/withdrawal-admin-unlock'
 import { formatCurrency } from '@/lib/data/format'
 import { cn } from '@/lib/utils'
 
@@ -22,13 +23,17 @@ function WithdrawalHistoryRow({
     status: withdrawal.status,
   })
 
-  const statusLabel =
-    countdown.holdExpired && withdrawal.status === 'pending_notice'
+  const adminUnlockLabel = getWithdrawalAdminUnlockLabel(withdrawal.metadata)
+
+  const statusLabel = adminUnlockLabel
+    ? adminUnlockLabel
+    : countdown.holdExpired && withdrawal.status === 'pending_notice'
       ? 'Ready for Payout'
       : withdrawal.displayStatus
 
-  const substatus =
-    withdrawal.status === 'pending_notice'
+  const substatus = adminUnlockLabel
+    ? adminUnlockLabel
+    : withdrawal.status === 'pending_notice'
       ? countdown.holdRemaining
       : withdrawal.status === 'processing'
         ? withdrawal.estimatedCompletion

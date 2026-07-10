@@ -888,6 +888,7 @@ export type AdminWithdrawalQueueRow = {
   payout_address: string | null
   method_label: string | null
   network_label: string
+  metadata: Record<string, unknown>
 }
 
 export async function getAdminWithdrawalQueue(): Promise<AdminWithdrawalQueueRow[]> {
@@ -921,6 +922,7 @@ export async function getAdminWithdrawalQueue(): Promise<AdminWithdrawalQueueRow
     payout_address: (row.payout_address as string | null) ?? null,
     method_label: (row.method_label as string | null) ?? null,
     network_label: resolveWithdrawalNetworkLabel((row.currency as string | null) ?? null),
+    metadata: (row.metadata as Record<string, unknown> | null) ?? {},
   }))
 
   const capital = (capitalRows ?? []).map((row) => ({
@@ -941,6 +943,7 @@ export async function getAdminWithdrawalQueue(): Promise<AdminWithdrawalQueueRow
     payout_address: null,
     method_label: 'Capital withdrawal',
     network_label: '—',
+    metadata: {},
   }))
 
   return [...wallet, ...capital].sort(

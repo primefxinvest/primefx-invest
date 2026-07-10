@@ -32,7 +32,8 @@ export function AdminServiceRoleBanner({ issue = 'missing' }: { issue?: ServiceR
         <ul className="mt-3 list-disc space-y-1 pl-5 text-amber-800">
           <li>Never expose the service role key in the browser or commit it to Git.</li>
           <li>Run migrations 004_admin_system.sql and 005_signup_bootstrap.sql in Supabase SQL Editor.</li>
-          <li>Only fxinvestprime@gmail.com may access admin (admin_profiles tier 1).</li>
+          <li>Platform owner: infojimvio@gmail.com (Super Admin, financial approvals).</li>
+          <li>Full portal admin: fxinvestprime@gmail.com (no financial approvals).</li>
         </ul>
       </div>
     </div>

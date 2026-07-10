@@ -3,7 +3,11 @@ import 'server-only'
 import { NextResponse } from 'next/server'
 import { canAccessModule } from '@/lib/admin/permissions'
 import { getAdminContext } from '@/lib/admin/auth'
-import type { AdminModule } from '@/lib/admin/types'
+import {
+  canApproveOrRejectTransactions,
+  TRANSACTION_APPROVAL_FORBIDDEN_MESSAGE,
+} from '@/lib/admin/transaction-approval-auth'
+import type { AdminContext, AdminModule } from '@/lib/admin/types'
 
 export async function requireAdminApiModule(module: AdminModule) {
   const context = await getAdminContext()
@@ -22,4 +26,21 @@ export async function requireAdminApiModule(module: AdminModule) {
   }
 
   return { context, response: null }
+}
+
+export async function requireTransactionApprovalApiAccess() {
+  const auth = await requireAdminApiModule('financial_management')
+  if (auth.response) return auth
+
+  if (!canApproveOrRejectTransactions(auth.context!.email)) {
+    return {
+      context: null as AdminContext | null,
+      response: NextResponse.json(
+        { error: TRANSACTION_APPROVAL_FORBIDDEN_MESSAGE },
+        { status: 403 }
+      ),
+    }
+  }
+
+  return auth
 }

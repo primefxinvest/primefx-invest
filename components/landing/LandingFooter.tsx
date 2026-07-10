@@ -125,14 +125,14 @@ export default async function LandingFooter() {
             </h4>
             <ul className="space-y-2 text-xs text-gray-500 sm:text-sm">
               <li>
-                <a href="/#features" className="transition-colors hover:text-gray-900">
+                <Link href="/#features" className="transition-colors hover:text-gray-900">
                   {t('features')}
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/#pricing" className="transition-colors hover:text-gray-900">
+                <Link href="/#pricing" className="transition-colors hover:text-gray-900">
                   {t('pricing')}
-                </a>
+                </Link>
               </li>
               <li>
                 <Link href="/legal#compliance" className="transition-colors hover:text-gray-900">

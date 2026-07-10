@@ -10,7 +10,8 @@ const TIER_STYLES: Record<AdminTier, string> = {
   5: 'bg-slate-100 text-slate-800 ring-slate-200',
 }
 
-export function AdminTierBadge({ tier }: { tier: AdminTier }) {
+export function AdminTierBadge({ tier, roleLabel }: { tier: AdminTier; roleLabel?: string }) {
+  const label = roleLabel ?? ADMIN_TIER_LABELS[tier]
   return (
     <span
       className={cn(
@@ -18,7 +19,7 @@ export function AdminTierBadge({ tier }: { tier: AdminTier }) {
         TIER_STYLES[tier]
       )}
     >
-      L{tier} · {ADMIN_TIER_LABELS[tier]}
+      L{tier} · {label}
     </span>
   )
 }

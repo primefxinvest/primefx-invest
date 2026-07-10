@@ -6,6 +6,7 @@ import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import { fetchPaymentProviderOptionsServer } from '@/lib/payments/options-server'
 import { syncUserPendingDeposits } from '@/lib/payments/deposit-sync'
 import { createDepositPayment, createWithdrawalPayment } from '@/lib/payments/service'
+import { getPaymentByOrderId } from '@/lib/payments/wallet-ledger'
 import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
 import { requireVerifiedEmail, EMAIL_NOT_VERIFIED_CODE } from '@/lib/auth/require-verified-email'
 import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
@@ -143,6 +144,7 @@ export async function syncPendingDeposits() {
   if (result.completed > 0) {
     revalidatePath('/wallet')
     revalidatePath('/wallet/deposit')
+    revalidatePath('/wallet/deposit/success')
     revalidatePath('/dashboard')
     revalidatePath('/transactions')
   } else if (result.stillPending > 0) {
@@ -150,4 +152,52 @@ export async function syncPendingDeposits() {
   }
 
   return result
+}
+
+export async function syncDepositOrder(orderId: string) {
+  const user = await requireUser()
+  const trimmed = orderId?.trim()
+  if (!trimmed) {
+    return { success: false as const, error: 'Missing order reference.' }
+  }
+
+  const payment = await getPaymentByOrderId(trimmed)
+  if (payment && String(payment.investor_id) !== user.id) {
+    return { success: false as const, error: 'Payment does not belong to this user.' }
+  }
+
+  if (payment?.status === 'completed') {
+    revalidatePath('/wallet')
+    revalidatePath('/wallet/deposit')
+    revalidatePath('/wallet/deposit/success')
+    revalidatePath('/dashboard')
+    revalidatePath('/transactions')
+
+    return {
+      success: true as const,
+      orderId: trimmed,
+      status: 'completed' as const,
+      amountUsd: Number(payment.amount_usd ?? 0),
+      paymentStatus: String(payment.status ?? ''),
+    }
+  }
+
+  const { syncDepositByOrderId } = await import('@/lib/payments/deposit-sync')
+  const result = await syncDepositByOrderId(trimmed, user.id)
+  const refreshedPayment = payment ?? (await getPaymentByOrderId(trimmed))
+
+  if (result.status === 'completed') {
+    revalidatePath('/wallet')
+    revalidatePath('/wallet/deposit')
+    revalidatePath('/wallet/deposit/success')
+    revalidatePath('/dashboard')
+    revalidatePath('/transactions')
+  }
+
+  return {
+    success: true as const,
+    ...result,
+    amountUsd: refreshedPayment ? Number(refreshedPayment.amount_usd ?? 0) : 0,
+    paymentStatus: refreshedPayment ? String(refreshedPayment.status ?? '') : null,
+  }
 }

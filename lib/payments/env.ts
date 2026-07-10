@@ -85,18 +85,22 @@ export function buildPaymentWebhookUrl(path: string) {
   return url
 }
 
-export function getSuccessRedirectUrl() {
-  return (
+export function getSuccessRedirectUrl(orderId?: string) {
+  const base =
     process.env.PAYMENT_SUCCESS_REDIRECT_URL ??
-    `${getWebhookBaseUrl()}/wallet?deposit=success`
-  )
+    `${getWebhookBaseUrl()}/wallet/deposit/success`
+  if (!orderId) return base
+  const separator = base.includes('?') ? '&' : '?'
+  return `${base}${separator}order=${encodeURIComponent(orderId)}`
 }
 
-export function getCancelRedirectUrl() {
-  return (
+export function getCancelRedirectUrl(orderId?: string) {
+  const base =
     process.env.PAYMENT_CANCEL_REDIRECT_URL ??
-    `${getWebhookBaseUrl()}/wallet?deposit=cancelled`
-  )
+    `${getWebhookBaseUrl()}/wallet/deposit/failed`
+  if (!orderId) return base
+  const separator = base.includes('?') ? '&' : '?'
+  return `${base}${separator}order=${encodeURIComponent(orderId)}`
 }
 
 export function getBinancePayMissingEnvVars() {

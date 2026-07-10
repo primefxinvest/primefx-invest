@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import {
   isPaymentComplete,
   isPaymentFailed,
@@ -47,11 +48,17 @@ export async function POST(request: Request) {
 
     if (isPaymentComplete(paymentStatus)) {
       await completeDepositFromWebhook(orderId)
+      revalidatePath('/wallet')
+      revalidatePath('/wallet/deposit/success')
+      revalidatePath('/dashboard')
+      revalidatePath('/transactions')
     } else if (isPaymentFailed(paymentStatus)) {
       await failDepositFromWebhook(
         orderId,
         paymentStatus === 'expired' ? 'expired' : paymentStatus === 'refunded' ? 'refunded' : 'failed'
       )
+      revalidatePath('/wallet/deposit/failed')
+      revalidatePath('/transactions')
     } else if (['waiting', 'confirming', 'confirmed', 'sending', 'partially_paid'].includes(paymentStatus)) {
       const mappedStatus =
         paymentStatus === 'waiting'

@@ -8,8 +8,14 @@ import type { AdminContext, AdminModule, AdminProfile } from './types'
 import { canAccessModule } from './permissions'
 import {
   getAuthorizedBootstrapEmails,
-  isSuperAdminEmail,
+  isAuthorizedAdminPortalEmail,
+  isFullAdminPortalEmail,
+  PLATFORM_OWNER_ROLE_LABEL,
 } from './super-admin'
+import {
+  assertTransactionApprovalAccess,
+  isTransactionApprovalAdminEmail,
+} from './transaction-approval-auth'
 
 export async function getAdminContext(): Promise<AdminContext | null> {
   const supabase = await createServerSupabaseClient()
@@ -17,7 +23,7 @@ export async function getAdminContext(): Promise<AdminContext | null> {
     data: { user },
   } = await supabase.auth.getUser()
 
-  if (!user?.email || !isSuperAdminEmail(user.email)) {
+  if (!user?.email || !isAuthorizedAdminPortalEmail(user.email)) {
     return null
   }
 
@@ -45,6 +51,26 @@ export async function getAdminContext(): Promise<AdminContext | null> {
   }
 
   if (profile) {
+    if (isTransactionApprovalAdminEmail(user.email)) {
+      return {
+        userId: user.id,
+        email: user.email,
+        tier: 1,
+        roleLabel: PLATFORM_OWNER_ROLE_LABEL,
+        isBootstrap: false,
+      }
+    }
+
+    if (isFullAdminPortalEmail(user.email)) {
+      return {
+        userId: user.id,
+        email: user.email,
+        tier: 1,
+        roleLabel: profile.role_label || ADMIN_TIER_LABELS[1],
+        isBootstrap: false,
+      }
+    }
+
     return {
       userId: user.id,
       email: user.email,
@@ -54,13 +80,34 @@ export async function getAdminContext(): Promise<AdminContext | null> {
     }
   }
 
-  const bootstrapEmails = getAuthorizedBootstrapEmails()
-  if (bootstrapEmails.length > 0) {
+  if (isTransactionApprovalAdminEmail(user.email)) {
     return {
       userId: user.id,
       email: user.email,
       tier: 1,
-      roleLabel: ADMIN_TIER_LABELS[1],
+      roleLabel: PLATFORM_OWNER_ROLE_LABEL,
+      isBootstrap: true,
+    }
+  }
+
+  if (isFullAdminPortalEmail(user.email)) {
+    return {
+      userId: user.id,
+      email: user.email,
+      tier: 1,
+      roleLabel: 'Admin',
+      isBootstrap: true,
+    }
+  }
+
+  const bootstrapEmails = getAuthorizedBootstrapEmails()
+  if (bootstrapEmails.length > 0 && bootstrapEmails.includes(user.email.toLowerCase())) {
+    const isOwner = isTransactionApprovalAdminEmail(user.email)
+    return {
+      userId: user.id,
+      email: user.email,
+      tier: 1,
+      roleLabel: isOwner ? PLATFORM_OWNER_ROLE_LABEL : 'Admin',
       isBootstrap: true,
     }
   }
@@ -68,7 +115,22 @@ export async function getAdminContext(): Promise<AdminContext | null> {
   return null
 }
 
-export { SUPER_ADMIN_EMAIL, isSuperAdminEmail } from './super-admin'
+export {
+  SUPER_ADMIN_EMAIL,
+  FULL_ADMIN_PORTAL_EMAIL,
+  PLATFORM_OWNER_ROLE_LABEL,
+  isAuthorizedAdminPortalEmail,
+  isFullAdminPortalEmail,
+  isSuperAdminEmail,
+} from './super-admin'
+export {
+  canApproveOrRejectTransactions,
+  assertTransactionApprovalAccess,
+  TRANSACTION_APPROVAL_ADMIN_EMAIL,
+  TRANSACTION_APPROVAL_FORBIDDEN_MESSAGE,
+  FINANCE_ADMIN_ROLE_LABEL,
+  TransactionApprovalForbiddenError,
+} from './transaction-approval-auth'
 
 export async function requireAdmin(): Promise<AdminContext> {
   const context = await getAdminContext()
@@ -119,4 +181,8 @@ export function assertNotSelfTarget(context: AdminContext, targetUserId: string)
   if (error) {
     throw new Error(error)
   }
+}
+
+export function assertTransactionApprovalPermission(context: AdminContext): void {
+  assertTransactionApprovalAccess(context.email)
 }

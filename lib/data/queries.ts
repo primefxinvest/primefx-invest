@@ -1280,6 +1280,9 @@ export async function fetchWalletWithdrawalRequests(): Promise<WalletWithdrawalR
     getEstimatedBlockchainCompletionLabel,
     resolveWithdrawalNetworkLabel,
   } = await import('@/lib/wallet/withdrawal-blockchain')
+  const { getWithdrawalAdminUnlockLabel, isWithdrawalAdminUnlocked } = await import(
+    '@/lib/wallet/withdrawal-admin-unlock'
+  )
 
   const { data, error } = await supabase
     .from('withdrawal_requests')
@@ -1317,6 +1320,7 @@ export async function fetchWalletWithdrawalRequests(): Promise<WalletWithdrawalR
     const paymentMetadata = (payment?.metadata as Record<string, unknown> | undefined) ?? {}
     const transactionHash = extractTransactionHash(metadata, paymentMetadata)
     const networkLabel = resolveWithdrawalNetworkLabel(currency)
+    const adminUnlocked = isWithdrawalAdminUnlocked(metadata)
 
     return {
       id: row.id as string,
@@ -1331,7 +1335,9 @@ export async function fetchWalletWithdrawalRequests(): Promise<WalletWithdrawalR
       availableAt,
       referenceId,
       processedAt: (row.processed_at as string | null) ?? null,
-      holdRemaining: formatWithdrawalHoldRemaining(availableAt),
+      holdRemaining: adminUnlocked
+        ? getWithdrawalAdminUnlockLabel(metadata) ?? 'Unlocked by Admin'
+        : formatWithdrawalHoldRemaining(availableAt),
       currency,
       payoutAddress: (row.payout_address as string | null) ?? null,
       networkLabel,

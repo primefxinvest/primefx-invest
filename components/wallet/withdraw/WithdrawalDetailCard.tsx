@@ -8,6 +8,7 @@ import {
   formatEligiblePayoutDate,
   formatRequestedDate,
 } from '@/lib/wallet/withdrawal-status'
+import { getWithdrawalAdminUnlockLabel, isWithdrawalAdminUnlocked } from '@/lib/wallet/withdrawal-admin-unlock'
 import { getWithdrawalTimelineSteps } from '@/lib/wallet/withdrawal-timeline'
 import { cn } from '@/lib/utils'
 
@@ -21,6 +22,8 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
 }
 
 export function WithdrawalDetailCard({ withdrawal }: { withdrawal: WalletWithdrawalRequestItem }) {
+  const adminUnlockLabel = getWithdrawalAdminUnlockLabel(withdrawal.metadata)
+  const adminUnlocked = isWithdrawalAdminUnlocked(withdrawal.metadata)
   const countdown = useWithdrawalHoldCountdown({
     availableAt: withdrawal.availableAt,
     status: withdrawal.status,
@@ -30,10 +33,12 @@ export function WithdrawalDetailCard({ withdrawal }: { withdrawal: WalletWithdra
     status: countdown.holdExpired && withdrawal.status === 'pending_notice' ? 'ready' : withdrawal.status,
     availableAt: withdrawal.availableAt,
     now: countdown.now,
+    adminUnlocked,
   })
 
-  const statusLabel =
-    countdown.holdExpired && withdrawal.status === 'pending_notice'
+  const statusLabel = adminUnlockLabel
+    ? adminUnlockLabel
+    : countdown.holdExpired && withdrawal.status === 'pending_notice'
       ? 'Ready for Payout'
       : withdrawal.displayStatus
 
@@ -65,10 +70,17 @@ export function WithdrawalDetailCard({ withdrawal }: { withdrawal: WalletWithdra
         </span>
       </div>
 
-      {withdrawal.status === 'pending_notice' ? (
+      {withdrawal.status === 'pending_notice' && !adminUnlocked ? (
         <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-100">
           <Clock3 className="h-4 w-4 shrink-0" />
           <span>{countdown.holdRemaining}</span>
+        </div>
+      ) : null}
+
+      {adminUnlockLabel ? (
+        <div className="mb-4 flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-900 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-100">
+          <Clock3 className="h-4 w-4 shrink-0" />
+          <span>{adminUnlockLabel}</span>
         </div>
       ) : null}
 
@@ -114,6 +126,9 @@ export function WithdrawalDetailCard({ withdrawal }: { withdrawal: WalletWithdra
           </>
         ) : null}
         <DetailRow label="Current Status" value={statusLabel} />
+        {adminUnlockLabel ? (
+          <DetailRow label="Hold Override" value={adminUnlockLabel} />
+        ) : null}
       </dl>
 
       <div className="pt-4">

@@ -81,7 +81,7 @@ export function TransferConfirmDialog({
             {message ? (
               <div>
                 <dt className="text-muted-foreground">{t('messageLabel')}</dt>
-                <dd className="mt-0.5 text-foreground">"{message}"</dd>
+                <dd className="mt-0.5 text-foreground">&ldquo;{message}&rdquo;</dd>
               </div>
             ) : null}
           </dl>

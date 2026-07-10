@@ -98,13 +98,13 @@ export function AdminShell({ context, children }: AdminShellProps) {
               <h1 className="truncate text-lg font-bold text-foreground sm:text-2xl">Admin Portal</h1>
               {context.isBootstrap ? (
                 <p className="mt-0.5 line-clamp-2 text-xs text-amber-600 sm:line-clamp-1">
-                  Bootstrap Super Admin (admin_profiles row pending — only fxinvestprime@gmail.com)
+                  Bootstrap admin access (admin_profiles row pending)
                 </p>
               ) : null}
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <AdminTierBadge tier={context.tier} />
+            <AdminTierBadge tier={context.tier} roleLabel={context.roleLabel} />
             <div className="hidden max-w-[10rem] truncate text-sm text-muted-foreground md:block lg:max-w-[14rem]">
               {context.email}
             </div>

@@ -281,6 +281,7 @@ function TransactionActionButtons({
   onApprove,
   onReject,
   layout = 'inline',
+  canApproveTransactions = false,
 }: {
   tx: AdminTransactionRow
   isProcessing: boolean
@@ -288,9 +289,14 @@ function TransactionActionButtons({
   onApprove: () => void
   onReject: () => void
   layout?: 'inline' | 'stacked'
+  canApproveTransactions?: boolean
 }) {
   if (tx.status.toLowerCase() !== 'pending') {
     return <TransactionActionPlaceholder status={tx.status} />
+  }
+
+  if (!canApproveTransactions) {
+    return <span className="text-xs text-muted-foreground">—</span>
   }
 
   const isStacked = layout === 'stacked'
@@ -344,8 +350,10 @@ function TransactionActionButtons({
 
 export function AdminTransactionsView({
   transactions: initialTransactions,
+  canApproveTransactions = false,
 }: {
   transactions: AdminTransactionRow[]
+  canApproveTransactions?: boolean
 }) {
   const [rows, setRows] = useState(initialTransactions)
   const [search, setSearch] = useState('')
@@ -678,19 +686,21 @@ export function AdminTransactionsView({
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2 sm:ml-auto">
-            <button
-              type="button"
-              disabled={processingDueJobs}
-              onClick={handleProcessDueJobs}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-60"
-            >
-              {processingDueJobs ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              Process due jobs
-            </button>
+            {canApproveTransactions ? (
+              <button
+                type="button"
+                disabled={processingDueJobs}
+                onClick={handleProcessDueJobs}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-amber-900 transition-colors hover:bg-amber-100 disabled:opacity-60"
+              >
+                {processingDueJobs ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                Process due jobs
+              </button>
+            ) : null}
             {statusFilter !== 'pending' ? (
               <button
                 type="button"
@@ -760,6 +770,7 @@ export function AdminTransactionsView({
                       onApprove={() => void handleApprove(tx)}
                       onReject={() => void handleReject(tx)}
                       layout="stacked"
+                      canApproveTransactions={canApproveTransactions}
                     />
                   </div>
                 ) : null}
@@ -854,6 +865,7 @@ export function AdminTransactionsView({
                         processingAction={processingId === tx.id ? processingAction : null}
                         onApprove={() => void handleApprove(tx)}
                         onReject={() => void handleReject(tx)}
+                        canApproveTransactions={canApproveTransactions}
                       />
                     </td>
                   </tr>

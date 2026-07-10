@@ -8,6 +8,7 @@ import { AdminTableCard } from '@/components/admin/AdminTableCard'
 import type { AdminWithdrawalQueueRow } from '@/lib/admin/queries'
 import {
   approveWithdrawalQueueItem,
+  adminUnlockWithdrawalHoldAction,
   rejectWithdrawalQueueItem,
 } from '@/lib/admin/actions'
 import { useWithdrawalHoldCountdown } from '@/lib/hooks/useWithdrawalHoldCountdown'
@@ -16,10 +17,12 @@ import {
   canAdminApproveWithdrawal,
   formatEligiblePayoutDate,
   formatWithdrawalDisplayStatus,
+  isWithdrawalOnHold,
   matchesWithdrawalAdminFilter,
   type WithdrawalAdminFilter,
   WITHDRAWAL_ADMIN_FILTERS,
 } from '@/lib/wallet/withdrawal-status'
+import { getWithdrawalAdminUnlockLabel } from '@/lib/wallet/withdrawal-admin-unlock'
 
 const FILTER_LABELS: Record<WithdrawalAdminFilter, string> = {
   all: 'All',
@@ -71,11 +74,19 @@ function AdminHoldCountdown({ row }: { row: AdminWithdrawalQueueRow }) {
   )
 }
 
-export function AdminWithdrawalsView({ rows }: { rows: AdminWithdrawalQueueRow[] }) {
+export function AdminWithdrawalsView({
+  rows,
+  canApproveTransactions = false,
+  canUnlockWithdrawals = false,
+}: {
+  rows: AdminWithdrawalQueueRow[]
+  canApproveTransactions?: boolean
+  canUnlockWithdrawals?: boolean
+}) {
   const [filter, setFilter] = useState<WithdrawalAdminFilter>('all')
   const [search, setSearch] = useState('')
   const [pendingId, setPendingId] = useState<string | null>(null)
-  const [actionKind, setActionKind] = useState<'approve' | 'reject' | null>(null)
+  const [actionKind, setActionKind] = useState<'approve' | 'reject' | 'unlock' | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const filteredRows = useMemo(
@@ -96,6 +107,23 @@ export function AdminWithdrawalsView({ rows }: { rows: AdminWithdrawalQueueRow[]
         toast.success('Withdrawal approved')
       } catch (err) {
         toast.error(err instanceof Error ? err.message : 'Approval failed')
+      } finally {
+        setPendingId(null)
+        setActionKind(null)
+      }
+    })
+  }
+
+  const handleUnlock = (requestId: string) => {
+    if (isPending) return
+    setPendingId(requestId)
+    setActionKind('unlock')
+    startTransition(async () => {
+      try {
+        await adminUnlockWithdrawalHoldAction(requestId)
+        toast.success('Withdrawal hold unlocked — user can withdraw immediately')
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Unlock failed')
       } finally {
         setPendingId(null)
         setActionKind(null)
@@ -192,6 +220,11 @@ export function AdminWithdrawalsView({ rows }: { rows: AdminWithdrawalQueueRow[]
                   const rejectable =
                     row.kind === 'wallet' &&
                     ['pending_notice', 'ready', 'approved'].includes(String(row.status).toLowerCase())
+                  const showApprove = canApproveTransactions && approvable
+                  const showReject = canApproveTransactions && rejectable
+                  const showUnlock =
+                    canUnlockWithdrawals && row.kind === 'wallet' && isWithdrawalOnHold(row.status)
+                  const adminUnlockLabel = getWithdrawalAdminUnlockLabel(row.metadata)
                   const busy = isPending && pendingId === row.id
 
                   return (
@@ -223,6 +256,11 @@ export function AdminWithdrawalsView({ rows }: { rows: AdminWithdrawalQueueRow[]
                       </td>
                       <td className="px-4 py-3">
                         <AdminHoldCountdown row={row} />
+                        {adminUnlockLabel ? (
+                          <p className="mt-1 text-xs font-medium text-blue-700 dark:text-blue-300">
+                            {adminUnlockLabel}
+                          </p>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {new Date(row.requested_at).toLocaleString()}
@@ -233,7 +271,7 @@ export function AdminWithdrawalsView({ rows }: { rows: AdminWithdrawalQueueRow[]
                       <td className="px-4 py-3">
                         {row.kind === 'wallet' ? (
                           <div className="flex items-center gap-2">
-                            {approvable ? (
+                            {showApprove ? (
                               <button
                                 type="button"
                                 disabled={busy}
@@ -246,7 +284,7 @@ export function AdminWithdrawalsView({ rows }: { rows: AdminWithdrawalQueueRow[]
                                 Approve
                               </button>
                             ) : null}
-                            {rejectable ? (
+                            {showReject ? (
                               <button
                                 type="button"
                                 disabled={busy}
@@ -259,7 +297,20 @@ export function AdminWithdrawalsView({ rows }: { rows: AdminWithdrawalQueueRow[]
                                 Reject
                               </button>
                             ) : null}
-                            {!approvable && !rejectable ? (
+                            {showUnlock ? (
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => handleUnlock(row.id)}
+                                className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-60 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-300"
+                              >
+                                {busy && actionKind === 'unlock' ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : null}
+                                Unlock Withdrawal
+                              </button>
+                            ) : null}
+                            {!showApprove && !showReject && !showUnlock ? (
                               <span className="text-xs text-muted-foreground">—</span>
                             ) : null}
                           </div>

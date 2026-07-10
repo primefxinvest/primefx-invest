@@ -23,6 +23,7 @@ export function getWithdrawalTimelineSteps(input: {
   status: string
   availableAt?: string | null
   now?: Date
+  adminUnlocked?: boolean
 }): WithdrawalTimelineStep[] {
   const status = String(input.status ?? '').toLowerCase()
   const now = input.now ?? new Date()
@@ -48,13 +49,19 @@ export function getWithdrawalTimelineSteps(input: {
     return { key, label, state: 'pending' }
   }
 
+  const adminUnlocked = Boolean(input.adminUnlocked)
   const holdState: WithdrawalTimelineStep['state'] =
-    rank > 1 || holdExpired ? 'done' : rank === 1 && !holdExpired ? 'active' : 'pending'
+    rank > 1 || holdExpired || adminUnlocked
+      ? 'done'
+      : rank === 1 && !holdExpired
+        ? 'active'
+        : 'pending'
+  const holdLabel = adminUnlocked ? 'Unlocked by Admin' : 'Security Hold (7 Days)'
 
   return [
     { key: 'requested', label: 'Withdrawal Requested', state: 'done' },
     { key: 'reserved', label: 'Funds Reserved', state: rank >= 1 ? 'done' : 'pending' },
-    { key: 'hold', label: 'Security Hold (7 Days)', state: holdState },
+    { key: 'hold', label: holdLabel, state: holdState },
     {
       key: 'ready',
       label: 'Ready for Payout',

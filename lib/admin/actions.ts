@@ -11,6 +11,8 @@ import {
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import {
   assertModuleAccess,
+  assertTransactionApprovalPermission,
+  canApproveOrRejectTransactions,
   getAdminContext,
   rejectSelfTarget,
   type AdminMutationResult,
@@ -417,13 +419,18 @@ export async function updateTransactionStatus(
 ) {
   const context = await getContext()
   assertModuleAccess(context, 'financial_management')
+  assertTransactionApprovalPermission(context)
 
   const db = getDb()
   const { data: before } = await db.from('transactions').select('*').eq('id', transactionId).single()
   if (!before) throw new Error('Transaction not found')
 
   const amount = Number(before.amount ?? 0)
-  if (amount >= DUAL_APPROVAL_THRESHOLD && context.tier !== 1) {
+  if (
+    amount >= DUAL_APPROVAL_THRESHOLD &&
+    context.tier !== 1 &&
+    !canApproveOrRejectTransactions(context.email)
+  ) {
     throw new Error(
       `Financial adjustments above $${DUAL_APPROVAL_THRESHOLD.toLocaleString()} require Super Admin approval.`
     )
@@ -737,6 +744,7 @@ export async function adminUpdateSupportTicketStatus(
 export async function processDueFinancialJobsAction() {
   const context = await getContext()
   assertModuleAccess(context, 'financial_management')
+  assertTransactionApprovalPermission(context)
 
   const { processDueFinancialJobs } = await import('@/lib/cron/daily-jobs')
   const result = await processDueFinancialJobs()
@@ -761,6 +769,7 @@ export async function processDueFinancialJobsAction() {
 export async function approveWithdrawalQueueItem(requestId: string) {
   const context = await getContext()
   assertModuleAccess(context, 'financial_management')
+  assertTransactionApprovalPermission(context)
 
   const { executeWithdrawalPayoutAfterApproval } = await import('@/lib/payments/withdrawal-payout')
   const result = await executeWithdrawalPayoutAfterApproval(requestId)
@@ -785,6 +794,7 @@ export async function approveWithdrawalQueueItem(requestId: string) {
 export async function rejectWithdrawalQueueItem(requestId: string, reason?: string) {
   const context = await getContext()
   assertModuleAccess(context, 'financial_management')
+  assertTransactionApprovalPermission(context)
 
   const { rejectWithdrawalRequest } = await import('@/lib/payments/withdrawal-payout')
   const result = await rejectWithdrawalRequest(requestId, reason)
@@ -800,6 +810,40 @@ export async function rejectWithdrawalQueueItem(requestId: string, reason?: stri
 
   revalidatePath('/admin/rewards')
   revalidatePath('/admin/transactions')
+  revalidatePath('/wallet')
+  revalidatePath('/wallet/withdraw')
+  revalidatePath('/transactions')
+
+  return result
+}
+
+export async function adminUnlockWithdrawalHoldAction(requestId: string) {
+  const context = await getContext()
+  assertModuleAccess(context, 'financial_management')
+
+  const { isSuperAdminEmail } = await import('@/lib/admin/super-admin')
+  if (!isSuperAdminEmail(context.email)) {
+    throw new Error('Only the Platform Owner can unlock withdrawal holds.')
+  }
+
+  const { adminUnlockWithdrawalHold } = await import('@/lib/wallet/admin-withdrawal-unlock')
+  const result = await adminUnlockWithdrawalHold({
+    requestId,
+    adminEmail: context.email ?? '',
+    adminUserId: context.userId,
+  })
+
+  await logAdminAction({
+    context,
+    module: 'financial_management',
+    action: 'withdrawal_hold_unlocked',
+    targetUserId: result.userId,
+    targetResource: requestId,
+    afterState: result as unknown as Record<string, unknown>,
+  })
+
+  revalidatePath('/admin/rewards')
+  revalidatePath(`/admin/users/${result.userId}`)
   revalidatePath('/wallet')
   revalidatePath('/wallet/withdraw')
   revalidatePath('/transactions')

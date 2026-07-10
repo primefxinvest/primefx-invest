@@ -129,8 +129,6 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
           provider: 'now_payments',
         })
 
-        console.log('NOWPayments Response:', result)
-
         if (!result.success) {
           setStep('idle')
           setFlowError(result.error ?? t('depositFailed'))
@@ -138,9 +136,6 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
           submitLockRef.current = false
           return
         }
-
-        const invoiceId = result.paymentId ?? result.orderId
-        console.log('Invoice Created:', invoiceId)
 
         toast.success(t('paymentCreated'))
 
