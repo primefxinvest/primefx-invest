@@ -123,6 +123,13 @@ export function DepositPageView({ initialPaymentOptions }: DepositPageViewProps)
           depositDisabled={flow.depositBlocked}
           kycLoading={flow.kyc.loading}
           kycCheckingLabel={t('kycCheckingButton')}
+          currency={flow.currency}
+          currencyOptions={flow.currencyOptions}
+          onCurrencyChange={flow.setCurrency}
+          minimumDepositUsd={flow.limits?.effectiveMinUsd ?? null}
+          networkFeeUsd={flow.limits?.networkFeeUsd ?? null}
+          payCurrencyCode={flow.limits?.payCurrency ?? null}
+          limitsLoading={flow.limitsLoading}
         />
 
         {flow.flowError ? (

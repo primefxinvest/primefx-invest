@@ -84,7 +84,61 @@ export interface NowPaymentsInvoiceParams {
 }
 
 export function toNowPaymentsPayCurrency(currency: string): string {
-  return currency.toLowerCase().replace(/_/g, '')
+  const normalized = currency.toUpperCase().replace(/[^A-Z0-9_]/g, '')
+  const special: Record<string, string> = {
+    MATIC: 'maticmainnet',
+  }
+  if (special[normalized]) {
+    return special[normalized]
+  }
+  return normalized.toLowerCase().replace(/_/g, '')
+}
+
+export type NowPaymentsMinAmountResponse = {
+  min_amount?: number | string
+  fiat_equivalent?: number | string
+  currency_from?: string
+  currency_to?: string
+  message?: string
+}
+
+export async function fetchNowPaymentsMinimumAmount(input: {
+  payCurrency: string
+  priceCurrency?: string
+}): Promise<{ fiatMinUsd: number; cryptoMinAmount: number | null }> {
+  const apiKey = getNowPaymentsApiKey()
+  const baseUrl = getNowPaymentsBaseUrl()
+  const payCurrency = toNowPaymentsPayCurrency(input.payCurrency)
+  const priceCurrency = (input.priceCurrency ?? 'usd').toLowerCase()
+
+  const params = new URLSearchParams({
+    currency_from: priceCurrency,
+    currency_to: payCurrency,
+    fiat_equivalent: priceCurrency,
+    is_fixed_rate: 'false',
+    is_fee_paid_by_user: 'false',
+  })
+
+  const response = await fetch(`${baseUrl}/min-amount?${params.toString()}`, {
+    headers: { 'x-api-key': apiKey },
+    signal: AbortSignal.timeout(NOWPAYMENTS_FETCH_TIMEOUT_MS),
+    next: { revalidate: 60 },
+  })
+
+  const data = (await response.json()) as NowPaymentsMinAmountResponse
+
+  if (!response.ok) {
+    throw new Error(data.message ?? `NOWPayments min-amount request failed (${response.status})`)
+  }
+
+  const fiatMinUsd = Number(data.fiat_equivalent)
+  const cryptoMinAmount = data.min_amount != null ? Number(data.min_amount) : null
+
+  if (!Number.isFinite(fiatMinUsd) || fiatMinUsd <= 0) {
+    throw new Error('NOWPayments returned an invalid minimum amount.')
+  }
+
+  return { fiatMinUsd, cryptoMinAmount }
 }
 
 const NOWPAYMENTS_FETCH_TIMEOUT_MS = 15_000
@@ -129,7 +183,9 @@ export async function createNowPaymentsInvoice(params: NowPaymentsInvoiceParams)
     is_fixed_rate: false,
     is_fee_paid_by_user: false,
     ...(params.buyerEmail ? { customer_email: params.buyerEmail } : {}),
-    ...(params.payCurrency ? { pay_currency: params.payCurrency.toLowerCase() } : {}),
+    ...(params.payCurrency
+      ? { pay_currency: toNowPaymentsPayCurrency(params.payCurrency) }
+      : {}),
   }
 
   const response = await fetch(`${baseUrl}/invoice`, {
@@ -162,7 +218,13 @@ export async function createNowPaymentsInvoice(params: NowPaymentsInvoiceParams)
           `Host: ${baseUrl} (env=${resolvedEnv}). ${envHint}`
       )
     }
-    throw new Error(`NOWPayments invoice failed: ${JSON.stringify(data)}`)
+
+    const providerMessage = typeof data.message === 'string' ? data.message : ''
+    if (providerMessage) {
+      throw new Error(providerMessage)
+    }
+
+    throw new Error('NOWPayments could not create the payment invoice.')
   }
 
   return {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState, useTransition } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -9,8 +9,10 @@ import type { PaymentProviderOptions } from '@/lib/payments/types'
 import {
   buildDepositCurrencyOptions,
   DEFAULT_DEPOSIT_CURRENCY,
+  formatCurrencyLabel,
 } from '@/lib/payments/currency-options'
-import { initiateDeposit } from '@/lib/wallet/actions'
+import { formatDepositMinimumError } from '@/lib/payments/deposit-limits-client'
+import { fetchDepositCurrencyLimits, initiateDeposit } from '@/lib/payments/actions'
 import { useFinancialKycAccess } from '@/lib/hooks/useFinancialKycAccess'
 import { kycBlockReason, kycFallbackMessage } from '@/lib/investor/kyc-i18n'
 import { showKycRequiredToast } from '@/lib/notifications/kyc-toast'
@@ -20,6 +22,13 @@ type UseDepositFlowOptions = {
 }
 
 export type DepositStep = 'idle' | 'creating' | 'redirecting'
+
+export type DepositCurrencyLimitsState = {
+  effectiveMinUsd: number
+  networkFeeUsd: number
+  payCurrency: string
+  currencyLabel: string
+}
 
 export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions) {
   const t = useTranslations('wallet.deposit')
@@ -48,18 +57,68 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
     [initialPaymentOptions.depositCurrencies]
   )
 
-  const currency = useMemo(() => {
-    const firstNow = depositCurrencies.find((item) => item.provider === 'now_payments')?.value
+  const nowPaymentsCurrencies = useMemo(
+    () => depositCurrencies.filter((item) => item.provider === 'now_payments'),
+    [depositCurrencies]
+  )
+
+  const [currency, setCurrencyState] = useState(() => {
+    const firstNow = nowPaymentsCurrencies[0]?.value
     return firstNow ?? DEFAULT_DEPOSIT_CURRENCY
-  }, [depositCurrencies])
+  })
+
+  const [limits, setLimits] = useState<DepositCurrencyLimitsState | null>(null)
+  const [limitsLoading, setLimitsLoading] = useState(false)
+
+  useEffect(() => {
+    if (!nowPaymentsEnabled) {
+      setLimits(null)
+      return
+    }
+
+    let cancelled = false
+    setLimitsLoading(true)
+
+    void fetchDepositCurrencyLimits(currency)
+      .then((result) => {
+        if (cancelled) return
+        setLimits({
+          effectiveMinUsd: result.effectiveMinUsd,
+          networkFeeUsd: result.networkFeeUsd,
+          payCurrency: result.payCurrency,
+          currencyLabel: result.currencyLabel,
+        })
+      })
+      .catch(() => {
+        if (cancelled) return
+        setLimits({
+          effectiveMinUsd: INVESTOR_RULES.financial.minimumDeposit,
+          networkFeeUsd: 1,
+          payCurrency: currency.toLowerCase().replace(/_/g, ''),
+          currencyLabel: formatCurrencyLabel(currency),
+        })
+      })
+      .finally(() => {
+        if (!cancelled) setLimitsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [currency, nowPaymentsEnabled])
 
   const numericAmount = Number(amount)
-  const minDeposit = INVESTOR_RULES.financial.minimumDeposit
+  const platformMinDeposit = INVESTOR_RULES.financial.minimumDeposit
+  const effectiveMinDeposit = limits?.effectiveMinUsd ?? platformMinDeposit
   const maxDeposit = INVESTOR_RULES.financial.maximumSingleDeposit
 
   const validateAmount = useCallback((): boolean => {
-    if (!Number.isFinite(numericAmount) || numericAmount < minDeposit) {
-      setAmountError(t('minDepositError'))
+    if (!Number.isFinite(numericAmount) || numericAmount < effectiveMinDeposit) {
+      setAmountError(
+        limits
+          ? formatDepositMinimumError(currency, effectiveMinDeposit)
+          : t('minDepositError')
+      )
       return false
     }
     if (numericAmount > maxDeposit) {
@@ -72,7 +131,7 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
     }
     setAmountError(null)
     return true
-  }, [numericAmount, minDeposit, maxDeposit, t])
+  }, [numericAmount, effectiveMinDeposit, maxDeposit, limits, currency, t])
 
   const redirectToCheckout = useCallback((url: string) => {
     setStep('redirecting')
@@ -189,7 +248,8 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
     kyc.loading ||
     kyc.fetchError ||
     !kyc.verified ||
-    !nowPaymentsEnabled
+    !nowPaymentsEnabled ||
+    limitsLoading
 
   return {
     amount,
@@ -198,6 +258,15 @@ export function useDepositFlow({ initialPaymentOptions }: UseDepositFlowOptions)
       setAmountError(null)
       setFlowError(null)
     },
+    currency,
+    setCurrency: (value: string) => {
+      setCurrencyState(value)
+      setAmountError(null)
+      setFlowError(null)
+    },
+    currencyOptions: nowPaymentsCurrencies,
+    limits,
+    limitsLoading,
     step,
     flowError,
     amountError,

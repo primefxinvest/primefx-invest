@@ -2,11 +2,17 @@
 
 import { ArrowDownToLine, Loader2, Lock } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { CustomSelect } from '@/components/ui/custom-select'
 import { dashboardCardClass } from '@/lib/layout/surfaces'
 import { cn } from '@/lib/utils'
 
 /** Used by DepositModal quick presets — not shown on the deposit page. */
 export const QUICK_DEPOSIT_AMOUNTS = [100, 250, 500, 1000, 5000, 10000] as const
+
+type DepositCurrencyOption = {
+  value: string
+  label: string
+}
 
 type DepositAmountCardProps = {
   amount: string
@@ -19,6 +25,13 @@ type DepositAmountCardProps = {
   depositDisabled?: boolean
   kycLoading?: boolean
   kycCheckingLabel?: string
+  currency?: string
+  currencyOptions?: DepositCurrencyOption[]
+  onCurrencyChange?: (value: string) => void
+  minimumDepositUsd?: number | null
+  networkFeeUsd?: number | null
+  payCurrencyCode?: string | null
+  limitsLoading?: boolean
 }
 
 function sanitizeAmountInput(value: string) {
@@ -26,6 +39,15 @@ function sanitizeAmountInput(value: string) {
   const parts = cleaned.split('.')
   if (parts.length <= 1) return cleaned
   return `${parts[0]}.${parts.slice(1).join('')}`
+}
+
+function formatUsd(value: number) {
+  return value.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 
 export function DepositAmountCard({
@@ -39,10 +61,18 @@ export function DepositAmountCard({
   depositDisabled = false,
   kycLoading = false,
   kycCheckingLabel,
+  currency,
+  currencyOptions = [],
+  onCurrencyChange,
+  minimumDepositUsd,
+  networkFeeUsd,
+  payCurrencyCode,
+  limitsLoading = false,
 }: DepositAmountCardProps) {
   const t = useTranslations('wallet.deposit')
   const isLocked = isProcessing || kycLoading
   const buttonDisabled = isLocked || depositDisabled || !amount.trim()
+  const showCurrencyControls = currencyOptions.length > 0 && onCurrencyChange && currency
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -74,6 +104,22 @@ export function DepositAmountCard({
       ) : null}
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-5">
+        {showCurrencyControls ? (
+          <div>
+            <label htmlFor="deposit-currency" className="mb-2 block text-sm font-medium text-foreground">
+              {t('cryptoCurrency')}
+            </label>
+            <CustomSelect
+              id="deposit-currency"
+              value={currency}
+              onValueChange={onCurrencyChange}
+              options={currencyOptions.map((item) => ({ value: item.value, label: item.label }))}
+              disabled={isLocked || limitsLoading}
+              placeholder={t('selectCurrency')}
+            />
+          </div>
+        ) : null}
+
         <div>
           <label htmlFor="deposit-amount" className="mb-2 block text-sm font-medium text-foreground">
             {t('amount')}
@@ -110,6 +156,40 @@ export function DepositAmountCard({
             </p>
           ) : null}
         </div>
+
+        {showCurrencyControls ? (
+          <div className="rounded-xl border border-border/80 bg-muted/30 p-4">
+            <dl className="space-y-2.5 text-sm">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">{t('limitsMinLabel')}</dt>
+                <dd className="font-semibold tabular-nums text-foreground">
+                  {limitsLoading ? (
+                    <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      {t('loadingLimits')}
+                    </span>
+                  ) : minimumDepositUsd != null ? (
+                    formatUsd(minimumDepositUsd)
+                  ) : (
+                    '—'
+                  )}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">{t('summaryNetworkFee')}</dt>
+                <dd className="font-semibold tabular-nums text-foreground">
+                  {limitsLoading ? '—' : networkFeeUsd != null ? formatUsd(networkFeeUsd) : '—'}
+                </dd>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted-foreground">{t('payCurrencyLabel')}</dt>
+                <dd className="font-mono text-xs font-semibold uppercase text-foreground">
+                  {limitsLoading ? '—' : (payCurrencyCode ?? '—')}
+                </dd>
+              </div>
+            </dl>
+          </div>
+        ) : null}
 
         <div>
           <button

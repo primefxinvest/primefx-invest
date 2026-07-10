@@ -7,7 +7,8 @@ import { toast } from 'sonner'
 import { CustomSelect } from '@/components/ui/custom-select'
 import { PaymentMethodBrand } from '@/components/wallet/PaymentMethodBrand'
 import { QUICK_DEPOSIT_AMOUNTS } from '@/components/wallet/deposit/DepositAmountCard'
-import { initiateDeposit } from '@/lib/payments/actions'
+import { initiateDeposit, fetchDepositCurrencyLimits } from '@/lib/payments/actions'
+import { formatDepositMinimumError } from '@/lib/payments/deposit-limits-client'
 import {
   buildDepositCurrencyOptions,
   DEFAULT_DEPOSIT_CURRENCY,
@@ -77,6 +78,12 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
   const [qrCodeLink, setQrCodeLink] = useState<string | null>(null)
   const [paymentOpened, setPaymentOpened] = useState(false)
   const [pending, startTransition] = useTransition()
+  const [limits, setLimits] = useState<{
+    effectiveMinUsd: number
+    networkFeeUsd: number
+    payCurrency: string
+  } | null>(null)
+  const [limitsLoading, setLimitsLoading] = useState(false)
 
   const filteredOptions = useMemo(
     () =>
@@ -126,6 +133,55 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
     }
   }, [filteredOptions, currency])
 
+  const selectedCurrencyOption = useMemo(
+    () =>
+      filteredOptions.find((item) => item.value === currency) ??
+      depositOptions.find((item) => item.value === currency),
+    [filteredOptions, depositOptions, currency]
+  )
+
+  const depositCurrencyCode = selectedCurrencyOption?.currency ?? currency
+
+  useEffect(() => {
+    if (!open || method !== 'nowpayments') {
+      setLimits(null)
+      return
+    }
+
+    let cancelled = false
+    setLimitsLoading(true)
+
+    void fetchDepositCurrencyLimits(depositCurrencyCode)
+      .then((result) => {
+        if (cancelled) return
+        setLimits({
+          effectiveMinUsd: result.effectiveMinUsd,
+          networkFeeUsd: result.networkFeeUsd,
+          payCurrency: result.payCurrency,
+        })
+      })
+      .catch(() => {
+        if (cancelled) return
+        setLimits({
+          effectiveMinUsd: INVESTOR_RULES.financial.minimumDeposit,
+          networkFeeUsd: 1,
+          payCurrency: depositCurrencyCode.toLowerCase().replace(/_/g, ''),
+        })
+      })
+      .finally(() => {
+        if (!cancelled) setLimitsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, method, depositCurrencyCode])
+
+  const effectiveMinDeposit =
+    method === 'nowpayments' && limits
+      ? limits.effectiveMinUsd
+      : INVESTOR_RULES.financial.minimumDeposit
+
   const resetState = () => {
     setStep('form')
     setCheckoutUrl(null)
@@ -159,8 +215,12 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
     }
 
     const value = Number(amount)
-    if (!Number.isFinite(value) || value < INVESTOR_RULES.financial.minimumDeposit) {
-      toast.error(tDeposit('minDepositError'))
+    if (!Number.isFinite(value) || value < effectiveMinDeposit) {
+      toast.error(
+        method === 'nowpayments' && limits
+          ? formatDepositMinimumError(depositCurrencyCode, effectiveMinDeposit)
+          : tDeposit('minDepositError')
+      )
       return
     }
 
@@ -168,16 +228,14 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
 
     startTransition(async () => {
       try {
-        const selected =
-          filteredOptions.find((item) => item.value === currency) ??
-          depositOptions.find((item) => item.value === currency)
+        const selected = selectedCurrencyOption
 
         const provider: PaymentProviderId | undefined =
           method === 'binancepay' ? 'binance_pay' : 'now_payments'
 
         const result = await initiateDeposit({
           amountUsd: value,
-          currency: selected?.currency ?? currency,
+          currency: selected?.currency ?? depositCurrencyCode,
           provider: selected?.provider ?? provider,
         })
 
@@ -316,14 +374,49 @@ export default function DepositModal({ open, onOpenChange }: DepositModalProps) 
                   onValueChange={setCurrency}
                   options={currencies}
                   placeholder={t('selectCurrency')}
-                  disabled={pending || currencies.length === 0}
+                  disabled={pending || currencies.length === 0 || limitsLoading}
                 />
               </div>
+
+              {method === 'nowpayments' ? (
+                <div className="rounded-xl border border-border/80 bg-muted/30 p-3">
+                  <dl className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">{tDeposit('limitsMinLabel')}</dt>
+                      <dd className="font-semibold tabular-nums text-foreground">
+                        {limitsLoading || !limits
+                          ? tDeposit('loadingLimits')
+                          : limits.effectiveMinUsd.toLocaleString('en-US', {
+                              style: 'currency',
+                              currency: 'USD',
+                            })}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">{tDeposit('summaryNetworkFee')}</dt>
+                      <dd className="font-semibold tabular-nums text-foreground">
+                        {limitsLoading || !limits
+                          ? '—'
+                          : limits.networkFeeUsd.toLocaleString('en-US', {
+                              style: 'currency',
+                              currency: 'USD',
+                            })}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <dt className="text-muted-foreground">{tDeposit('payCurrencyLabel')}</dt>
+                      <dd className="font-mono text-xs font-semibold uppercase text-foreground">
+                        {limitsLoading || !limits ? '—' : limits.payCurrency}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              ) : null}
 
               <button
                 type="button"
                 onClick={handleCreatePayment}
-                disabled={pending}
+                disabled={pending || (method === 'nowpayments' && limitsLoading)}
                 className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
                 {pending || step === 'redirecting' ? (

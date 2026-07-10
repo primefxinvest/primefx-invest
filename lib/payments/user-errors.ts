@@ -60,8 +60,15 @@ function mapNowPaymentsDepositError(message: string) {
   ) {
     return 'This currency is not available on the payment checkout right now. You can still pay in USD and choose another coin on the payment page, or try Binance Pay for BNB/BUSD.'
   }
+  if (
+    lower.includes('crypto amount is less than minimal') ||
+    lower.includes('less than minimal') ||
+    (lower.includes('amount') && lower.includes('minimal'))
+  ) {
+    return 'Deposit amount is below the minimum required for this cryptocurrency. Increase your deposit amount and try again.'
+  }
   if (lower.includes('amount') && (lower.includes('too low') || lower.includes('too small') || lower.includes('minimum'))) {
-    return 'The deposit amount is below the minimum for this payment method. Please increase the amount.'
+    return 'Deposit amount is below the minimum required for this cryptocurrency. Increase your deposit amount and try again.'
   }
   if (lower.includes('amount') && (lower.includes('too high') || lower.includes('maximum'))) {
     return 'The deposit amount exceeds the limit for this payment method. Please try a smaller amount.'
@@ -76,6 +83,9 @@ function mapNowPaymentsDepositError(message: string) {
   }
   if (lower.includes('not configured') || lower.includes('jwt credentials')) {
     return providerUnavailableUserMessage('now_payments')
+  }
+  if (lower.includes('nowpayments invoice failed') || lower.includes('nowpayments request failed')) {
+    return 'We could not start your deposit. Please try again or choose a different payment method.'
   }
 
   return 'We could not start your deposit. Please try again or choose a different payment method.'

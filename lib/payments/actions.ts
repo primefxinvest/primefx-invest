@@ -33,6 +33,13 @@ export async function getPaymentProviderOptions() {
   return fetchPaymentProviderOptionsServer()
 }
 
+export async function fetchDepositCurrencyLimits(currency: string) {
+  await requireUser()
+
+  const { getDepositCurrencyLimits } = await import('@/lib/payments/deposit-limits')
+  return getDepositCurrencyLimits(currency)
+}
+
 export async function initiateDeposit(input: {
   amountUsd: number
   currency: string

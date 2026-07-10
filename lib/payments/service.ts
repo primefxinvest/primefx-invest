@@ -5,7 +5,8 @@ import { generatePaymentReference } from './reference'
 import { resolveDepositProvider, PAYMENT_PROVIDERS } from './config'
 import { isCurrencySupportedByProvider } from './currency-options'
 import { isProviderConfigured } from './env'
-import { createNowPaymentsInvoice } from './nowpayments'
+import { createNowPaymentsInvoice, toNowPaymentsPayCurrency } from './nowpayments'
+import { assertDepositMeetsNowPaymentsMinimum } from './deposit-limits'
 import { getCancelRedirectUrl, getSuccessRedirectUrl } from './env'
 import type { CreateDepositResult, CreateWithdrawalResult, PaymentProviderId } from './types'
 import {
@@ -120,10 +121,16 @@ export async function createDepositPayment(input: {
       }
     }
 
+    const minimumCheck = await assertDepositMeetsNowPaymentsMinimum(input.currency, amount)
+    if (!minimumCheck.ok) {
+      return { success: false, error: minimumCheck.error }
+    }
+
     const invoice = await createNowPaymentsInvoice({
       orderId,
       amount,
       currency: 'USD',
+      payCurrency: input.currency,
       description: 'PrimeFx Investment Deposit',
       buyerEmail: input.customerEmail,
       successUrl: getSuccessRedirectUrl(orderId),
@@ -139,6 +146,7 @@ export async function createDepositPayment(input: {
       providerPaymentId: invoice.paymentId ? String(invoice.paymentId) : invoice.invoiceId,
       metadata: {
         currency: input.currency,
+        payCurrency: toNowPaymentsPayCurrency(input.currency),
         invoiceId: invoice.invoiceId,
         invoiceUrl: invoice.invoiceUrl,
         paymentId: invoice.paymentId,
