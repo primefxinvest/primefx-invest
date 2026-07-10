@@ -7,6 +7,7 @@ import { fetchPaymentProviderOptionsServer } from '@/lib/payments/options-server
 import { syncUserPendingDeposits } from '@/lib/payments/deposit-sync'
 import { createDepositPayment, createWithdrawalPayment } from '@/lib/payments/service'
 import { getPaymentByOrderId } from '@/lib/payments/wallet-ledger'
+import { readDepositSettlementFromMetadata } from '@/lib/payments/nowpayments-settlement'
 import { enforceUserRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
 import { requireVerifiedEmail, EMAIL_NOT_VERIFIED_CODE } from '@/lib/auth/require-verified-email'
 import { requireActiveAccountForFinancialAction } from '@/lib/security/require-active-account'
@@ -173,25 +174,42 @@ export async function syncDepositOrder(orderId: string) {
     return { success: false as const, error: 'Payment does not belong to this user.' }
   }
 
-  if (payment?.status === 'completed') {
+  if (payment?.status === 'completed' || payment?.status === 'completed_partial') {
     revalidatePath('/wallet')
     revalidatePath('/wallet/deposit')
     revalidatePath('/wallet/deposit/success')
     revalidatePath('/dashboard')
     revalidatePath('/transactions')
 
+    const settlement = readDepositSettlementFromMetadata(
+      (payment.metadata as Record<string, unknown> | null) ?? null
+    )
+    const creditedUsd = settlement?.creditedAmountUsd ?? Number(payment.amount_usd ?? 0)
+
     return {
       success: true as const,
       orderId: trimmed,
       status: 'completed' as const,
-      amountUsd: Number(payment.amount_usd ?? 0),
+      amountUsd: creditedUsd,
+      requestedAmountUsd: settlement?.requestedAmountUsd ?? Number(payment.amount_usd ?? 0),
+      receivedAmountUsd: settlement?.receivedAmountUsd ?? creditedUsd,
       paymentStatus: String(payment.status ?? ''),
+      isPartial: payment.status === 'completed_partial',
+      providerPaymentId: payment.provider_payment_id ? String(payment.provider_payment_id) : null,
+      depositStatus:
+        payment.status === 'completed_partial' ? 'COMPLETED_PARTIAL' : 'COMPLETED',
     }
   }
 
   const { syncDepositByOrderId } = await import('@/lib/payments/deposit-sync')
   const result = await syncDepositByOrderId(trimmed, user.id)
   const refreshedPayment = payment ?? (await getPaymentByOrderId(trimmed))
+  const settlement = readDepositSettlementFromMetadata(
+    (refreshedPayment?.metadata as Record<string, unknown> | null) ?? null
+  )
+  const creditedUsd =
+    settlement?.creditedAmountUsd ??
+    (result.creditedAmountUsd != null ? result.creditedAmountUsd : Number(refreshedPayment?.amount_usd ?? 0))
 
   if (result.status === 'completed') {
     revalidatePath('/wallet')
@@ -204,7 +222,21 @@ export async function syncDepositOrder(orderId: string) {
   return {
     success: true as const,
     ...result,
-    amountUsd: refreshedPayment ? Number(refreshedPayment.amount_usd ?? 0) : 0,
+    amountUsd: creditedUsd,
+    requestedAmountUsd:
+      settlement?.requestedAmountUsd ?? Number(refreshedPayment?.amount_usd ?? 0),
+    receivedAmountUsd: settlement?.receivedAmountUsd ?? creditedUsd,
     paymentStatus: refreshedPayment ? String(refreshedPayment.status ?? '') : null,
+    isPartial:
+      refreshedPayment?.status === 'completed_partial' || Boolean(result.partial),
+    providerPaymentId: refreshedPayment?.provider_payment_id
+      ? String(refreshedPayment.provider_payment_id)
+      : null,
+    depositStatus:
+      refreshedPayment?.status === 'completed_partial' || result.partial
+        ? 'COMPLETED_PARTIAL'
+        : result.status === 'completed'
+          ? 'COMPLETED'
+          : null,
   }
 }

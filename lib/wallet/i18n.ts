@@ -11,6 +11,7 @@ const TX_TYPE_KEYS: Record<string, string> = {
 
 const TX_STATUS_KEYS: Record<string, string> = {
   completed: 'completed',
+  completed_partial: 'completedPartial',
   pending: 'pending',
   processing: 'processing',
   failed: 'failed',

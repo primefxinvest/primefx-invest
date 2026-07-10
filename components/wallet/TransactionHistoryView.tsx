@@ -65,7 +65,7 @@ const typeIcons: Record<string, typeof Download> = {
 
 function statusStyles(status: string) {
   const value = status.toLowerCase()
-  if (value === 'completed') return 'bg-emerald-100 text-emerald-700'
+  if (value === 'completed' || value === 'completed_partial') return 'bg-emerald-100 text-emerald-700'
   if (value === 'failed' || value === 'rejected' || value === 'cancelled') {
     return 'bg-red-100 text-red-700'
   }
@@ -360,7 +360,8 @@ export function TransactionHistoryView() {
                       </td>
                       <td className="px-4 py-4">
                         <span className={cn('inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold', statusStyles(tx.status))}>
-                          {tx.status.toLowerCase() === 'completed' ? (
+                          {tx.status.toLowerCase() === 'completed' ||
+                          tx.status.toLowerCase() === 'completed_partial' ? (
                             <CheckCircle2 className="h-3 w-3" />
                           ) : tx.status.toLowerCase() === 'failed' ? (
                             <XCircle className="h-3 w-3" />

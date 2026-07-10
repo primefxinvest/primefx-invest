@@ -8,6 +8,7 @@ export type PaymentStatus =
   | 'confirming'
   | 'processing'
   | 'completed'
+  | 'completed_partial'
   | 'failed'
   | 'expired'
   | 'refunded'

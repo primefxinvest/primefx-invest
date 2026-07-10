@@ -286,6 +286,10 @@ export function verifyNowPaymentsSignature(rawBody: string, receivedSignature: s
 }
 
 
+export function isPaymentCreditable(status: string): boolean {
+  return ['finished', 'confirmed', 'partially_paid'].includes(status.toLowerCase())
+}
+
 export function isPaymentComplete(status: string): boolean {
   return status === 'finished'
 }

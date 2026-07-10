@@ -2,11 +2,12 @@ import 'server-only'
 
 import {
   getNowPaymentsPaymentStatus,
-  isPaymentComplete,
+  isPaymentCreditable,
   isPaymentFailed,
   listNowPaymentsPaymentsByOrderId,
   type NowPaymentsPaymentRecord,
 } from './nowpayments'
+import { isDepositPaymentSettled } from './nowpayments-settlement'
 import {
   completeDepositFromWebhook,
   failDepositFromWebhook,
@@ -55,10 +56,23 @@ export type NowPaymentsSyncResult = {
   providerStatus: string | null
   status: 'completed' | 'failed' | 'pending'
   message?: string
+  partial?: boolean
+  creditedAmountUsd?: number
 }
 
 /** Poll NOWPayments API and reconcile local deposit + transaction state. */
 export async function syncNowPaymentsDepositStatus(orderId: string): Promise<NowPaymentsSyncResult> {
+  const localPayment = await getPaymentByOrderId(orderId)
+  if (localPayment && isDepositPaymentSettled(String(localPayment.status ?? ''))) {
+    return {
+      orderId,
+      providerStatus: String(localPayment.status ?? 'completed'),
+      status: 'completed',
+      message: String(localPayment.status) === 'completed_partial' ? 'Partial deposit credited' : 'Deposit credited',
+      partial: String(localPayment.status) === 'completed_partial',
+    }
+  }
+
   const payments = await resolveNowPaymentsPayments(orderId)
 
   if (payments.length === 0) {
@@ -73,9 +87,40 @@ export async function syncNowPaymentsDepositStatus(orderId: string): Promise<Now
   const latest = payments[0]
   const paymentStatus = String(latest.payment_status ?? '').toLowerCase()
 
-  if (isPaymentComplete(paymentStatus)) {
-    await completeDepositFromWebhook(orderId)
-    return { orderId, providerStatus: paymentStatus, status: 'completed' }
+  if (isPaymentCreditable(paymentStatus)) {
+    const result = await completeDepositFromWebhook(orderId, {
+      webhookPayload: latest as Record<string, unknown>,
+      providerStatus: paymentStatus,
+    })
+
+    if (result.credited) {
+      return {
+        orderId,
+        providerStatus: paymentStatus,
+        status: 'completed',
+        partial: result.partial,
+        creditedAmountUsd: result.creditedAmountUsd,
+        message: result.partial ? 'Partial deposit credited' : 'Deposit credited',
+      }
+    }
+
+    if (result.reason === 'below_minimum') {
+      return {
+        orderId,
+        providerStatus: paymentStatus,
+        status: 'failed',
+        message: 'Deposit amount is below the minimum required.',
+      }
+    }
+
+    if (result.reason === 'already_completed') {
+      return {
+        orderId,
+        providerStatus: paymentStatus,
+        status: 'completed',
+        message: 'Deposit already credited',
+      }
+    }
   }
 
   if (isPaymentFailed(paymentStatus)) {
@@ -86,11 +131,11 @@ export async function syncNowPaymentsDepositStatus(orderId: string): Promise<Now
     return { orderId, providerStatus: paymentStatus, status: 'failed' }
   }
 
-  if (['waiting', 'confirming', 'confirmed', 'sending', 'partially_paid'].includes(paymentStatus)) {
+  if (['waiting', 'confirming', 'sending'].includes(paymentStatus)) {
     const mappedStatus =
       paymentStatus === 'waiting'
         ? 'pending'
-        : paymentStatus === 'confirming' || paymentStatus === 'confirmed'
+        : paymentStatus === 'confirming'
           ? 'confirming'
           : 'processing'
 
@@ -103,7 +148,7 @@ export async function syncNowPaymentsDepositStatus(orderId: string): Promise<Now
     const label = formatNowPaymentsStatusLabel(paymentStatus)
     await updateTransactionSyncNote(
       orderId,
-      `Deposit via NOWPayments — ${label}. Balance updates when status is finished.`
+      `Deposit via NOWPayments — ${label}. Balance updates when payment is confirmed.`
     )
   }
 

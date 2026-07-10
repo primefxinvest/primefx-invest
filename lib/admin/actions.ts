@@ -15,6 +15,7 @@ import {
   canApproveOrRejectTransactions,
   getAdminContext,
   rejectSelfTarget,
+  requireAdmin,
   type AdminMutationResult,
 } from './auth'
 import { logAdminAction } from './audit'
@@ -842,11 +843,58 @@ export async function adminUnlockWithdrawalHoldAction(requestId: string) {
     afterState: result as unknown as Record<string, unknown>,
   })
 
-  revalidatePath('/admin/rewards')
-  revalidatePath(`/admin/users/${result.userId}`)
-  revalidatePath('/wallet')
   revalidatePath('/wallet/withdraw')
   revalidatePath('/transactions')
 
   return result
+}
+
+export async function getDepositSettlementDetails(referenceId: string) {
+  await requireAdmin()
+
+  const { readDepositSettlementFromMetadata } = await import('@/lib/payments/nowpayments-settlement')
+  const { getPaymentByOrderId } = await import('@/lib/payments/wallet-ledger')
+
+  const payment = await getPaymentByOrderId(referenceId.trim())
+  if (!payment || payment.type !== 'deposit') {
+    return { found: false as const }
+  }
+
+  const settlement = readDepositSettlementFromMetadata(
+    (payment.metadata as Record<string, unknown> | null) ?? null
+  )
+
+  const db = getDb()
+  const { data } = await db
+    .from('financial_audit_logs')
+    .select('id, event_type, amount_usd, created_at')
+    .eq('reference_id', referenceId)
+    .order('created_at', { ascending: false })
+    .limit(5)
+
+  const auditTrail = (data ?? []).map((row) => ({
+    id: String(row.id),
+    eventType: String(row.event_type),
+    amountUsd: row.amount_usd != null ? Number(row.amount_usd) : null,
+    createdAt: String(row.created_at),
+  }))
+
+  return {
+    found: true as const,
+    requestedAmountUsd: settlement?.requestedAmountUsd ?? Number(payment.amount_usd ?? 0),
+    receivedAmountUsd:
+      settlement?.receivedAmountUsd ?? settlement?.creditedAmountUsd ?? Number(payment.amount_usd ?? 0),
+    creditedAmountUsd: settlement?.creditedAmountUsd ?? Number(payment.amount_usd ?? 0),
+    differenceUsd:
+      settlement?.differenceUsd ??
+      Math.max(
+        0,
+        Number(payment.amount_usd ?? 0) -
+          (settlement?.creditedAmountUsd ?? Number(payment.amount_usd ?? 0))
+      ),
+    providerStatus: settlement?.providerStatus ?? null,
+    completionStatus: settlement?.completionStatus ?? null,
+    paymentStatus: String(payment.status ?? ''),
+    auditTrail,
+  }
 }

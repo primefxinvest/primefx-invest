@@ -20,6 +20,7 @@ import {
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { AdminDepositSettlementPanel } from '@/components/admin/AdminDepositSettlementPanel'
 import { AdminPageHeader } from '@/components/admin/AdminPageHeader'
 import { StatusCardGrid, statusCardAdminSurfaceClass } from '@/components/shared/status-cards'
 import { Button } from '@/components/ui/button'
@@ -106,7 +107,7 @@ function getTypeMeta(type: string) {
 function StatusBadge({ status }: { status: string }) {
   const normalized = status.toLowerCase()
   const config =
-    normalized === 'completed'
+    normalized === 'completed' || normalized === 'completed_partial'
       ? {
           icon: CheckCircle2,
           className: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
@@ -131,7 +132,7 @@ function StatusBadge({ status }: { status: string }) {
       )}
     >
       <Icon className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5" />
-      {status}
+      {normalized === 'completed_partial' ? 'Completed (Partial)' : status}
     </span>
   )
 }
@@ -436,7 +437,9 @@ export function AdminTransactionsView({
 
   const stats = useMemo(() => {
     const pendingCount = transactions.filter((tx) => tx.status.toLowerCase() === 'pending').length
-    const completedCount = transactions.filter((tx) => tx.status.toLowerCase() === 'completed').length
+    const completedCount = transactions.filter((tx) =>
+      ['completed', 'completed_partial'].includes(tx.status.toLowerCase())
+    ).length
     const failedCount = transactions.filter((tx) =>
       ['failed', 'rejected'].includes(tx.status.toLowerCase())
     ).length
@@ -464,7 +467,7 @@ export function AdminTransactionsView({
       const status = tx.status.toLowerCase()
 
       if (statusFilter === 'pending' && status !== 'pending') return false
-      if (statusFilter === 'completed' && status !== 'completed') return false
+      if (statusFilter === 'completed' && !['completed', 'completed_partial'].includes(status)) return false
       if (statusFilter === 'failed' && !['failed', 'rejected'].includes(status)) return false
       if (typeFilter !== 'all' && tx.type.toLowerCase() !== typeFilter) return false
 
@@ -757,6 +760,10 @@ export function AdminTransactionsView({
                     </p>
                   </div>
                 </div>
+
+                {tx.type.toLowerCase() === 'deposit' ? (
+                  <AdminDepositSettlementPanel referenceId={tx.reference_id} />
+                ) : null}
 
                 {isPending ? (
                   <div className="mt-3 space-y-2 border-t border-border pt-3">

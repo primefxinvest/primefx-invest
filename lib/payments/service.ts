@@ -15,14 +15,22 @@ import {
   toUserWithdrawalError,
 } from './user-errors'
 import {
-  claimDepositCompletion,
+  claimDepositCredit,
   completeTransaction,
   creditInvestorWallet,
+  finalizeDepositTransaction,
   getPaymentByOrderId,
   recordDepositPayment,
   reverseFailedWithdrawalPayout,
   updatePaymentStatus,
 } from './wallet-ledger'
+import {
+  buildDepositSettlementMetadata,
+  isDepositPaymentSettled,
+  resolveDepositPaymentStatus,
+  resolveDepositSettlement,
+  resolveDepositTransactionStatus,
+} from './nowpayments-settlement'
 import { logFinancialAudit } from '@/lib/payments/financial-audit'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
@@ -32,6 +40,7 @@ import {
   notifyDepositCreated,
   notifyDepositCompleted,
   notifyDepositFailed,
+  notifyDepositPartialCompleted,
   notifyWithdrawalSubmitted,
   notifyWithdrawalCompleted,
 } from '@/lib/notifications/service'
@@ -229,33 +238,142 @@ export async function createWithdrawalPayment(input: {
   }
 }
 
-export async function completeDepositFromWebhook(orderId: string) {
-  const claimed = await claimDepositCompletion(orderId)
+export async function completeDepositFromWebhook(
+  orderId: string,
+  input?: {
+    webhookPayload?: Record<string, unknown>
+    providerStatus?: string
+  }
+) {
+  const existing = await getPaymentByOrderId(orderId)
+  if (existing && isDepositPaymentSettled(String(existing.status ?? ''))) {
+    await logFinancialAudit({
+      eventType: 'deposit.duplicate_blocked',
+      referenceId: orderId,
+    })
+    return { credited: false as const, reason: 'already_completed' as const }
+  }
+
+  const requestedUsd = Number(existing?.amount_usd ?? 0)
+  const payload = input?.webhookPayload ?? {}
+  const providerStatus = String(
+    input?.providerStatus ?? payload.payment_status ?? 'finished'
+  ).toLowerCase()
+
+  const settlement = resolveDepositSettlement(payload, requestedUsd, providerStatus)
+  const receivedUsd = settlement.receivedAmountUsd
+
+  if (receivedUsd < INVESTOR_RULES.financial.minimumDeposit) {
+    await updatePaymentStatus(orderId, 'failed', {
+      metadata: {
+        ...(((existing?.metadata as Record<string, unknown>) ?? {})),
+        ...buildDepositSettlementMetadata(settlement, payload),
+        rejection_reason: 'below_minimum_deposit',
+        rejection_message: 'Deposit amount is below the minimum required.',
+      },
+    })
+    await completeTransaction(orderId, 'Failed')
+
+    if (existing) {
+      await notifyDepositFailed(String(existing.investor_id), requestedUsd, orderId)
+    }
+
+    await logFinancialAudit({
+      eventType: 'deposit.rejected_below_minimum',
+      referenceId: orderId,
+      amountUsd: receivedUsd,
+      metadata: { requestedUsd, providerStatus },
+    })
+
+    return { credited: false as const, reason: 'below_minimum' as const }
+  }
+
+  const paymentStatus = resolveDepositPaymentStatus(settlement)
+  const transactionStatus = resolveDepositTransactionStatus(settlement)
+  const settlementMetadata = buildDepositSettlementMetadata(settlement, payload)
+
+  const claimed = await claimDepositCredit({
+    orderId,
+    paymentStatus,
+    creditedUsd: receivedUsd,
+    metadata: settlementMetadata,
+  })
+
   if (!claimed) {
     await logFinancialAudit({
       eventType: 'deposit.duplicate_blocked',
       referenceId: orderId,
     })
-    return { credited: false, reason: 'already_completed' as const }
+    return { credited: false as const, reason: 'already_completed' as const }
   }
 
-  const amount = Number(claimed.amount_usd)
   const userId = String(claimed.investor_id)
 
-  await creditInvestorWallet(userId, amount)
-  await completeTransaction(orderId, 'Completed')
-  await notifyDepositCompleted(userId, amount, orderId)
+  await creditInvestorWallet(userId, receivedUsd)
+
+  const description = settlement.isPartial
+    ? `Partial deposit via NOWPayments — $${receivedUsd.toFixed(2)} credited of $${requestedUsd.toFixed(2)} requested`
+    : `Deposit via NOWPayments — $${receivedUsd.toFixed(2)} credited`
+
+  await finalizeDepositTransaction({
+    referenceId: orderId,
+    amountUsd: receivedUsd,
+    status: transactionStatus,
+    description,
+  })
+
+  if (settlement.isPartial) {
+    await notifyDepositPartialCompleted(userId, receivedUsd, requestedUsd, orderId)
+  } else {
+    await notifyDepositCompleted(userId, receivedUsd, orderId)
+  }
+
   await markReferralActiveOnFirstActivity(userId)
 
   await logFinancialAudit({
-    eventType: 'deposit.credited',
+    eventType: settlement.isPartial ? 'deposit.credited_partial' : 'deposit.credited',
     userId,
     referenceId: orderId,
-    amountUsd: amount,
-    metadata: { provider: claimed.provider },
+    amountUsd: receivedUsd,
+    metadata: {
+      provider: claimed.provider,
+      requestedUsd,
+      receivedUsd,
+      providerStatus,
+      paymentStatus,
+    },
   })
 
-  return { credited: true as const }
+  return {
+    credited: true as const,
+    partial: settlement.isPartial,
+    creditedAmountUsd: receivedUsd,
+    requestedAmountUsd: requestedUsd,
+  }
+}
+
+/** Legacy full-amount completion for providers without settlement payloads (e.g. Binance Pay). */
+export async function completeDepositFromWebhookLegacy(orderId: string) {
+  const existing = await getPaymentByOrderId(orderId)
+  if (existing && isDepositPaymentSettled(String(existing.status ?? ''))) {
+    await logFinancialAudit({
+      eventType: 'deposit.duplicate_blocked',
+      referenceId: orderId,
+    })
+    return { credited: false as const, reason: 'already_completed' as const }
+  }
+
+  const requestedUsd = Number(existing?.amount_usd ?? 0)
+  return completeDepositFromWebhook(orderId, {
+    providerStatus: 'finished',
+    webhookPayload: {
+      payment_status: 'finished',
+      price_amount: requestedUsd,
+      price_currency: 'usd',
+      outcome_amount: requestedUsd,
+      outcome_currency: 'usd',
+    },
+  })
 }
 
 export async function failWithdrawalFromWebhook(

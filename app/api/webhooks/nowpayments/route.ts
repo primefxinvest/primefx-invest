@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import {
-  isPaymentComplete,
+  isPaymentCreditable,
   isPaymentFailed,
   verifyNowPaymentsSignature,
 } from '@/lib/payments/nowpayments'
@@ -12,6 +12,14 @@ import {
 import { logPaymentWebhook, updatePaymentStatus } from '@/lib/payments/wallet-ledger'
 
 export const runtime = 'nodejs'
+
+function revalidateDepositSuccessPaths() {
+  revalidatePath('/wallet')
+  revalidatePath('/wallet/deposit')
+  revalidatePath('/wallet/deposit/success')
+  revalidatePath('/dashboard')
+  revalidatePath('/transactions')
+}
 
 export async function POST(request: Request) {
   const rawBody = await request.text()
@@ -46,12 +54,18 @@ export async function POST(request: Request) {
       throw new Error('Missing order_id in webhook payload.')
     }
 
-    if (isPaymentComplete(paymentStatus)) {
-      await completeDepositFromWebhook(orderId)
-      revalidatePath('/wallet')
-      revalidatePath('/wallet/deposit/success')
-      revalidatePath('/dashboard')
-      revalidatePath('/transactions')
+    if (isPaymentCreditable(paymentStatus)) {
+      const result = await completeDepositFromWebhook(orderId, {
+        webhookPayload: payload,
+        providerStatus: paymentStatus,
+      })
+
+      if (result.credited || result.reason === 'already_completed') {
+        revalidateDepositSuccessPaths()
+      } else if (result.reason === 'below_minimum') {
+        revalidatePath('/wallet/deposit/failed')
+        revalidatePath('/transactions')
+      }
     } else if (isPaymentFailed(paymentStatus)) {
       await failDepositFromWebhook(
         orderId,
@@ -59,11 +73,11 @@ export async function POST(request: Request) {
       )
       revalidatePath('/wallet/deposit/failed')
       revalidatePath('/transactions')
-    } else if (['waiting', 'confirming', 'confirmed', 'sending', 'partially_paid'].includes(paymentStatus)) {
+    } else if (['waiting', 'confirming', 'sending'].includes(paymentStatus)) {
       const mappedStatus =
         paymentStatus === 'waiting'
           ? 'pending'
-          : paymentStatus === 'confirming' || paymentStatus === 'confirmed'
+          : paymentStatus === 'confirming'
             ? 'confirming'
             : 'processing'
 

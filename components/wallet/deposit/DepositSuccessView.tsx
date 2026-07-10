@@ -14,6 +14,20 @@ import { cn } from '@/lib/utils'
 const POLL_INTERVAL_MS = 5_000
 const MAX_POLL_ATTEMPTS = 36
 
+type DepositSyncDetails = {
+  creditedAmountUsd: number | null
+  requestedAmountUsd: number | null
+  receivedAmountUsd: number | null
+  isPartial: boolean
+  providerPaymentId: string | null
+  depositStatus: string | null
+}
+
+function formatUsd(value: number | null | undefined) {
+  if (value == null || !Number.isFinite(value)) return '—'
+  return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
+}
+
 export function DepositSuccessView() {
   const t = useTranslations('wallet.deposit')
   const tBalances = useTranslations('wallet.balances')
@@ -23,7 +37,14 @@ export function DepositSuccessView() {
   const { wallet, reloadWallet } = useWalletPageData()
   const attemptsRef = useRef(0)
   const [syncState, setSyncState] = useState<'pending' | 'completed' | 'waiting'>('pending')
-  const [creditedAmount, setCreditedAmount] = useState<number | null>(null)
+  const [details, setDetails] = useState<DepositSyncDetails>({
+    creditedAmountUsd: null,
+    requestedAmountUsd: null,
+    receivedAmountUsd: null,
+    isPartial: false,
+    providerPaymentId: null,
+    depositStatus: null,
+  })
 
   const runSync = useCallback(async (): Promise<boolean> => {
     if (!orderId) {
@@ -38,7 +59,14 @@ export function DepositSuccessView() {
       }
 
       if (result.amountUsd > 0) {
-        setCreditedAmount(result.amountUsd)
+        setDetails({
+          creditedAmountUsd: result.amountUsd,
+          requestedAmountUsd: result.requestedAmountUsd ?? result.amountUsd,
+          receivedAmountUsd: result.receivedAmountUsd ?? result.amountUsd,
+          isPartial: Boolean(result.isPartial),
+          providerPaymentId: result.providerPaymentId ?? null,
+          depositStatus: result.depositStatus ?? null,
+        })
       }
 
       if (result.status === 'failed') {
@@ -82,10 +110,7 @@ export function DepositSuccessView() {
   }, [runSync])
 
   const confirming = syncState !== 'completed'
-  const amountLabel =
-    creditedAmount != null
-      ? creditedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })
-      : null
+  const isPartial = details.isPartial || details.depositStatus === 'COMPLETED_PARTIAL'
 
   return (
     <div className={cn('min-w-0', pageStackClass)}>
@@ -101,35 +126,76 @@ export function DepositSuccessView() {
         </div>
 
         <h2 className="mt-4 text-xl font-bold text-foreground">
-          {confirming ? t('waitingConfirmation') : t('stepSuccess')}
+          {confirming ? t('waitingConfirmation') : t('partialDepositSuccessTitle')}
         </h2>
         <p className="mt-2 text-sm text-muted-foreground">
           {confirming
             ? t('securityAutoConfirm')
-            : 'Your deposit has been credited successfully.'}
+            : isPartial
+              ? t('partialDepositSuccessBody')
+              : 'Your deposit has been credited successfully.'}
         </p>
 
+        {!confirming && isPartial ? (
+          <p className="mt-2 text-sm font-medium text-emerald-700">{t('walletUpdatedSuccess')}</p>
+        ) : null}
+
         <div className="mt-6 rounded-xl border border-emerald-200/80 bg-white p-4 text-left">
-          {amountLabel ? (
+          {details.creditedAmountUsd != null ? (
             <div className="mb-4 border-b border-border/60 pb-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Amount credited
+                {t('partialDepositCreditedLabel')}
               </p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-emerald-700">{amountLabel}</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-emerald-700">
+                {formatUsd(details.creditedAmountUsd)}
+              </p>
             </div>
           ) : null}
+
+          {isPartial && !confirming ? (
+            <dl className="mb-4 space-y-2 border-b border-border/60 pb-4 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">{t('requestedAmountLabel')}</dt>
+                <dd className="font-semibold tabular-nums text-foreground">
+                  {formatUsd(details.requestedAmountUsd)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">{t('receivedAmountLabel')}</dt>
+                <dd className="font-semibold tabular-nums text-foreground">
+                  {formatUsd(details.receivedAmountUsd)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">{t('depositStatusLabel')}</dt>
+                <dd className="font-semibold text-emerald-700">
+                  {details.depositStatus ?? t('statusCompletedPartial')}
+                </dd>
+              </div>
+            </dl>
+          ) : null}
+
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {tBalances('available')}
           </p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-700">
             {wallet?.availableBalance ?? '$0.00'}
           </p>
+
           {orderId ? (
             <dl className="mt-4 space-y-2 border-t border-border/60 pt-4 text-sm">
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Transaction ID</dt>
                 <dd className="truncate font-mono text-xs text-foreground">{orderId}</dd>
               </div>
+              {details.providerPaymentId ? (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">{t('paymentIdLabel')}</dt>
+                  <dd className="truncate font-mono text-xs text-foreground">
+                    {details.providerPaymentId}
+                  </dd>
+                </div>
+              ) : null}
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Date</dt>
                 <dd className="text-foreground">{new Date().toLocaleString()}</dd>

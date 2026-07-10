@@ -191,7 +191,7 @@ export default function WalletTransactionTable() {
                       <span
                         className={cn(
                           'inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold',
-                          tx.status === 'Completed'
+                          tx.status === 'Completed' || tx.status === 'Completed_Partial'
                             ? 'bg-emerald-100 text-emerald-700'
                             : 'bg-orange-100 text-orange-700'
                         )}

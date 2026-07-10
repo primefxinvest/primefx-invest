@@ -1617,6 +1617,15 @@
       "binancePayConfigHint": "Add BINANCEPAY_* credentials to your environment.",
       "paymentCreated": "Payment created — redirecting…",
       "depositFailed": "Deposit failed",
+      "partialDepositSuccessTitle": "Deposit Successful",
+      "partialDepositSuccessBody": "A partial payment was received. Your wallet has been credited with the amount actually received.",
+      "partialDepositCreditedLabel": "Credited amount",
+      "requestedAmountLabel": "Original requested amount",
+      "receivedAmountLabel": "Actual received amount",
+      "depositStatusLabel": "Deposit status",
+      "paymentIdLabel": "Payment ID",
+      "statusCompletedPartial": "COMPLETED_PARTIAL",
+      "walletUpdatedSuccess": "Wallet updated successfully.",
       "cardToastTitle": "Deposits",
       "cardToastDescription": "More deposit methods are coming soon. Use NOWPayments crypto for now."
     },
@@ -1910,6 +1919,7 @@
     },
     "txStatus": {
       "completed": "Completed",
+      "completedPartial": "Completed (Partial)",
       "pending": "Pending",
       "processing": "Processing",
       "failed": "Failed",

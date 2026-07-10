@@ -10,6 +10,8 @@ export type FinancialAuditEvent =
   | 'wallet.restore_hold'
   | 'deposit.claimed'
   | 'deposit.credited'
+  | 'deposit.credited_partial'
+  | 'deposit.rejected_below_minimum'
   | 'deposit.duplicate_blocked'
   | 'withdrawal.claimed'
   | 'withdrawal.approved'

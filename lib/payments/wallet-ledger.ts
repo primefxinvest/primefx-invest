@@ -184,12 +184,34 @@ export async function createPendingTransaction(input: {
   return data.id as string
 }
 
-export async function completeTransaction(referenceId: string, status: 'Completed' | 'Failed' | 'Cancelled') {
+export async function completeTransaction(
+  referenceId: string,
+  status: 'Completed' | 'Completed_Partial' | 'Failed' | 'Cancelled'
+) {
   const db = getDb()
   const { error } = await db
     .from('transactions')
     .update({ status })
     .eq('reference_id', referenceId)
+
+  if (error) throw new Error(error.message)
+}
+
+export async function finalizeDepositTransaction(input: {
+  referenceId: string
+  amountUsd: number
+  status: 'Completed' | 'Completed_Partial'
+  description: string
+}) {
+  const db = getDb()
+  const { error } = await db
+    .from('transactions')
+    .update({
+      status: input.status,
+      amount: input.amountUsd,
+      description: input.description,
+    })
+    .eq('reference_id', input.referenceId)
 
   if (error) throw new Error(error.message)
 }
@@ -218,7 +240,7 @@ export async function updatePaymentStatus(
     ...patch,
   }
 
-  if (status === 'completed') {
+  if (status === 'completed' || status === 'completed_partial') {
     updates.completed_at = new Date().toISOString()
   }
 
@@ -245,6 +267,25 @@ export async function claimDepositCompletion(orderId: string) {
   const db = getDb()
   const { data, error } = await db.rpc('claim_deposit_completion', {
     p_order_id: orderId,
+  })
+
+  if (error) throw new Error(error.message)
+  return data as Record<string, unknown> | null
+}
+
+/** Atomically claim deposit credit with settlement status and metadata. */
+export async function claimDepositCredit(input: {
+  orderId: string
+  paymentStatus: 'completed' | 'completed_partial'
+  creditedUsd: number
+  metadata: Record<string, unknown>
+}) {
+  const db = getDb()
+  const { data, error } = await db.rpc('claim_deposit_credit', {
+    p_order_id: input.orderId,
+    p_payment_status: input.paymentStatus,
+    p_credited_usd: input.creditedUsd,
+    p_metadata: input.metadata,
   })
 
   if (error) throw new Error(error.message)
@@ -429,7 +470,7 @@ export async function settleApprovedTransaction(tx: {
   if (type === 'deposit') {
     if (tx.reference_id) {
       const payment = await getPaymentByOrderId(tx.reference_id)
-      if (payment?.status === 'completed') {
+      if (payment?.status === 'completed' || payment?.status === 'completed_partial') {
         return
       }
       await creditInvestorWallet(userId, amount)

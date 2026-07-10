@@ -3,7 +3,7 @@ import 'server-only'
 import { queryBinanceOrder } from './binance-pay'
 import { syncNowPaymentsDepositStatus } from './nowpayments-sync'
 import {
-  completeDepositFromWebhook,
+  completeDepositFromWebhookLegacy,
   failDepositFromWebhook,
 } from './service'
 import { getPaymentByOrderId, updatePaymentStatus } from './wallet-ledger'
@@ -24,6 +24,8 @@ export type DepositSyncResult = {
   status: 'completed' | 'failed' | 'pending' | 'skipped'
   message?: string
   providerStatus?: string | null
+  partial?: boolean
+  creditedAmountUsd?: number
 }
 
 async function syncNowPaymentsDeposit(orderId: string): Promise<DepositSyncResult> {
@@ -53,7 +55,7 @@ async function syncBinancePayDeposit(
   const status = String(order.status ?? '').toUpperCase()
 
   if (status === 'PAID' || status === 'SUCCESS' || status === 'PAY_SUCCESS') {
-    await completeDepositFromWebhook(orderId)
+    await completeDepositFromWebhookLegacy(orderId)
     return { orderId, status: 'completed' }
   }
 

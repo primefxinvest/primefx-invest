@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { verifyBinancePayWebhook } from '@/lib/payments/binance-pay'
 import {
-  completeDepositFromWebhook,
+  completeDepositFromWebhookLegacy,
   failDepositFromWebhook,
 } from '@/lib/payments/service'
 import { logPaymentWebhook } from '@/lib/payments/wallet-ledger'
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     const status = String(data.status ?? payload.bizStatus ?? '').toUpperCase()
 
     if (bizType === 'PAY_SUCCESS' || status === 'PAID') {
-      await completeDepositFromWebhook(merchantTradeNo)
+      await completeDepositFromWebhookLegacy(merchantTradeNo)
     } else if (bizType === 'PAY_CLOSED' || status === 'CANCELED' || status === 'EXPIRED') {
       await failDepositFromWebhook(merchantTradeNo, status === 'EXPIRED' ? 'expired' : 'cancelled')
     } else if (bizType === 'PAY_ERROR' || status === 'ERROR') {

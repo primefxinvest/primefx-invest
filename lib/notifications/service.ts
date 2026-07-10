@@ -75,6 +75,26 @@ export async function notifyDepositCreated(userId: string, amountUsd: number, re
   })
 }
 
+export async function notifyDepositPartialCompleted(
+  userId: string,
+  creditedUsd: number,
+  requestedUsd: number,
+  referenceId?: string
+) {
+  return createUserNotification({
+    userId,
+    title: 'Partial deposit credited',
+    message: `A partial payment was received. $${creditedUsd.toFixed(2)} of your $${requestedUsd.toFixed(2)} deposit has been credited to your wallet.`,
+    type: 'wallet',
+    metadata: {
+      referenceId,
+      creditedUsd,
+      requestedUsd,
+      event: 'deposit_completed_partial',
+    },
+  })
+}
+
 export async function notifyDepositCompleted(userId: string, amountUsd: number, referenceId?: string) {
   return createUserNotification({
     userId,
