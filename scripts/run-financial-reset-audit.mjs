@@ -1,19 +1,73 @@
 #!/usr/bin/env node
 /**
- * Runs read-only financial reset verification against DATABASE_URL.
- * Optionally executes scripts/financial-reset.sql when --execute is passed.
+ * Runs read-only financial reset verification against DATABASE_URL or Supabase service role.
+ * Optionally executes reset when --execute is passed.
  *
  * Usage:
- *   DATABASE_URL=postgresql://... node scripts/run-financial-reset-audit.mjs
- *   DATABASE_URL=postgresql://... node scripts/run-financial-reset-audit.mjs --execute
+ *   node scripts/run-financial-reset-audit.mjs
+ *   node scripts/run-financial-reset-audit.mjs --execute
+ *
+ * Env (auto-loaded from .env.local / .env):
+ *   DATABASE_URL — direct Postgres (preferred)
+ *   NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY — fallback via PostgREST
+ *   SUPABASE_DB_PASSWORD — optional; builds DATABASE_URL if set
  */
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createClient } from '@supabase/supabase-js'
+import {
+  collectVerificationReport,
+  executeFinancialResetSupabase,
+  snapshotPreflight,
+  verifyFinancialZero,
+} from './financial-reset-supabase.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const root = join(__dirname, '..')
+
+function loadEnv() {
+  for (const file of ['.env.local', '.env']) {
+    const path = join(root, file)
+    if (!existsSync(path)) continue
+    for (const line of readFileSync(path, 'utf8').split('\n')) {
+      const match = line.match(/^([^#=]+)=(.*)$/)
+      if (match) {
+        process.env[match[1].trim()] ??= match[2].trim().replace(/^["']|["']$/g, '')
+      }
+    }
+  }
+}
+
+function extractProjectRef(supabaseUrl) {
+  const match = String(supabaseUrl ?? '').match(/https:\/\/([^.]+)\.supabase\.co/i)
+  return match?.[1] ?? null
+}
+
+function resolveDatabaseUrl() {
+  const direct =
+    process.env.DATABASE_URL?.trim() ||
+    process.env.POSTGRES_URL?.trim() ||
+    process.env.SUPABASE_DB_URL?.trim()
+
+  if (direct) return direct
+
+  const password = process.env.SUPABASE_DB_PASSWORD?.trim() || process.env.POSTGRES_PASSWORD?.trim()
+  const ref = extractProjectRef(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  if (password && ref) {
+    return `postgresql://postgres:${encodeURIComponent(password)}@db.${ref}.supabase.co:5432/postgres`
+  }
+
+  return null
+}
+
+function createSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  if (!url || !key) return null
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } })
+}
 
 const VERIFY_QUERIES = [
   {
@@ -22,6 +76,7 @@ const VERIFY_QUERIES = [
       SELECT
         (SELECT COUNT(*) FROM transactions) AS transactions,
         (SELECT COUNT(*) FROM payments) AS payments,
+        (SELECT COUNT(*) FROM payments WHERE type = 'deposit') AS deposits,
         (SELECT COUNT(*) FROM withdrawal_requests) AS withdrawal_requests,
         (SELECT COUNT(*) FROM investments) AS investments,
         (SELECT COUNT(*) FROM investment_profit_history) AS profit_history,
@@ -63,13 +118,12 @@ function parseCounts(row) {
   )
 }
 
-function auditPassed(results) {
+function auditPassedFromPg(results) {
   const financial = parseCounts(results.financial_counts.rows[0] ?? {})
   const wallet = parseCounts(results.wallet_totals.rows[0] ?? {})
   const portfolio = parseCounts(results.portfolio_totals.rows[0] ?? {})
 
-  const financialKeys = Object.keys(financial)
-  const financialClean = financialKeys.every((key) => financial[key] === 0)
+  const financialClean = Object.values(financial).every((value) => value === 0)
   const walletClean =
     wallet.total_balance_sum === 0 &&
     wallet.pending_balance_sum === 0 &&
@@ -80,56 +134,111 @@ function auditPassed(results) {
   return financialClean && walletClean && portfolioClean
 }
 
+async function runPgVerification(client) {
+  const results = {}
+  for (const query of VERIFY_QUERIES) {
+    const { rows } = await client.query(query.sql)
+    results[query.name] = { rows }
+    console.log(`\n[${query.name}]`)
+    console.table(rows)
+  }
+  return { results, passed: auditPassedFromPg(results) }
+}
+
+async function runSupabaseVerification(db) {
+  const report = await collectVerificationReport(db)
+  console.log('\n[financial_counts]')
+  console.table([report.financial_counts])
+  console.log('\n[wallet_totals]')
+  console.table([report.wallet_totals])
+  console.log('\n[portfolio_totals]')
+  console.table([report.portfolio_totals])
+  console.log('\n[preserved_entities]')
+  console.table([report.preserved_users])
+  return report
+}
+
+function printConnectionInfo() {
+  const ref = extractProjectRef(process.env.NEXT_PUBLIC_SUPABASE_URL)
+  console.log(`Supabase project ref: ${ref ?? 'unknown'}`)
+  console.log(`Connection mode: ${resolveDatabaseUrl() ? 'postgres (DATABASE_URL)' : 'service_role (PostgREST)'}`)
+}
+
 async function main() {
-  const databaseUrl = process.env.DATABASE_URL?.trim()
+  loadEnv()
   const executeReset = process.argv.includes('--execute')
+  const databaseUrl = resolveDatabaseUrl()
+  const supabase = createSupabaseAdmin()
 
-  if (!databaseUrl) {
-    console.log('DATABASE_URL is not set — verification queries were not executed against a database.')
-    console.log('Review scripts/financial-reset.sql and scripts/verify-financial-reset.sql manually.')
+  if (!databaseUrl && !supabase) {
+    console.error(
+      'Missing database credentials. Set DATABASE_URL or NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env.local'
+    )
+    process.exit(1)
+  }
+
+  printConnectionInfo()
+
+  if (databaseUrl) {
+    let pg
+    try {
+      pg = (await import('pg')).default
+    } catch {
+      console.error('Install pg for DATABASE_URL mode: npm install --save-dev pg')
+      process.exit(1)
+    }
+
+    const client = new pg.Client({ connectionString: databaseUrl })
+    await client.connect()
+
+    try {
+      if (executeReset) {
+        const resetSql = readFileSync(join(root, 'scripts/financial-reset.sql'), 'utf8')
+        console.log('\nExecuting financial reset via SQL (transactional)...')
+        await client.query(resetSql)
+        console.log('Financial reset completed successfully.')
+      }
+
+      const { passed } = await runPgVerification(client)
+      if (passed) {
+        console.log('\n✅ Financial reset audit PASSED — all financial counters are zero.')
+        process.exit(0)
+      }
+
+      console.error('\n❌ Financial reset audit FAILED — residual financial records detected.')
+      process.exit(1)
+    } finally {
+      await client.end()
+    }
+  }
+
+  if (!supabase) {
+    console.error('Supabase service role client unavailable.')
+    process.exit(1)
+  }
+
+  const preflight = await snapshotPreflight(supabase)
+  console.log('\n[preflight preserved counts]')
+  console.table([preflight])
+
+  if (executeReset) {
+    console.log('\nExecuting financial reset via Supabase service role...')
+    const result = await executeFinancialResetSupabase(supabase)
+    console.log('Financial reset completed successfully.')
+    console.log('Rows deleted:', result.deleted)
+  }
+
+  const report = await runSupabaseVerification(supabase)
+  try {
+    await verifyFinancialZero(supabase)
+    console.log('\n✅ Financial reset audit PASSED — all financial counters are zero.')
     process.exit(0)
-  }
-
-  let pg
-  try {
-    pg = (await import('pg')).default
-  } catch {
-    console.error('Install pg to run database audits: npm install --save-dev pg')
-    process.exit(1)
-  }
-
-  const client = new pg.Client({ connectionString: databaseUrl })
-  await client.connect()
-
-  try {
-    if (executeReset) {
-      const resetSql = readFileSync(join(root, 'scripts/financial-reset.sql'), 'utf8')
-      console.log('Executing financial reset (transactional)...')
-      await client.query(resetSql)
-      console.log('Financial reset completed successfully.')
-    }
-
-    const results = {}
-    for (const query of VERIFY_QUERIES) {
-      const { rows } = await client.query(query.sql)
-      results[query.name] = { rows }
-      console.log(`\n[${query.name}]`)
-      console.table(rows)
-    }
-
-    const passed = auditPassed(results)
-    if (passed) {
-      console.log('\n✅ Financial reset audit PASSED — all financial counters are zero.')
-      process.exit(0)
-    }
-
-    console.error('\n❌ Financial reset audit FAILED — residual financial records detected.')
+  } catch (err) {
+    console.error('\n❌ Financial reset audit FAILED —', err instanceof Error ? err.message : err)
     if (!executeReset) {
-      console.error('Re-run with --execute to apply scripts/financial-reset.sql, then verify again.')
+      console.error('Re-run with --execute to apply the reset, then verify again.')
     }
-    process.exit(1)
-  } finally {
-    await client.end()
+    process.exit(report.passed ? 0 : 1)
   }
 }
 
