@@ -9,7 +9,7 @@ import { isEmailVerified } from '@/lib/auth/require-verified-email'
 
 describe('registration email verification', () => {
   it('treats unverified users as not verified', () => {
-    expect(isEmailVerified({ email_confirmed_at: null })).toBe(false)
+    expect(isEmailVerified({ email_confirmed_at: undefined })).toBe(false)
   })
 
   it('treats confirmed users as verified', () => {

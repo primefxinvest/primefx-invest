@@ -2,8 +2,8 @@ import 'server-only'
 
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 
-const AUTH_USER_RETRY_ATTEMPTS = 8
-const AUTH_USER_RETRY_DELAY_MS = 500
+const AUTH_USER_RETRY_ATTEMPTS = 4
+const AUTH_USER_RETRY_DELAY_MS = 250
 
 export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms))

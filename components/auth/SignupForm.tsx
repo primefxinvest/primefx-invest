@@ -6,7 +6,6 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { Eye, EyeOff, Gift, Loader2, Lock, Mail, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { bootstrapUserProfile } from '@/lib/auth/bootstrap-profile'
 import { recordSignupVerificationEmailSentAction } from '@/lib/auth/email-verification-actions'
 import { formatGoogleAuthError, isGoogleAuthEnabled, signInWithGoogle } from '@/lib/auth/google-oauth'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
@@ -20,13 +19,49 @@ import { useResetOnPageShow } from '@/lib/hooks/useResetOnPageShow'
 import { Button } from '@/components/ui/button'
 
 function formatSignupError(err: unknown): string {
-  if (err instanceof Error && err.message.trim()) {
-    return err.message
+  if (err instanceof Error) {
+    const message = err.message.trim()
+    if (message.includes('An unexpected response was received from the server')) {
+      return 'Signup service is temporarily unavailable. Please try again in a moment.'
+    }
+    if (message) return message
   }
   if (typeof err === 'string' && err.trim()) {
     return err
   }
-  return 'Unknown signup error.'
+  return 'Signup failed. Please try again.'
+}
+
+type SignupApiResponse = {
+  success: boolean
+  message: string
+  data?: { userId?: string }
+  error?: { code?: string; detail?: string }
+}
+
+async function postSignupJson<T extends SignupApiResponse>(
+  url: string,
+  body: Record<string, unknown>
+): Promise<T> {
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+
+  const contentType = response.headers.get('content-type') ?? ''
+  if (!contentType.includes('application/json')) {
+    console.error('[signup] non-json response', { url, status: response.status, contentType })
+    throw new Error(
+      response.ok
+        ? 'Signup service returned an invalid response. Please try again.'
+        : `Signup service error (HTTP ${response.status}). Please try again.`
+    )
+  }
+
+  const payload = (await response.json()) as T
+  return payload
 }
 
 function SignupForm() {
@@ -100,32 +135,16 @@ function SignupForm() {
   }
 
   const establishSession = async (userId: string, email: string) => {
-    const response = await fetch('/api/auth/post-signup-session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ userId, email }),
+    const payload = await postSignupJson<SignupApiResponse>('/api/auth/post-signup-session', {
+      userId,
+      email,
     })
 
-    let payload: { success?: boolean; error?: string; code?: string } = {}
-    try {
-      payload = (await response.json()) as typeof payload
-    } catch (parseError) {
-      console.error('[signup] session response parse failed', parseError)
+    if (!payload.success) {
+      console.error('[signup] session setup failed', payload)
       return {
         success: false as const,
-        error: `Session setup failed with HTTP ${response.status}.`,
-      }
-    }
-
-    if (!response.ok || !payload.success) {
-      console.error('[signup] session setup failed', {
-        status: response.status,
-        payload,
-      })
-      return {
-        success: false as const,
-        error: payload.error ?? `Session setup failed with HTTP ${response.status}.`,
+        error: payload.message || 'Could not sign you in after signup.',
       }
     }
 
@@ -203,7 +222,7 @@ function SignupForm() {
         hasSession: Boolean(authData.session),
       })
 
-      const profile = await bootstrapUserProfile({
+      const profile = await postSignupJson<SignupApiResponse>('/api/auth/bootstrap-profile', {
         userId: authData.user.id,
         email: formData.email,
         fullName: formData.name,
@@ -212,8 +231,8 @@ function SignupForm() {
       })
 
       if (!profile.success) {
-        console.error('[signup] bootstrapUserProfile failed', profile)
-        setError(profile.error ?? t('profileCreationFailed'))
+        console.error('[signup] bootstrap profile failed', profile)
+        setError(profile.message || t('profileCreationFailed'))
         return
       }
 
@@ -225,11 +244,9 @@ function SignupForm() {
         }
       }
 
-      try {
-        await recordSignupVerificationEmailSentAction()
-      } catch (recordError) {
+      void recordSignupVerificationEmailSentAction().catch((recordError) => {
         console.error('[signup] recordSignupVerificationEmailSentAction failed (non-blocking)', recordError)
-      }
+      })
 
       router.refresh()
       router.push('/dashboard')

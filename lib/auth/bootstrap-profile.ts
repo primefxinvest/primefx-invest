@@ -9,8 +9,8 @@ import {
 import { enforceIpRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
 import { checkBootstrapRpcExists, sleep, waitForAuthUser } from '@/lib/auth/signup-session'
 
-const AUTH_USER_RETRY_ATTEMPTS = 8
-const AUTH_USER_RETRY_DELAY_MS = 500
+const AUTH_USER_RETRY_ATTEMPTS = 4
+const AUTH_USER_RETRY_DELAY_MS = 250
 
 async function rollbackPartialProfile(
   admin: NonNullable<ReturnType<typeof createAdminSupabaseClient>>,
@@ -206,8 +206,12 @@ export async function bootstrapUserProfile(input: {
     if (err instanceof RateLimitExceededError) {
       return { success: false, error: err.message, code: 'RATE_LIMIT_EXCEEDED' }
     }
-    console.error('[signup:bootstrap] rate limit check failed', err)
-    throw err
+    console.error('[signup:bootstrap] unexpected error', err)
+    return {
+      success: false,
+      error: 'Profile setup failed. Please try again.',
+      code: 'INTERNAL_ERROR',
+    }
   }
 
   const admin = createAdminSupabaseClient()

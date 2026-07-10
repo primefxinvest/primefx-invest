@@ -8,7 +8,11 @@ export async function POST(request: NextRequest) {
     body = (await request.json()) as { userId?: string; email?: string }
   } catch {
     return NextResponse.json(
-      { success: false, error: 'Invalid request body.', code: 'INVALID_BODY' },
+      {
+        success: false,
+        message: 'Invalid request body.',
+        error: { code: 'INVALID_BODY' },
+      },
       { status: 400 }
     )
   }
@@ -18,30 +22,59 @@ export async function POST(request: NextRequest) {
 
   if (!userId || !email) {
     return NextResponse.json(
-      { success: false, error: 'userId and email are required.', code: 'MISSING_FIELDS' },
+      {
+        success: false,
+        message: 'userId and email are required.',
+        error: { code: 'MISSING_FIELDS' },
+      },
       { status: 400 }
     )
   }
 
-  const { supabase, applyCookiesTo } = createRouteHandlerSupabaseClient(request, () =>
-    NextResponse.json({ success: true })
-  )
+  try {
+    const { supabase, applyCookiesTo } = createRouteHandlerSupabaseClient(request, () =>
+      NextResponse.json({ success: true, message: 'Session created.' })
+    )
 
-  const result = await createPostSignupSession({
-    userId,
-    email,
-    verifyOtp: async (tokenHash) => {
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
-        type: 'email',
+    const result = await createPostSignupSession({
+      userId,
+      email,
+      verifyOtp: async (tokenHash) => {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'email',
+        })
+        return { error: error ? { message: error.message, code: error.code } : null }
+      },
+    })
+
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: result.error,
+          error: { code: result.code ?? 'SESSION_FAILED', detail: result.error },
+        },
+        { status: 422 }
+      )
+    }
+
+    return applyCookiesTo(
+      NextResponse.json({
+        success: true,
+        message: 'Session created successfully.',
+        data: { userId },
       })
-      return { error: error ? { message: error.message, code: error.code } : null }
-    },
-  })
-
-  if (!result.success) {
-    return NextResponse.json(result, { status: 422 })
+    )
+  } catch (err) {
+    console.error('[api:post-signup-session] unhandled error', err)
+    return NextResponse.json(
+      {
+        success: false,
+        message: 'Could not sign you in after signup. Please try logging in.',
+        error: { code: 'INTERNAL_ERROR' },
+      },
+      { status: 500 }
+    )
   }
-
-  return applyCookiesTo(NextResponse.json({ success: true }))
 }
