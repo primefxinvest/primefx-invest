@@ -129,6 +129,17 @@ export interface AdminUserPaymentMethodRow {
   created_at: string
 }
 
+export interface AdminUserWithdrawalRow {
+  id: string
+  amount_usd: number
+  status: string
+  currency: string | null
+  payout_address: string | null
+  requested_at: string
+  available_at: string
+  reference_id: string | null
+}
+
 export interface AdminUserDetail {
   profile: AdminUserDetailProfile
   mfa: { bypassed: boolean; factorCount: number }
@@ -148,6 +159,9 @@ export interface AdminUserDetail {
   } | null
   investments: AdminUserInvestmentRow[]
   transactions: AdminTransactionRow[]
+  withdrawals: AdminUserWithdrawalRow[]
+  pending_deposits: AdminTransactionRow[]
+  pending_withdrawals: AdminUserWithdrawalRow[]
   referrals: {
     total: number
     total_bonus: number

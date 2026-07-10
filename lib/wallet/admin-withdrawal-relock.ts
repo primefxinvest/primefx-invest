@@ -2,28 +2,38 @@ import 'server-only'
 
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { logFinancialAudit } from '@/lib/payments/financial-audit'
-import { notifyWithdrawalReadyForPayout } from '@/lib/notifications/service'
+import { getWithdrawalAvailableDate } from '@/lib/fees/constants'
 import {
   ADMIN_HOLD_UNLOCKED_AT_KEY,
   ADMIN_HOLD_UNLOCKED_BY_KEY,
 } from '@/lib/wallet/withdrawal-admin-unlock'
 
+const ADMIN_HOLD_RELOCKED_AT_KEY = 'admin_hold_relocked_at'
+const ADMIN_HOLD_RELOCKED_BY_KEY = 'admin_hold_relocked_by'
+const ADMIN_HOLD_RELOCK_REASON_KEY = 'admin_hold_relock_reason'
+
 function getDb() {
   const db = createAdminSupabaseClient()
   if (!db) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for withdrawal unlock.')
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for withdrawal re-lock.')
   }
   return db
 }
 
-export async function adminUnlockWithdrawalHold(input: {
+export async function adminRelockWithdrawalHold(input: {
   requestId: string
   adminEmail: string
   adminUserId: string
   reason: string
 }) {
+  const reason = input.reason.trim()
+  if (!reason) {
+    throw new Error('A reason is required to re-lock a withdrawal.')
+  }
+
   const db = getDb()
-  const now = new Date().toISOString()
+  const now = new Date()
+  const availableAt = getWithdrawalAvailableDate(now).toISOString()
 
   const { data: request, error: fetchError } = await db
     .from('withdrawal_requests')
@@ -35,33 +45,36 @@ export async function adminUnlockWithdrawalHold(input: {
   if (!request) throw new Error('Withdrawal request not found.')
 
   const status = String(request.status ?? '').toLowerCase()
-  if (status !== 'pending_notice') {
-    throw new Error('Only withdrawals under the security hold can be unlocked.')
+  if (status !== 'ready') {
+    throw new Error('Only ready withdrawals can be re-locked.')
   }
 
   const existingMetadata = (request.metadata as Record<string, unknown> | null) ?? {}
-  const metadata = {
+  const metadata: Record<string, unknown> = {
     ...existingMetadata,
-    [ADMIN_HOLD_UNLOCKED_AT_KEY]: now,
-    [ADMIN_HOLD_UNLOCKED_BY_KEY]: input.adminEmail.trim().toLowerCase(),
-    admin_hold_unlock_reason: input.reason.trim(),
+    [ADMIN_HOLD_RELOCKED_AT_KEY]: now.toISOString(),
+    [ADMIN_HOLD_RELOCKED_BY_KEY]: input.adminEmail.trim().toLowerCase(),
+    [ADMIN_HOLD_RELOCK_REASON_KEY]: reason,
   }
+
+  delete metadata[ADMIN_HOLD_UNLOCKED_AT_KEY]
+  delete metadata[ADMIN_HOLD_UNLOCKED_BY_KEY]
 
   const { data: updated, error: updateError } = await db
     .from('withdrawal_requests')
     .update({
-      status: 'ready',
-      available_at: now,
+      status: 'pending_notice',
+      available_at: availableAt,
       metadata,
     })
     .eq('id', input.requestId)
-    .eq('status', 'pending_notice')
+    .eq('status', 'ready')
     .select('*')
     .maybeSingle()
 
   if (updateError) throw new Error(updateError.message)
   if (!updated) {
-    throw new Error('Withdrawal hold could not be unlocked — status may have changed.')
+    throw new Error('Withdrawal could not be re-locked — status may have changed.')
   }
 
   const userId = String(updated.user_id)
@@ -72,33 +85,40 @@ export async function adminUnlockWithdrawalHold(input: {
     await db
       .from('transactions')
       .update({
-        description: 'Wallet withdrawal — Unlocked by Admin. Ready for payout.',
+        description: 'Wallet withdrawal — Security hold re-applied by admin.',
       })
       .eq('reference_id', referenceId)
       .eq('user_id', userId)
   }
 
   await logFinancialAudit({
-    eventType: 'withdrawal.admin_hold_unlocked',
+    eventType: 'withdrawal.admin_hold_relocked',
     userId,
     referenceId: referenceId || input.requestId,
     amountUsd: gross,
     metadata: {
       request_id: input.requestId,
-      unlocked_by: input.adminEmail,
-      unlocked_by_user_id: input.adminUserId,
-      reason: input.reason,
+      relocked_by: input.adminEmail,
+      relocked_by_user_id: input.adminUserId,
+      reason,
+      available_at: availableAt,
     },
   })
-
-  await notifyWithdrawalReadyForPayout(userId, gross, referenceId || input.requestId)
 
   return {
     requestId: input.requestId,
     userId,
     referenceId,
-    status: 'ready' as const,
-    unlockedAt: now,
-    unlockedBy: input.adminEmail,
+    status: 'pending_notice' as const,
+    availableAt,
+    reason,
+  }
+}
+
+export function getWithdrawalRelockMetadataKeys() {
+  return {
+    relockedAt: ADMIN_HOLD_RELOCKED_AT_KEY,
+    relockedBy: ADMIN_HOLD_RELOCKED_BY_KEY,
+    relockReason: ADMIN_HOLD_RELOCK_REASON_KEY,
   }
 }

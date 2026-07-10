@@ -13,7 +13,8 @@ const RESEND_COOLDOWN_SECONDS = 60
 
 function getEmailVerificationRedirectUrl(origin: string) {
   const url = new URL('/auth/callback', origin)
-  url.searchParams.set('redirect', '/dashboard')
+  url.searchParams.set('redirect', '/settings')
+  url.searchParams.set('verify', '1')
   return url.toString()
 }
 

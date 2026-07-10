@@ -162,6 +162,7 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
     paymentMethodsRes,
     mfaSummary,
     kycRes,
+    withdrawalRes,
   ] = await Promise.all([
     db.from('wallet_balances').select('*').eq('user_id', userId).maybeSingle(),
     db.from('portfolios').select('*').eq('user_id', userId).maybeSingle(),
@@ -196,6 +197,12 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
       .order('created_at', { ascending: false }),
     getAdminUserMfaSummary([userId]),
     db.from('kyc_submissions').select('*').eq('user_id', userId).maybeSingle(),
+    db
+      .from('withdrawal_requests')
+      .select('*')
+      .eq('user_id', userId)
+      .order('requested_at', { ascending: false })
+      .limit(25),
   ])
 
   if (walletRes.error) throw new Error(walletRes.error.message)
@@ -309,6 +316,49 @@ export async function getAdminUserDetail(userId: string): Promise<AdminUserDetai
       reference_id: (row.reference_id as string) ?? null,
       created_at: String(row.created_at ?? ''),
     })),
+    withdrawals: (withdrawalRes.data ?? []).map((row: Record<string, unknown>) => ({
+      id: String(row.id),
+      amount_usd: Number(row.amount_usd ?? 0),
+      status: String(row.status ?? ''),
+      currency: (row.currency as string | null) ?? null,
+      payout_address: (row.payout_address as string | null) ?? null,
+      requested_at: String(row.requested_at ?? ''),
+      available_at: String(row.available_at ?? ''),
+      reference_id: (row.reference_id as string | null) ?? null,
+    })),
+    pending_deposits: (transactionsRes.data ?? [])
+      .filter((row: Record<string, unknown>) => {
+        const type = String(row.type ?? '').toLowerCase()
+        const status = String(row.status ?? '').toLowerCase()
+        return type === 'deposit' && status === 'pending'
+      })
+      .map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        user_id: userId,
+        user_email: profile.email,
+        user_name: profile.full_name,
+        type: String(row.type ?? ''),
+        amount: Number(row.amount ?? 0),
+        status: String(row.status ?? 'Pending'),
+        description: (row.description as string) ?? null,
+        reference_id: (row.reference_id as string) ?? null,
+        created_at: String(row.created_at ?? ''),
+      })),
+    pending_withdrawals: (withdrawalRes.data ?? [])
+      .filter((row: Record<string, unknown>) => {
+        const status = String(row.status ?? '').toLowerCase()
+        return !['completed', 'cancelled', 'failed'].includes(status)
+      })
+      .map((row: Record<string, unknown>) => ({
+        id: String(row.id),
+        amount_usd: Number(row.amount_usd ?? 0),
+        status: String(row.status ?? ''),
+        currency: (row.currency as string | null) ?? null,
+        payout_address: (row.payout_address as string | null) ?? null,
+        requested_at: String(row.requested_at ?? ''),
+        available_at: String(row.available_at ?? ''),
+        reference_id: (row.reference_id as string | null) ?? null,
+      })),
     referrals: {
       total: referralItems.length,
       total_bonus: referralItems.reduce((sum, item) => sum + item.bonus_earned, 0),
@@ -875,6 +925,9 @@ export type AdminWithdrawalQueueRow = {
   kind: 'wallet' | 'capital'
   user_id: string
   user_email: string
+  user_name: string | null
+  user_avatar_url: string | null
+  user_country: string | null
   primefx_id: string
   amount_usd: number
   fee_usd: number
@@ -889,62 +942,131 @@ export type AdminWithdrawalQueueRow = {
   method_label: string | null
   network_label: string
   metadata: Record<string, unknown>
+  wallet_balance: number
+  investment_total: number
+  kyc_status: string
+  email_verified: boolean
+  account_status: string
+  referral_status: string
+  admin_notes: string | null
+  transaction_hash: string | null
+  risk_score: number
 }
 
 export async function getAdminWithdrawalQueue(): Promise<AdminWithdrawalQueueRow[]> {
   const db = getDb()
   const { formatPrimeFxId } = await import('@/lib/wallet/primefx-id')
   const { resolveWithdrawalNetworkLabel } = await import('@/lib/wallet/withdrawal-blockchain')
+  const { computeWithdrawalRiskScore } = await import('@/lib/admin/withdrawal-risk')
 
-  const [{ data: walletRows }, { data: capitalRows }, { data: users }] = await Promise.all([
-    db.from('withdrawal_requests').select('*').order('requested_at', { ascending: false }),
-    db.from('investment_withdrawal_requests').select('*').order('requested_at', { ascending: false }),
-    db.from('users').select('id, email'),
+  const [{ data: walletRows }, { data: capitalRows }, { data: users }, { data: wallets }, { data: investments }] =
+    await Promise.all([
+      db.from('withdrawal_requests').select('*').order('requested_at', { ascending: false }),
+      db.from('investment_withdrawal_requests').select('*').order('requested_at', { ascending: false }),
+      db.from('users').select('id, email, full_name, avatar_url, country, kyc_status, account_status, admin_notes, referral_access_enabled'),
+      db.from('wallet_balances').select('user_id, total_balance'),
+      db.from('investments').select('user_id, current_value, status'),
+    ])
+
+  const userById = new Map(
+    (users ?? []).map((u) => [
+      String(u.id),
+      u as Record<string, unknown>,
+    ])
+  )
+
+  const walletByUser = new Map(
+    (wallets ?? []).map((w) => [String(w.user_id), Number(w.total_balance ?? 0)])
+  )
+
+  const investmentTotalByUser = new Map<string, number>()
+  for (const row of investments ?? []) {
+    const userId = String(row.user_id)
+    const status = String(row.status ?? '').toLowerCase()
+    if (status !== 'active' && status !== 'running') continue
+    investmentTotalByUser.set(
+      userId,
+      (investmentTotalByUser.get(userId) ?? 0) + Number(row.current_value ?? 0)
+    )
+  }
+
+  const authEmailVerified = new Map<string, boolean>()
+  const withdrawalUserIds = new Set<string>([
+    ...(walletRows ?? []).map((row) => String(row.user_id)),
+    ...(capitalRows ?? []).map((row) => String(row.user_id)),
   ])
 
-  const emailById = new Map((users ?? []).map((u) => [String(u.id), String(u.email ?? '')]))
+  await Promise.all(
+    Array.from(withdrawalUserIds).map(async (userId) => {
+      const { data } = await db.auth.admin.getUserById(userId).catch(() => ({ data: { user: null } }))
+      authEmailVerified.set(userId, Boolean(data.user?.email_confirmed_at))
+    })
+  )
 
-  const wallet = (walletRows ?? []).map((row) => ({
-    id: String(row.id),
-    kind: 'wallet' as const,
-    user_id: String(row.user_id),
-    user_email: emailById.get(String(row.user_id)) ?? '—',
-    primefx_id: formatPrimeFxId(String(row.user_id)),
-    amount_usd: Number(row.amount_usd ?? 0),
-    fee_usd: Number(row.fee_usd ?? 0),
-    net_amount_usd: Number(row.net_amount_usd ?? 0),
-    status: String(row.status ?? 'pending'),
-    requested_at: String(row.requested_at ?? ''),
-    available_at: String(row.available_at ?? ''),
-    processed_at: (row.processed_at as string | null) ?? null,
-    reference_id: (row.reference_id as string) ?? null,
-    currency: (row.currency as string | null) ?? null,
-    payout_address: (row.payout_address as string | null) ?? null,
-    method_label: (row.method_label as string | null) ?? null,
-    network_label: resolveWithdrawalNetworkLabel((row.currency as string | null) ?? null),
-    metadata: (row.metadata as Record<string, unknown> | null) ?? {},
-  }))
+  function mapRow(
+    row: Record<string, unknown>,
+    kind: 'wallet' | 'capital'
+  ): AdminWithdrawalQueueRow {
+    const userId = String(row.user_id)
+    const user = userById.get(userId)
+    const metadata = (row.metadata as Record<string, unknown> | null) ?? {}
+    const referralEnabled = Boolean(user?.referral_access_enabled)
+    const kycStatus = String(user?.kyc_status ?? 'Pending')
+    const emailVerified = authEmailVerified.get(userId) ?? false
+    const accountStatus = String(user?.account_status ?? 'active')
+    const referralStatus = referralEnabled ? 'Active' : 'Disabled'
 
-  const capital = (capitalRows ?? []).map((row) => ({
-    id: String(row.id),
-    kind: 'capital' as const,
-    user_id: String(row.user_id),
-    user_email: emailById.get(String(row.user_id)) ?? '—',
-    primefx_id: formatPrimeFxId(String(row.user_id)),
-    amount_usd: Number(row.amount_usd ?? 0),
-    fee_usd: 0,
-    net_amount_usd: Number(row.amount_usd ?? 0),
-    status: String(row.status ?? 'pending'),
-    requested_at: String(row.requested_at ?? ''),
-    available_at: String(row.available_at ?? ''),
-    processed_at: (row.processed_at as string | null) ?? null,
-    reference_id: (row.reference_id as string) ?? null,
-    currency: null,
-    payout_address: null,
-    method_label: 'Capital withdrawal',
-    network_label: '—',
-    metadata: {},
-  }))
+    const base = {
+      id: String(row.id),
+      kind,
+      user_id: userId,
+      user_email: String(user?.email ?? '—'),
+      user_name: (user?.full_name as string | null) ?? null,
+      user_avatar_url: (user?.avatar_url as string | null) ?? null,
+      user_country: (user?.country as string | null) ?? null,
+      primefx_id: formatPrimeFxId(userId),
+      amount_usd: Number(row.amount_usd ?? 0),
+      fee_usd: kind === 'wallet' ? Number(row.fee_usd ?? 0) : 0,
+      net_amount_usd: kind === 'wallet' ? Number(row.net_amount_usd ?? 0) : Number(row.amount_usd ?? 0),
+      status: String(row.status ?? 'pending'),
+      requested_at: String(row.requested_at ?? ''),
+      available_at: String(row.available_at ?? ''),
+      processed_at: (row.processed_at as string | null) ?? null,
+      reference_id: (row.reference_id as string) ?? null,
+      currency: kind === 'wallet' ? ((row.currency as string | null) ?? null) : null,
+      payout_address: kind === 'wallet' ? ((row.payout_address as string | null) ?? null) : null,
+      method_label:
+        kind === 'wallet'
+          ? ((row.method_label as string | null) ?? null)
+          : 'Capital withdrawal',
+      network_label:
+        kind === 'wallet'
+          ? resolveWithdrawalNetworkLabel((row.currency as string | null) ?? null)
+          : '—',
+      metadata,
+      wallet_balance: walletByUser.get(userId) ?? 0,
+      investment_total: investmentTotalByUser.get(userId) ?? 0,
+      kyc_status: kycStatus,
+      email_verified: emailVerified,
+      account_status: accountStatus,
+      referral_status: referralStatus,
+      admin_notes: (user?.admin_notes as string | null) ?? null,
+      transaction_hash:
+        (metadata.provider_payment_id as string | undefined) ??
+        (metadata.payout_tx_hash as string | undefined) ??
+        (metadata.tx_hash as string | undefined) ??
+        null,
+      risk_score: 0,
+    }
+
+    return {
+      ...base,
+      risk_score: computeWithdrawalRiskScore(base),
+    }
+  }
+
+  const wallet = (walletRows ?? []).map((row) => mapRow(row as Record<string, unknown>, 'wallet'))
+  const capital = (capitalRows ?? []).map((row) => mapRow(row as Record<string, unknown>, 'capital'))
 
   return [...wallet, ...capital].sort(
     (a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime()

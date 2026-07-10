@@ -149,6 +149,7 @@ export const ADMIN_NAV_ITEMS: Array<{
   { href: '/admin/plans', label: 'Investment Plans', module: 'investment_plan_management', icon: 'Zap' },
   { href: '/admin/investments', label: 'Investment Management', module: 'investment_management', icon: 'TrendingUp' },
   { href: '/admin/wallets', label: 'Wallet Management', module: 'financial_management', icon: 'Wallet' },
+  { href: '/admin/withdrawals', label: 'Withdrawal Center', module: 'financial_management', icon: 'ArrowUpRight' },
   { href: '/admin/transactions', label: 'Transactions', module: 'financial_management', icon: 'TrendingUp' },
   { href: '/admin/rewards', label: 'Rewards', module: 'rewards_referral', icon: 'Award' },
   { href: '/admin/support', label: 'Support Center', module: 'support_tickets', icon: 'MessageCircle' },

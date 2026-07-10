@@ -21,6 +21,7 @@ export type FinancialAuditEvent =
   | 'withdrawal.failed'
   | 'withdrawal.ready'
   | 'withdrawal.admin_hold_unlocked'
+  | 'withdrawal.admin_hold_relocked'
   | 'profit.run_claimed'
   | 'profit.run_completed'
   | 'profit.run_skipped'

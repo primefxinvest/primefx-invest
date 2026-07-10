@@ -16,6 +16,15 @@ function loginErrorRedirect(request: NextRequest, code: string, message?: string
   return NextResponse.redirect(loginUrl)
 }
 
+function emailVerificationRedirect(
+  request: NextRequest,
+  status: 'success' | 'failed' | 'expired' | 'already_verified'
+) {
+  const url = new URL('/settings', getRequestOrigin(request))
+  url.searchParams.set('emailVerification', status)
+  return url
+}
+
 export async function GET(request: NextRequest) {
   try {
     await enforceIpRateLimit('auth:login')
@@ -40,6 +49,7 @@ export async function GET(request: NextRequest) {
 
   const code = searchParams.get('code')
   const nextPath = sanitizeRedirectPath(searchParams.get('redirect'))
+  const isEmailVerificationFlow = searchParams.get('verify') === '1'
 
   if (!code) {
     return loginErrorRedirect(request, 'oauth_missing_code')
@@ -54,12 +64,25 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
+    const message = error.message.toLowerCase()
+    if (isEmailVerificationFlow) {
+      const status = message.includes('expired')
+        ? 'expired'
+        : message.includes('already')
+          ? 'already_verified'
+          : 'failed'
+      return applyCookiesTo(NextResponse.redirect(emailVerificationRedirect(request, status)))
+    }
     return loginErrorRedirect(request, 'oauth_failed', error.message)
   }
 
   const {
     data: { user },
   } = await supabase.auth.getUser()
+
+  if (user?.email_confirmed_at && isEmailVerificationFlow) {
+    return applyCookiesTo(NextResponse.redirect(emailVerificationRedirect(request, 'success')))
+  }
 
   if (user?.email) {
     const metadata = user.user_metadata ?? {}

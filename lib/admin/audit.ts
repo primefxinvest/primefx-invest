@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { headers } from 'next/headers'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import type { AdminContext, AdminModule } from './types'
 
@@ -15,12 +16,26 @@ interface AuditLogInput {
   metadata?: Record<string, unknown>
 }
 
+async function readRequestAuditContext() {
+  try {
+    const headerStore = await headers()
+    const forwarded = headerStore.get('x-forwarded-for')
+    const ip = forwarded?.split(',')[0]?.trim() || headerStore.get('x-real-ip') || 'unknown'
+    const userAgent = headerStore.get('user-agent') || 'unknown'
+    return { ip, userAgent }
+  } catch {
+    return { ip: 'unknown', userAgent: 'unknown' }
+  }
+}
+
 export async function logAdminAction(input: AuditLogInput) {
   const adminDb = createAdminSupabaseClient()
   if (!adminDb) {
     console.warn('[admin] audit log skipped — service role not configured', input.action)
     return
   }
+
+  const requestContext = await readRequestAuditContext()
 
   await adminDb.from('admin_audit_logs').insert({
     admin_id: input.context.userId,
@@ -32,6 +47,11 @@ export async function logAdminAction(input: AuditLogInput) {
     before_state: input.beforeState ?? null,
     after_state: input.afterState ?? null,
     reason_code: input.reasonCode ?? null,
-    metadata: input.metadata ?? {},
+    metadata: {
+      ...(input.metadata ?? {}),
+      ip_address: requestContext.ip,
+      user_agent: requestContext.userAgent,
+      admin_email: input.context.email,
+    },
   })
 }

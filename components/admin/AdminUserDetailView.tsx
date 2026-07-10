@@ -103,8 +103,21 @@ export function AdminUserDetailView({
   detail: AdminUserDetail
   globalReferralEnabled?: boolean
 }) {
-  const { profile, mfa, wallet, portfolio, investments, transactions, referrals, activity, payment_methods, kyc_submission } =
-    detail
+  const {
+    profile,
+    mfa,
+    wallet,
+    portfolio,
+    investments,
+    transactions,
+    withdrawals,
+    pending_deposits,
+    pending_withdrawals,
+    referrals,
+    activity,
+    payment_methods,
+    kyc_submission,
+  } = detail
 
   const mfaLabel = mfa.bypassed
     ? 'Bypassed (admin)'
@@ -324,6 +337,114 @@ export function AdminUserDetailView({
           )}
         </SectionCard>
       </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <SectionCard title="Crypto wallets & addresses" description="Saved payout methods and networks">
+          {payment_methods.length === 0 ? (
+            <EmptyState icon={Wallet} title="No saved wallets" description="This user has not saved crypto payout methods." />
+          ) : (
+            <ul className="space-y-3">
+              {payment_methods.map((method) => {
+                const Icon = paymentMethodIcon(method.method_type)
+                return (
+                  <li
+                    key={method.id}
+                    className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">{formatPaymentMethodLabel(method.method_type)}</span>
+                      {method.last_four ? (
+                        <span className="text-xs text-muted-foreground">•••• {method.last_four}</span>
+                      ) : null}
+                    </div>
+                    {method.is_primary ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+                        Primary
+                      </span>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Verification" description="Email and identity verification status">
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <DetailField label="Email verified" value={profile.email_verified ? 'Yes' : 'No'} />
+            <DetailField label="KYC status" value={profile.kyc_status ?? 'Pending'} />
+            <DetailField label="Account status" value={profile.account_status ?? 'active'} />
+            <DetailField label="Referral access" value={profile.referral_access_enabled ? 'Enabled' : 'Disabled'} />
+          </dl>
+        </SectionCard>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <SectionCard title="Pending deposits">
+          {pending_deposits.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No pending deposits.</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {pending_deposits.map((tx) => (
+                <li key={tx.id} className="flex justify-between rounded-lg border border-border px-3 py-2">
+                  <span>{formatCurrency(tx.amount)}</span>
+                  <span className="text-muted-foreground">{formatDateTime(tx.created_at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Pending withdrawals">
+          {pending_withdrawals.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No pending withdrawals.</p>
+          ) : (
+            <ul className="space-y-2 text-sm">
+              {pending_withdrawals.map((row) => (
+                <li key={row.id} className="rounded-lg border border-border px-3 py-2">
+                  <div className="flex justify-between">
+                    <span className="font-medium">{formatCurrency(row.amount_usd)}</span>
+                    <span className="capitalize text-muted-foreground">{row.status}</span>
+                  </div>
+                  <p className="mt-1 font-mono text-xs text-muted-foreground">{row.payout_address ?? '—'}</p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </SectionCard>
+      </div>
+
+      <SectionCard title="Withdrawal history" description="Wallet withdrawal requests">
+        {withdrawals.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No withdrawal requests.</p>
+        ) : (
+          <ScrollTable>
+            <table className="w-full min-w-[640px]">
+              <thead>
+                <tr className="border-b border-border text-left text-sm text-muted-foreground">
+                  <th className="pb-3 font-medium">Amount</th>
+                  <th className="pb-3 font-medium">Status</th>
+                  <th className="pb-3 font-medium">Coin</th>
+                  <th className="pb-3 font-medium">Address</th>
+                  <th className="pb-3 font-medium">Requested</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {withdrawals.map((row) => (
+                  <tr key={row.id}>
+                    <td className="py-3 font-medium">{formatCurrency(row.amount_usd)}</td>
+                    <td className="py-3 capitalize">{row.status}</td>
+                    <td className="py-3">{row.currency?.toUpperCase() ?? '—'}</td>
+                    <td className="max-w-[200px] truncate py-3 font-mono text-xs">{row.payout_address ?? '—'}</td>
+                    <td className="py-3 text-muted-foreground">{formatDateTime(row.requested_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </ScrollTable>
+        )}
+      </SectionCard>
 
       <SectionCard title="Investments" description="All investment positions for this investor">
         {investments.length === 0 ? (

@@ -8,6 +8,7 @@ import { Eye, EyeOff, Gift, Loader2, Lock, Mail, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { bootstrapUserProfile } from '@/lib/auth/bootstrap-profile'
 import { recordSignupVerificationEmailSentAction } from '@/lib/auth/email-verification-actions'
+import { establishPostSignupSessionAction } from '@/lib/auth/signup-actions'
 import { formatGoogleAuthError, isGoogleAuthEnabled, signInWithGoogle } from '@/lib/auth/google-oauth'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { AuthFormShell } from '@/components/auth/AuthFormShell'
@@ -116,7 +117,7 @@ function SignupForm() {
     setLoading(true)
 
     try {
-      const emailRedirectTo = `${window.location.origin}/auth/callback?redirect=/dashboard`
+      const emailRedirectTo = `${window.location.origin}/auth/callback?redirect=/settings&verify=1`
 
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
@@ -150,13 +151,13 @@ function SignupForm() {
         }
 
         if (!authData.session) {
-          const { error: signInError } = await supabase.auth.signInWithPassword({
+          const sessionResult = await establishPostSignupSessionAction({
+            userId: authData.user.id,
             email: formData.email,
-            password: formData.password,
           })
 
-          if (signInError) {
-            setError(signInError.message || t('registerFailed'))
+          if (!sessionResult.success) {
+            setError(sessionResult.error ?? t('registerFailed'))
             return
           }
         }

@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "i18n:validate": "node scripts/validate-i18n.cjs",
     "i18n:sync": "node scripts/sync-locale-keys.cjs",
     "i18n:sync-trust": "node scripts/sync-trust-locale-keys.cjs",
@@ -54,7 +56,8 @@
     "eslint-config-next": "16.2.6",
     "postcss": "^8.5",
     "tailwindcss": "^4.2.0",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "vitest": "^3.2.7"
   },
   "pnpm": {
     "overrides": {

@@ -671,8 +671,8 @@
     }
   },
   "emailVerification": {
-    "bannerTitle": "Verify your email address to secure your account and unlock all features.",
-    "bannerDescription": "Check your inbox for the verification link, or resend the email below.",
+    "bannerTitle": "Please verify your email to secure your account.",
+    "bannerDescription": "Check your inbox for the verification link, or use the buttons below.",
     "statusVerified": "Verified",
     "statusPending": "Pending Verification",
     "verifyEmail": "Verify Email",
@@ -696,7 +696,16 @@
     "changeEmailInvalid": "Enter a valid email address different from your current one.",
     "changeEmailSuccess": "Confirmation email sent to your new address.",
     "saveEmail": "Save email",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "resultSuccessTitle": "Email verified successfully",
+    "resultSuccessDescription": "Your email address is now verified. Sensitive account features are unlocked.",
+    "resultFailedTitle": "Verification failed",
+    "resultFailedDescription": "We could not verify your email. The link may be invalid or already used.",
+    "resultExpiredTitle": "Verification link expired",
+    "resultExpiredDescription": "This verification link has expired. Request a new email to continue.",
+    "resultAlreadyVerifiedTitle": "Email already verified",
+    "resultAlreadyVerifiedDescription": "Your email address is already verified. No further action is needed.",
+    "continueToSettings": "Continue to Security"
   },
   "compliance": {
     "kycRejected": "KYC verification rejected",

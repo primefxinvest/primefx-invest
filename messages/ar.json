@@ -390,7 +390,15 @@
       "statReturns": "Average Annual Returns",
       "statCountries": "Countries Served",
       "statSecure": "Secure & Protected",
-      "ctaHowItWorks": "How PrimeFx Invest Works"
+      "ctaHowItWorks": "How PrimeFx Invest Works",
+      "pillarSecureTitle": "Secure & Trusted",
+      "pillarSecureSubtitle": "Bank-level protection",
+      "pillarAiTitle": "Smart & AI-Powered",
+      "pillarAiSubtitle": "AI-driven insights",
+      "pillarGlobalTitle": "Global",
+      "pillarGlobalSubtitle": "Invest anywhere",
+      "pillarSupportTitle": "24/7 Support",
+      "pillarSupportSubtitle": "Always here to help"
     },
     "whyChoose": {
       "eyebrow": "WHY CHOOSE PRIMEAI INVEST?",
@@ -1499,7 +1507,18 @@
       "methodCard": "Card",
       "cardComingSoon": "More deposit methods are coming soon. Use NOWPayments crypto for now.",
       "cardToastTitle": "Deposits",
-      "cardToastDescription": "More deposit methods are coming soon. Use NOWPayments crypto for now."
+      "cardToastDescription": "More deposit methods are coming soon. Use NOWPayments crypto for now.",
+      "payCurrencyLabel": "Pay currency",
+      "loadingLimits": "Loading…",
+      "partialDepositSuccessTitle": "Deposit Successful",
+      "partialDepositSuccessBody": "A partial payment was received. Your wallet has been credited with the amount actually received.",
+      "partialDepositCreditedLabel": "Credited amount",
+      "requestedAmountLabel": "Original requested amount",
+      "receivedAmountLabel": "Actual received amount",
+      "depositStatusLabel": "Deposit status",
+      "paymentIdLabel": "Payment ID",
+      "statusCompletedPartial": "COMPLETED_PARTIAL",
+      "walletUpdatedSuccess": "Wallet updated successfully."
     },
     "withdraw": {
       "title": "Withdrawal",
@@ -1795,7 +1814,8 @@
       "processing": "Processing",
       "failed": "Failed",
       "cancelled": "Cancelled",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "completedPartial": "Completed (Partial)"
     }
   },
   "emailVerification": {
@@ -1824,7 +1844,16 @@
     "changeEmailInvalid": "Enter a valid email address different from your current one.",
     "changeEmailSuccess": "Confirmation email sent to your new address.",
     "saveEmail": "Save email",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "resultSuccessTitle": "Email verified successfully",
+    "resultSuccessDescription": "Your email address is now verified. Sensitive account features are unlocked.",
+    "resultFailedTitle": "Verification failed",
+    "resultFailedDescription": "We could not verify your email. The link may be invalid or already used.",
+    "resultExpiredTitle": "Verification link expired",
+    "resultExpiredDescription": "This verification link has expired. Request a new email to continue.",
+    "resultAlreadyVerifiedTitle": "Email already verified",
+    "resultAlreadyVerifiedDescription": "Your email address is already verified. No further action is needed.",
+    "continueToSettings": "Continue to Security"
   },
   "assistance": {
     "title": "PrimeFx Assistance",

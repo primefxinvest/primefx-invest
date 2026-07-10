@@ -784,6 +784,7 @@ export async function approveWithdrawalQueueItem(requestId: string) {
   })
 
   revalidatePath('/admin/rewards')
+  revalidatePath('/admin/withdrawals')
   revalidatePath('/admin/transactions')
   revalidatePath('/wallet')
   revalidatePath('/wallet/withdraw')
@@ -810,6 +811,7 @@ export async function rejectWithdrawalQueueItem(requestId: string, reason?: stri
   })
 
   revalidatePath('/admin/rewards')
+  revalidatePath('/admin/withdrawals')
   revalidatePath('/admin/transactions')
   revalidatePath('/wallet')
   revalidatePath('/wallet/withdraw')
@@ -818,7 +820,7 @@ export async function rejectWithdrawalQueueItem(requestId: string, reason?: stri
   return result
 }
 
-export async function adminUnlockWithdrawalHoldAction(requestId: string) {
+export async function adminUnlockWithdrawalHoldAction(requestId: string, reason?: string) {
   const context = await getContext()
   assertModuleAccess(context, 'financial_management')
 
@@ -827,11 +829,17 @@ export async function adminUnlockWithdrawalHoldAction(requestId: string) {
     throw new Error('Only the Platform Owner can unlock withdrawal holds.')
   }
 
+  const unlockReason = reason?.trim()
+  if (!unlockReason) {
+    throw new Error('A reason is required to unlock a withdrawal hold.')
+  }
+
   const { adminUnlockWithdrawalHold } = await import('@/lib/wallet/admin-withdrawal-unlock')
   const result = await adminUnlockWithdrawalHold({
     requestId,
     adminEmail: context.email ?? '',
     adminUserId: context.userId,
+    reason: unlockReason,
   })
 
   await logAdminAction({
@@ -840,13 +848,93 @@ export async function adminUnlockWithdrawalHoldAction(requestId: string) {
     action: 'withdrawal_hold_unlocked',
     targetUserId: result.userId,
     targetResource: requestId,
+    beforeState: { status: 'pending_notice' },
     afterState: result as unknown as Record<string, unknown>,
+    reasonCode: unlockReason,
   })
 
+  revalidatePath('/admin/withdrawals')
+  revalidatePath('/admin/rewards')
   revalidatePath('/wallet/withdraw')
   revalidatePath('/transactions')
 
   return result
+}
+
+export async function adminRelockWithdrawalHoldAction(requestId: string, reason: string) {
+  const context = await getContext()
+  assertModuleAccess(context, 'financial_management')
+
+  const { isSuperAdminEmail } = await import('@/lib/admin/super-admin')
+  if (!isSuperAdminEmail(context.email)) {
+    throw new Error('Only the Platform Owner can re-lock withdrawal holds.')
+  }
+
+  const { adminRelockWithdrawalHold } = await import('@/lib/wallet/admin-withdrawal-relock')
+  const result = await adminRelockWithdrawalHold({
+    requestId,
+    adminEmail: context.email ?? '',
+    adminUserId: context.userId,
+    reason,
+  })
+
+  await logAdminAction({
+    context,
+    module: 'financial_management',
+    action: 'withdrawal_hold_relocked',
+    targetUserId: result.userId,
+    targetResource: requestId,
+    beforeState: { status: 'ready' },
+    afterState: result as unknown as Record<string, unknown>,
+    reasonCode: reason,
+  })
+
+  revalidatePath('/admin/withdrawals')
+  revalidatePath('/admin/rewards')
+  revalidatePath('/wallet/withdraw')
+  revalidatePath('/transactions')
+
+  return result
+}
+
+export async function bulkApproveWithdrawalsAction(requestIds: string[]) {
+  await getContext()
+  const results: Array<{ requestId: string; success: boolean; error?: string }> = []
+  for (const requestId of requestIds) {
+    try {
+      await approveWithdrawalQueueItem(requestId)
+      results.push({ requestId, success: true })
+    } catch (err) {
+      results.push({
+        requestId,
+        success: false,
+        error: err instanceof Error ? err.message : 'Approval failed',
+      })
+    }
+  }
+
+  revalidatePath('/admin/withdrawals')
+  return { results }
+}
+
+export async function bulkRejectWithdrawalsAction(requestIds: string[], reason?: string) {
+  await getContext()
+  const results: Array<{ requestId: string; success: boolean; error?: string }> = []
+  for (const requestId of requestIds) {
+    try {
+      await rejectWithdrawalQueueItem(requestId, reason)
+      results.push({ requestId, success: true })
+    } catch (err) {
+      results.push({
+        requestId,
+        success: false,
+        error: err instanceof Error ? err.message : 'Rejection failed',
+      })
+    }
+  }
+
+  revalidatePath('/admin/withdrawals')
+  return { results }
 }
 
 export async function getDepositSettlementDetails(referenceId: string) {

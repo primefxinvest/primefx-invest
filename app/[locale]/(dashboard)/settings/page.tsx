@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, useTransition } from 'react'
+import { Suspense, useCallback, useEffect, useState, useTransition } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Globe, DollarSign, Lock, Smartphone, ChevronRight, Loader2, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
@@ -13,6 +13,7 @@ import { getMfaStatus, type MfaStatus } from '@/lib/auth/mfa'
 import TwoFactorModal from '@/components/settings/TwoFactorModal'
 import ChangePasswordModal from '@/components/settings/ChangePasswordModal'
 import { EmailVerificationSection } from '@/components/profile/EmailVerificationSection'
+import { EmailVerificationResultScreen } from '@/components/profile/EmailVerificationResultScreen'
 import { CustomSelect } from '@/components/ui/custom-select'
 import {
   isPushNotificationsEnabled,
@@ -223,10 +224,13 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <EmailVerificationSection />
+      <Suspense fallback={null}>
+        <EmailVerificationResultScreen />
+      </Suspense>
 
       <section aria-label="Security settings" className="space-y-3">
         <SectionHeading>{t('security')}</SectionHeading>
+        <EmailVerificationSection />
         <div className={cn(cardSurfaceClass, 'space-y-3')}>
           <button
             type="button"
