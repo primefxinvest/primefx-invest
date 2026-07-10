@@ -8,7 +8,6 @@ import { Eye, EyeOff, Gift, Loader2, Lock, Mail, User } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { bootstrapUserProfile } from '@/lib/auth/bootstrap-profile'
 import { recordSignupVerificationEmailSentAction } from '@/lib/auth/email-verification-actions'
-import { establishPostSignupSessionAction } from '@/lib/auth/signup-actions'
 import { formatGoogleAuthError, isGoogleAuthEnabled, signInWithGoogle } from '@/lib/auth/google-oauth'
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton'
 import { AuthFormShell } from '@/components/auth/AuthFormShell'
@@ -19,6 +18,16 @@ import { PasswordStrengthMeter } from '@/components/auth/PasswordStrengthMeter'
 import { persistReferralCode, readReferralCodeFromCookie } from '@/lib/referral/client'
 import { useResetOnPageShow } from '@/lib/hooks/useResetOnPageShow'
 import { Button } from '@/components/ui/button'
+
+function formatSignupError(err: unknown): string {
+  if (err instanceof Error && err.message.trim()) {
+    return err.message
+  }
+  if (typeof err === 'string' && err.trim()) {
+    return err
+  }
+  return 'Unknown signup error.'
+}
 
 function SignupForm() {
   const t = useTranslations('auth')
@@ -90,6 +99,39 @@ function SignupForm() {
     signInWithGoogle('/dashboard')
   }
 
+  const establishSession = async (userId: string, email: string) => {
+    const response = await fetch('/api/auth/post-signup-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ userId, email }),
+    })
+
+    let payload: { success?: boolean; error?: string; code?: string } = {}
+    try {
+      payload = (await response.json()) as typeof payload
+    } catch (parseError) {
+      console.error('[signup] session response parse failed', parseError)
+      return {
+        success: false as const,
+        error: `Session setup failed with HTTP ${response.status}.`,
+      }
+    }
+
+    if (!response.ok || !payload.success) {
+      console.error('[signup] session setup failed', {
+        status: response.status,
+        payload,
+      })
+      return {
+        success: false as const,
+        error: payload.error ?? `Session setup failed with HTTP ${response.status}.`,
+      }
+    }
+
+    return { success: true as const }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -132,42 +174,69 @@ function SignupForm() {
       })
 
       if (authError) {
+        console.error('[signup] supabase.auth.signUp failed', {
+          message: authError.message,
+          code: authError.code,
+          status: authError.status,
+        })
         setError(authError.message || t('registerFailed'))
         return
       }
 
-      if (authData.user) {
-        const profile = await bootstrapUserProfile({
-          userId: authData.user.id,
-          email: formData.email,
-          fullName: formData.name,
-          investorTier: formData.tier,
-          referralCode: activeReferralCode ?? readReferralCodeFromCookie(),
-        })
+      if (!authData.user) {
+        console.error('[signup] signUp returned no user', { authData })
+        setError('Signup did not return a user record. Please try again.')
+        return
+      }
 
-        if (!profile.success) {
-          setError(profile.error ?? t('profileCreationFailed'))
+      if (authData.user.identities?.length === 0) {
+        console.error('[signup] duplicate email signup attempt', {
+          email: formData.email,
+          userId: authData.user.id,
+        })
+        setError('An account with this email already exists. Please sign in instead.')
+        return
+      }
+
+      console.info('[signup] auth user created', {
+        userId: authData.user.id,
+        hasSession: Boolean(authData.session),
+      })
+
+      const profile = await bootstrapUserProfile({
+        userId: authData.user.id,
+        email: formData.email,
+        fullName: formData.name,
+        investorTier: formData.tier,
+        referralCode: activeReferralCode ?? readReferralCodeFromCookie(),
+      })
+
+      if (!profile.success) {
+        console.error('[signup] bootstrapUserProfile failed', profile)
+        setError(profile.error ?? t('profileCreationFailed'))
+        return
+      }
+
+      if (!authData.session) {
+        const sessionResult = await establishSession(authData.user.id, formData.email)
+        if (!sessionResult.success) {
+          setError(sessionResult.error)
           return
         }
-
-        if (!authData.session) {
-          const sessionResult = await establishPostSignupSessionAction({
-            userId: authData.user.id,
-            email: formData.email,
-          })
-
-          if (!sessionResult.success) {
-            setError(sessionResult.error ?? t('registerFailed'))
-            return
-          }
-        }
-
-        void recordSignupVerificationEmailSentAction()
-        router.refresh()
-        router.push('/dashboard')
       }
-    } catch {
-      setError(t('registerFailed'))
+
+      try {
+        await recordSignupVerificationEmailSentAction()
+      } catch (recordError) {
+        console.error('[signup] recordSignupVerificationEmailSentAction failed (non-blocking)', recordError)
+      }
+
+      router.refresh()
+      router.push('/dashboard')
+    } catch (err) {
+      const message = formatSignupError(err)
+      console.error('[signup] unexpected error', err)
+      setError(message)
     } finally {
       setLoading(false)
     }

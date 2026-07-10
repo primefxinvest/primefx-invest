@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import {
+  ArrowUpRight,
   Award,
   BarChart3,
   FileText,
@@ -23,6 +24,7 @@ const ICONS = {
   FileText,
   Zap,
   Wallet,
+  ArrowUpRight,
   TrendingUp,
   Award,
   Lock,
@@ -30,6 +32,8 @@ const ICONS = {
   ShieldCheck,
   MessageCircle,
 } as const
+
+const FALLBACK_ICON = Wallet
 
 interface AdminNavProps {
   tier: AdminTier
@@ -43,7 +47,7 @@ export function AdminNav({ tier, pathname, onNavigate }: AdminNavProps) {
   return (
     <nav className="primefx-scrollbar flex-1 space-y-2 overflow-y-auto p-4">
       {items.map(({ href, label, icon }) => {
-        const Icon = ICONS[icon as keyof typeof ICONS]
+        const Icon = ICONS[icon as keyof typeof ICONS] ?? FALLBACK_ICON
         const active = pathname === href || (href !== '/admin' && pathname.startsWith(href))
 
         return (

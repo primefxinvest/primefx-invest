@@ -7,23 +7,10 @@ import {
   recordReferralForNewUser,
 } from '@/lib/referral/server'
 import { enforceIpRateLimit, RateLimitExceededError } from '@/lib/security/rate-limit'
+import { checkBootstrapRpcExists, sleep, waitForAuthUser } from '@/lib/auth/signup-session'
 
-const AUTH_USER_RETRY_ATTEMPTS = 5
-const AUTH_USER_RETRY_DELAY_MS = 400
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function mapBootstrapError(code: string | undefined, fallback?: string): string {
-  if (code === 'AUTH_USER_NOT_FOUND') {
-    return 'Account creation is still in progress. Please try again in a moment.'
-  }
-  if (code === 'INVALID_USER_ID') {
-    return 'Invalid account identifier. Please try registering again.'
-  }
-  return fallback ?? 'Profile setup failed. Please try again or contact support.'
-}
+const AUTH_USER_RETRY_ATTEMPTS = 8
+const AUTH_USER_RETRY_DELAY_MS = 500
 
 async function rollbackPartialProfile(
   admin: NonNullable<ReturnType<typeof createAdminSupabaseClient>>,
@@ -42,7 +29,20 @@ async function bootstrapProfileAtomic(
     fullName: string
     investorTier: string
   }
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; code?: string }> {
+  const rpcCheck = await checkBootstrapRpcExists(admin)
+  if (!rpcCheck.exists) {
+    console.error('[signup:bootstrap] migration 046 missing', rpcCheck.error)
+    return { success: false, error: rpcCheck.error, code: 'MIGRATION_046_MISSING' }
+  }
+
+  const authUser = await waitForAuthUser(admin, input.userId)
+  if (!authUser) {
+    const message = `auth.users record not found for id ${input.userId} after signup.`
+    console.error('[signup:bootstrap] auth user missing before bootstrap', { userId: input.userId })
+    return { success: false, error: message, code: 'AUTH_USER_NOT_FOUND' }
+  }
+
   for (let attempt = 0; attempt < AUTH_USER_RETRY_ATTEMPTS; attempt += 1) {
     const { data, error } = await admin.rpc('bootstrap_user_profile_atomic', {
       p_user_id: input.userId,
@@ -52,10 +52,23 @@ async function bootstrapProfileAtomic(
     })
 
     if (error) {
-      if (error.message.includes('bootstrap_user_profile_atomic') && attempt === 0) {
+      console.error('[signup:bootstrap] rpc error', {
+        userId: input.userId,
+        attempt,
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      })
+
+      if (
+        error.message.includes('bootstrap_user_profile_atomic') &&
+        (error.message.includes('Could not find') || error.message.includes('does not exist'))
+      ) {
         return bootstrapProfileFallback(admin, input)
       }
-      return { success: false, error: error.message }
+
+      return { success: false, error: error.message, code: error.code ?? 'RPC_ERROR' }
     }
 
     const result = data as { success?: boolean; error?: string } | null
@@ -64,15 +77,29 @@ async function bootstrapProfileAtomic(
     }
 
     const code = result?.error
+    console.error('[signup:bootstrap] rpc returned failure', {
+      userId: input.userId,
+      attempt,
+      code,
+    })
+
     if (code === 'AUTH_USER_NOT_FOUND' && attempt < AUTH_USER_RETRY_ATTEMPTS - 1) {
       await sleep(AUTH_USER_RETRY_DELAY_MS)
       continue
     }
 
-    return { success: false, error: mapBootstrapError(code) }
+    return {
+      success: false,
+      error: code ?? 'Profile bootstrap failed.',
+      code: code ?? 'BOOTSTRAP_FAILED',
+    }
   }
 
-  return { success: false, error: mapBootstrapError('AUTH_USER_NOT_FOUND') }
+  return {
+    success: false,
+    error: `auth.users record not found for id ${input.userId} after signup.`,
+    code: 'AUTH_USER_NOT_FOUND',
+  }
 }
 
 async function bootstrapProfileFallback(
@@ -83,10 +110,16 @@ async function bootstrapProfileFallback(
     fullName: string
     investorTier: string
   }
-): Promise<{ success: boolean; error?: string }> {
-  const { data: authData, error: authError } = await admin.auth.admin.getUserById(input.userId)
-  if (authError || !authData?.user) {
-    return { success: false, error: mapBootstrapError('AUTH_USER_NOT_FOUND') }
+): Promise<{ success: boolean; error?: string; code?: string }> {
+  console.warn('[signup:bootstrap] using fallback path (migration 046 rpc unavailable)', {
+    userId: input.userId,
+  })
+
+  const authUser = await waitForAuthUser(admin, input.userId)
+  if (!authUser) {
+    const message = `auth.users record not found for id ${input.userId} after signup.`
+    console.error('[signup:bootstrap] fallback auth user missing', { userId: input.userId })
+    return { success: false, error: message, code: 'AUTH_USER_NOT_FOUND' }
   }
 
   const { error: userError } = await admin.from('users').upsert(
@@ -101,7 +134,13 @@ async function bootstrapProfileFallback(
   )
 
   if (userError) {
-    return { success: false, error: mapBootstrapError(undefined, userError.message) }
+    console.error('[signup:bootstrap] users upsert failed', {
+      userId: input.userId,
+      message: userError.message,
+      code: userError.code,
+      details: userError.details,
+    })
+    return { success: false, error: userError.message, code: userError.code ?? 'USERS_UPSERT_FAILED' }
   }
 
   const { error: walletError } = await admin.from('wallet_balances').upsert(
@@ -117,7 +156,12 @@ async function bootstrapProfileFallback(
 
   if (walletError) {
     await rollbackPartialProfile(admin, input.userId)
-    return { success: false, error: walletError.message }
+    console.error('[signup:bootstrap] wallet upsert failed', {
+      userId: input.userId,
+      message: walletError.message,
+      code: walletError.code,
+    })
+    return { success: false, error: walletError.message, code: walletError.code ?? 'WALLET_UPSERT_FAILED' }
   }
 
   const { data: existingPortfolio } = await admin
@@ -133,7 +177,16 @@ async function bootstrapProfileFallback(
 
     if (portfolioError) {
       await rollbackPartialProfile(admin, input.userId)
-      return { success: false, error: portfolioError.message }
+      console.error('[signup:bootstrap] portfolio insert failed', {
+        userId: input.userId,
+        message: portfolioError.message,
+        code: portfolioError.code,
+      })
+      return {
+        success: false,
+        error: portfolioError.message,
+        code: portfolioError.code ?? 'PORTFOLIO_INSERT_FAILED',
+      }
     }
   }
 
@@ -146,26 +199,26 @@ export async function bootstrapUserProfile(input: {
   fullName: string
   investorTier: string
   referralCode?: string | null
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; code?: string }> {
   try {
     await enforceIpRateLimit('auth:signup')
   } catch (err) {
     if (err instanceof RateLimitExceededError) {
-      return { success: false, error: err.message }
+      return { success: false, error: err.message, code: 'RATE_LIMIT_EXCEEDED' }
     }
+    console.error('[signup:bootstrap] rate limit check failed', err)
     throw err
   }
 
   const admin = createAdminSupabaseClient()
   const keyIssue = getServiceRoleKeyIssue()
   if (!admin || keyIssue) {
-    return {
-      success: false,
-      error:
-        keyIssue === 'wrong-role' || keyIssue === 'same-as-anon'
-          ? 'SUPABASE_SERVICE_ROLE_KEY is set to the anon key. Use the service_role secret from Supabase → Project Settings → API.'
-          : 'Server profile setup is not configured. Add the real SUPABASE_SERVICE_ROLE_KEY to .env and run migration 005_signup_bootstrap.sql.',
-    }
+    const error =
+      keyIssue === 'wrong-role' || keyIssue === 'same-as-anon'
+        ? 'SUPABASE_SERVICE_ROLE_KEY is set to the anon key. Use the service_role secret from Supabase → Project Settings → API.'
+        : 'Server profile setup is not configured. Add SUPABASE_SERVICE_ROLE_KEY to the server environment.'
+    console.error('[signup:bootstrap] service role misconfigured', { keyIssue })
+    return { success: false, error, code: keyIssue ?? 'SERVICE_ROLE_MISSING' }
   }
 
   const referralCode = normalizeReferralCode(input.referralCode)
@@ -185,7 +238,10 @@ export async function bootstrapUserProfile(input: {
     await ensureUserReferralCode(input.userId, input.fullName)
     await recordReferralForNewUser(input.userId, referralCode)
   } catch (err) {
-    console.error('[bootstrap] referral setup failed', err)
+    console.error('[signup:bootstrap] referral setup failed (non-blocking)', {
+      userId: input.userId,
+      err,
+    })
   }
 
   return { success: true }
