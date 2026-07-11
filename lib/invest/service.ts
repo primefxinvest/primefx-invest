@@ -5,7 +5,10 @@ import { getKycBlockReason } from '@/lib/investor/kyc'
 import { isAccountStatusFinanciallyBlocked } from '@/lib/security/account-access'
 import { generatePaymentReference } from '@/lib/payments/reference'
 import { notifyInvestmentCreated } from '@/lib/notifications/service'
-import { markReferralActiveOnFirstActivity } from '@/lib/referral/commission-service'
+import {
+  accrueInvestmentReferralCommission,
+  markReferralActiveOnFirstActivity,
+} from '@/lib/referral/commission-service'
 import { getNextDailyPayoutAt, getCapitalWithdrawalUnlockAt, resolvePlanCapitalLockDays } from '@/lib/invest/profit-engine'
 import { syncInvestorTierFromActivePlans } from '@/lib/invest/tier-sync'
 import {
@@ -228,6 +231,28 @@ export async function executeInvestment(
     await notifyInvestmentCreated(input.userId, String(plan.name), amount, referenceId)
 
     await markReferralActiveOnFirstActivity(input.userId)
+
+    try {
+      await accrueInvestmentReferralCommission({
+        sourceUserId: input.userId,
+        amountUsd: amount,
+        trigger: 'investment',
+        referenceId,
+      })
+    } catch (commissionErr) {
+      // Investment already succeeded; commission retry is available via weekly payout of pending rows.
+      console.error(
+        JSON.stringify({
+          scope: 'referral.bonus',
+          event: 'investment_commission_after_invest_failed',
+          timestamp: new Date().toISOString(),
+          userId: input.userId,
+          investmentId: investment.id,
+          referenceId,
+          error: commissionErr instanceof Error ? commissionErr.message : 'Commission failed',
+        })
+      )
+    }
 
     let investorTierUpgraded: string | undefined
     try {

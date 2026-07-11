@@ -119,7 +119,11 @@ export async function recordReferralForNewUser(
     .eq('referred_user_id', referredUserId)
     .maybeSingle()
 
+  const { buildReferralNetworkForUser } = await import('@/lib/referral/network')
+
   if (existing) {
+    // Ensure closure table exists even if an earlier signup skipped network build.
+    await buildReferralNetworkForUser(referredUserId, referrerId)
     return { success: true, referrerId }
   }
 
@@ -132,13 +136,22 @@ export async function recordReferralForNewUser(
 
   if (error) {
     if (error.code === '23505') {
+      await buildReferralNetworkForUser(referredUserId, referrerId)
       return { success: true, referrerId }
     }
-    console.error('[referral] insert failed:', error.message)
+    console.error(
+      JSON.stringify({
+        scope: 'referral.commission',
+        event: 'referral_insert_failed',
+        timestamp: new Date().toISOString(),
+        userId: referredUserId,
+        referralId: referrerId,
+        error: error.message,
+      })
+    )
     return { success: false }
   }
 
-  const { buildReferralNetworkForUser } = await import('@/lib/referral/network')
   await buildReferralNetworkForUser(referredUserId, referrerId)
 
   return { success: true, referrerId }

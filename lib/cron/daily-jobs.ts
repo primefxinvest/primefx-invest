@@ -10,6 +10,8 @@ import { processDueWithdrawalRow } from '@/lib/payments/withdrawal-payout'
 import { listDueWithdrawalRequests } from '@/lib/wallet/withdrawals'
 import { syncAllOpenDeposits } from '@/lib/payments/deposit-sync'
 import { withCronJobLock } from '@/lib/cron/lock'
+import { logFinancialAudit } from '@/lib/payments/financial-audit'
+import { logEngine } from '@/lib/observability/engine-log'
 
 /** Promote due wallet withdrawals and send hold reminders. */
 export async function processDueWalletWithdrawals() {
@@ -102,6 +104,11 @@ async function executeDailyCron(): Promise<DailyCronResult> {
   const now = new Date()
   const utcDay = now.getUTCDay()
 
+  logEngine('cron.execution', 'daily_cron_start', {
+    utcDay,
+    ranAt: now.toISOString(),
+  })
+
   const withdrawals = await processDueWalletWithdrawals()
   const depositSync = await syncAllOpenDeposits()
 
@@ -116,7 +123,7 @@ async function executeDailyCron(): Promise<DailyCronResult> {
 
   const capitalWithdrawals = await processDueCapitalWithdrawals()
 
-  return {
+  const result = {
     ranAt: now.toISOString(),
     utcDay,
     withdrawals,
@@ -125,34 +132,69 @@ async function executeDailyCron(): Promise<DailyCronResult> {
     weekly,
     capitalWithdrawals,
   }
+
+  await logFinancialAudit({
+    eventType: 'cron.daily_completed',
+    referenceId: now.toISOString().slice(0, 10),
+    metadata: {
+      utcDay,
+      profitsProcessed: 'processed' in profits ? profits.processed : 0,
+      profitsSkipped: 'skipped' in profits ? profits.skipped : false,
+      weeklyCommissionsPaid: weekly?.commissions.paid ?? 0,
+      weeklyRankBonusesPaid: weekly?.rankBonuses.paid ?? 0,
+    },
+  })
+
+  logEngine('cron.execution', 'daily_cron_complete', {
+    utcDay,
+    ranAt: result.ranAt,
+    profitsProcessed: 'processed' in profits ? profits.processed : 0,
+    weeklyRan: Boolean(weekly),
+  })
+
+  return result
 }
 
 /** Single daily cron for Vercel Hobby (one job / 24h). */
 export async function runDailyCron(): Promise<DailyCronResult> {
-  const locked = await withCronJobLock('daily_cron', executeDailyCron, 3600)
+  try {
+    const locked = await withCronJobLock('daily_cron', executeDailyCron, 3600)
 
-  if (locked.skipped) {
-    const now = new Date()
-    return {
-      ranAt: now.toISOString(),
-      utcDay: now.getUTCDay(),
-      lockSkipped: true,
-      lockReason: locked.reason,
-      withdrawals: {
-        processed: 0,
-        readyForPayout: 0,
-        skipped: 0,
-        failed: 0,
-        totalDue: 0,
-        holdReminders: { threeDay: 0, oneDay: 0, skipped: 0, checked: 0 },
-        results: [],
-      },
-      depositSync: { checked: 0, completed: 0, failed: 0, results: [] },
-      profits: { skipped: true, reason: locked.reason },
-      weekly: null,
-      capitalWithdrawals: { processed: 0, totalDue: 0 },
+    if (locked.skipped) {
+      const now = new Date()
+      logEngine('cron.execution', 'daily_cron_lock_skipped', {
+        error: locked.reason,
+        ranAt: now.toISOString(),
+      })
+      return {
+        ranAt: now.toISOString(),
+        utcDay: now.getUTCDay(),
+        lockSkipped: true,
+        lockReason: locked.reason,
+        withdrawals: {
+          processed: 0,
+          readyForPayout: 0,
+          skipped: 0,
+          failed: 0,
+          totalDue: 0,
+          holdReminders: { threeDay: 0, oneDay: 0, skipped: 0, checked: 0 },
+          results: [],
+        },
+        depositSync: { checked: 0, completed: 0, failed: 0, results: [] },
+        profits: { skipped: true, reason: locked.reason },
+        weekly: null,
+        capitalWithdrawals: { processed: 0, totalDue: 0 },
+      }
     }
-  }
 
-  return locked.result
+    return locked.result
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Daily cron failed'
+    await logFinancialAudit({
+      eventType: 'cron.daily_failed',
+      metadata: { error: message },
+    })
+    logEngine('cron.execution', 'daily_cron_failed', { error: message })
+    throw err
+  }
 }

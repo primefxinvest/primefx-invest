@@ -14,7 +14,7 @@ export async function GET(request: Request) {
       ok: true,
       ...result,
       note:
-        'Unified daily cron: wallet withdrawals, capital returns, deposit sync (daily), investment profits (Mon–Fri), referral payouts (Friday).',
+        'Unified daily cron: wallet withdrawals, capital returns, deposit sync, investment profits (daily 24h), referral payouts (Friday UTC).',
     })
   } catch (err) {
     return NextResponse.json(

@@ -17,6 +17,7 @@ import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { creditInvestorWallet } from '@/lib/payments/wallet-ledger'
 import { generatePaymentReference } from '@/lib/payments/reference'
 import { logFinancialAudit } from '@/lib/payments/financial-audit'
+import { logEngine } from '@/lib/observability/engine-log'
 
 function getDb() {
   const db = createAdminSupabaseClient()
@@ -313,7 +314,7 @@ async function creditSingleProfitPayout(input: {
     portfolio.profit_loss = profitLoss
   }
 
-  const { data: txRow } = await db
+  const { data: txRow, error: txError } = await db
     .from('transactions')
     .insert({
       user_id: userId,
@@ -326,6 +327,25 @@ async function creditSingleProfitPayout(input: {
     })
     .select('id')
     .single()
+
+  if (txError) {
+    logEngine('transaction.create', 'profit_tx_failed', {
+      userId,
+      investmentId,
+      referenceId,
+      amountUsd: profit,
+      error: txError.message,
+    })
+    throw new Error(txError.message)
+  }
+
+  logEngine('transaction.create', 'profit_tx_created', {
+    userId,
+    investmentId,
+    referenceId,
+    amountUsd: profit,
+    transactionId: txRow?.id,
+  })
 
   if (txRow?.id) {
     await db
@@ -362,11 +382,48 @@ async function creditSingleProfitPayout(input: {
 
   await creditInvestorWallet(userId, profit)
 
-  await accrueReferralCommissionsForProfit({
-    sourceUserId: userId,
-    profitUsd: profit,
-    periodStart: period.periodDate,
-    periodEnd: period.periodDate,
+  logEngine('wallet.credit', 'daily_profit', {
+    userId,
+    investmentId,
+    referenceId,
+    amountUsd: profit,
+    periodDate: period.periodDate,
+  })
+
+  try {
+    await accrueReferralCommissionsForProfit({
+      sourceUserId: userId,
+      profitUsd: profit,
+      periodStart: period.periodDate,
+      periodEnd: period.periodDate,
+      investmentId,
+    })
+  } catch (referralErr) {
+    const message =
+      referralErr instanceof Error ? referralErr.message : 'Referral accrual failed'
+    await logFinancialAudit({
+      eventType: 'profit.referral_accrual_failed',
+      userId,
+      referenceId,
+      amountUsd: profit,
+      metadata: { investmentId, periodDate: period.periodDate, error: message },
+    })
+    logEngine('referral.commission', 'accrual_after_profit_failed', {
+      userId,
+      investmentId,
+      referenceId,
+      amountUsd: profit,
+      error: message,
+    })
+    // Profit credit already succeeded — do not roll back investor payout.
+  }
+
+  logEngine('profit.generation', 'profit_credited', {
+    userId,
+    investmentId,
+    referenceId,
+    amountUsd: profit,
+    periodDate: period.periodDate,
   })
 
   return { credited: true, profit }
@@ -449,7 +506,15 @@ async function runInvestmentProfits(now: Date = new Date()): Promise<ProfitRunRe
   let totalProfitUsd = 0
   let processed = 0
   let investmentsTouched = 0
+  let failed = 0
   const usersToReconcile = new Set<string>()
+
+  logEngine('profit.generation', 'run_started', {
+    periodStart: runDate,
+    periodEnd: runDate,
+    activeInvestments: investments.length,
+    retryRun: isRetryRun,
+  })
 
   for (const investment of investments) {
     const existingPeriodDates = historyMap.get(investment.id) ?? new Set<string>()
@@ -464,20 +529,41 @@ async function runInvestmentProfits(now: Date = new Date()): Promise<ProfitRunRe
     investmentsTouched += 1
 
     for (const period of duePeriods) {
-      const result = await creditSingleProfitPayout({
-        db,
-        investment,
-        period,
-        portfolioCache,
-        now,
-      })
+      try {
+        const result = await creditSingleProfitPayout({
+          db,
+          investment,
+          period,
+          portfolioCache,
+          now,
+        })
 
-      if (!result.credited) continue
+        if (!result.credited) continue
 
-      totalProfitUsd += result.profit
-      processed += 1
-      existingPeriodDates.add(period.periodDate)
-      usersToReconcile.add(investment.user_id)
+        totalProfitUsd += result.profit
+        processed += 1
+        existingPeriodDates.add(period.periodDate)
+        usersToReconcile.add(investment.user_id)
+      } catch (err) {
+        failed += 1
+        const message = err instanceof Error ? err.message : 'Profit credit failed'
+        await logFinancialAudit({
+          eventType: 'profit.credit_failed',
+          userId: investment.user_id,
+          referenceId: `${investment.id}:${period.periodDate}`,
+          metadata: {
+            investmentId: investment.id,
+            periodDate: period.periodDate,
+            error: message,
+          },
+        })
+        logEngine('profit.generation', 'profit_credit_failed', {
+          userId: investment.user_id,
+          investmentId: investment.id,
+          error: message,
+          periodDate: period.periodDate,
+        })
+      }
     }
   }
 
@@ -505,10 +591,21 @@ async function runInvestmentProfits(now: Date = new Date()): Promise<ProfitRunRe
     amountUsd: roundedTotal,
     metadata: {
       processed,
+      failed,
       investmentsTouched,
       engine: 'interval_24h_v3',
       retryRun: isRetryRun,
     },
+  })
+
+  logEngine('profit.generation', 'run_completed', {
+    periodStart: runDate,
+    periodEnd: runDate,
+    processed,
+    failed,
+    investmentsTouched,
+    amountUsd: roundedTotal,
+    retryRun: isRetryRun,
   })
 
   return {

@@ -141,6 +141,11 @@ async function ensureRankRewardRecord(
   })
 }
 
+/**
+ * Resolve upline for commission accrual.
+ * Falls back to the referrals chain and rebuilds referral_network when the
+ * closure table is empty (e.g. signup succeeded but network insert failed).
+ */
 export async function getReferralAncestors(userId: string, maxLevel = 4) {
   const admin = getDb()
   if (!admin) return []
@@ -152,9 +157,42 @@ export async function getReferralAncestors(userId: string, maxLevel = 4) {
     .lte('depth', maxLevel)
     .order('depth', { ascending: true })
 
-  return (data ?? []).map((row) => ({
-    referrerId: row.ancestor_id as string,
-    level: Number(row.depth),
+  if (data?.length) {
+    return data.map((row) => ({
+      referrerId: row.ancestor_id as string,
+      level: Number(row.depth),
+    }))
+  }
+
+  const { data: direct } = await admin
+    .from('referrals')
+    .select('referrer_id')
+    .eq('referred_user_id', userId)
+    .maybeSingle()
+
+  const directReferrerId = direct?.referrer_id as string | undefined
+  if (!directReferrerId) return []
+
+  await buildReferralNetworkForUser(userId, directReferrerId)
+
+  const { data: rebuilt } = await admin
+    .from('referral_network')
+    .select('ancestor_id, depth')
+    .eq('descendant_id', userId)
+    .lte('depth', maxLevel)
+    .order('depth', { ascending: true })
+
+  if (rebuilt?.length) {
+    return rebuilt.map((row) => ({
+      referrerId: row.ancestor_id as string,
+      level: Number(row.depth),
+    }))
+  }
+
+  const chain = [directReferrerId, ...(await getReferrerChain(admin, directReferrerId, maxLevel - 1))]
+  return chain.slice(0, maxLevel).map((referrerId, index) => ({
+    referrerId,
+    level: index + 1,
   }))
 }
 

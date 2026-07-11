@@ -44,7 +44,10 @@ import {
   notifyWithdrawalSubmitted,
   notifyWithdrawalCompleted,
 } from '@/lib/notifications/service'
-import { markReferralActiveOnFirstActivity } from '@/lib/referral/commission-service'
+import {
+  accrueInvestmentReferralCommission,
+  markReferralActiveOnFirstActivity,
+} from '@/lib/referral/commission-service'
 
 export async function createDepositPayment(input: {
   userId: string
@@ -329,6 +332,27 @@ export async function completeDepositFromWebhook(
   }
 
   await markReferralActiveOnFirstActivity(userId)
+
+  try {
+    await accrueInvestmentReferralCommission({
+      sourceUserId: userId,
+      amountUsd: receivedUsd,
+      trigger: 'deposit',
+      referenceId: orderId,
+    })
+  } catch (commissionErr) {
+    console.error(
+      JSON.stringify({
+        scope: 'referral.bonus',
+        event: 'investment_commission_after_deposit_failed',
+        timestamp: new Date().toISOString(),
+        userId,
+        referenceId: orderId,
+        amountUsd: receivedUsd,
+        error: commissionErr instanceof Error ? commissionErr.message : 'Commission failed',
+      })
+    )
+  }
 
   await logFinancialAudit({
     eventType: settlement.isPartial ? 'deposit.credited_partial' : 'deposit.credited',

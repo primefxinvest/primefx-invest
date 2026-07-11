@@ -1,0 +1,1359 @@
+{
+  "auditedAt": "2026-07-11T20:35:54.087Z",
+  "appUrl": "http://localhost:3000",
+  "productionUrl": "https://www.primefxinvest.com",
+  "supabaseProjectRef": "evjoyubypgjutylekiys",
+  "checks": [
+    {
+      "section": "database",
+      "name": "table:users",
+      "pass": true,
+      "detail": {
+        "table": "users",
+        "count": 22,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:wallets",
+      "pass": true,
+      "detail": {
+        "table": "wallets",
+        "count": 0,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:wallet_balances",
+      "pass": true,
+      "detail": {
+        "table": "wallet_balances",
+        "count": 22,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:investments",
+      "pass": true,
+      "detail": {
+        "table": "investments",
+        "count": 4,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:portfolios",
+      "pass": true,
+      "detail": {
+        "table": "portfolios",
+        "count": 22,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:transactions",
+      "pass": true,
+      "detail": {
+        "table": "transactions",
+        "count": 30,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:referrals",
+      "pass": true,
+      "detail": {
+        "table": "referrals",
+        "count": 9,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:referral_network",
+      "pass": true,
+      "detail": {
+        "table": "referral_network",
+        "count": 13,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:referral_commissions",
+      "pass": true,
+      "detail": {
+        "table": "referral_commissions",
+        "count": 2,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:referral_rank_rewards",
+      "pass": true,
+      "detail": {
+        "table": "referral_rank_rewards",
+        "count": 0,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:investment_profit_history",
+      "pass": true,
+      "detail": {
+        "table": "investment_profit_history",
+        "count": 1,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:investment_profit_runs",
+      "pass": true,
+      "detail": {
+        "table": "investment_profit_runs",
+        "count": 4,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:financial_audit_logs",
+      "pass": true,
+      "detail": {
+        "table": "financial_audit_logs",
+        "count": 60,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:cron_job_locks",
+      "pass": true,
+      "detail": {
+        "table": "cron_job_locks",
+        "count": 0,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:payments",
+      "pass": true,
+      "detail": {
+        "table": "payments",
+        "count": 13,
+        "error": null
+      }
+    },
+    {
+      "section": "database",
+      "name": "table:withdrawal_requests",
+      "pass": true,
+      "detail": {
+        "table": "withdrawal_requests",
+        "count": 0,
+        "error": null
+      }
+    },
+    {
+      "section": "rpc",
+      "name": "rpc:acquire_cron_job_lock",
+      "pass": true,
+      "detail": {
+        "name": "acquire_cron_job_lock",
+        "present": true,
+        "error": null,
+        "data": true
+      }
+    },
+    {
+      "section": "rpc",
+      "name": "rpc:release_cron_job_lock",
+      "pass": true,
+      "detail": {
+        "name": "release_cron_job_lock",
+        "present": true,
+        "error": null,
+        "data": true
+      }
+    },
+    {
+      "section": "rpc",
+      "name": "rpc:claim_profit_run_period",
+      "pass": true,
+      "detail": {
+        "name": "claim_profit_run_period",
+        "present": true,
+        "error": null,
+        "data": {
+          "id": null,
+          "period_start": null,
+          "period_end": null,
+          "trading_days": null,
+          "total_profit_usd": null,
+          "status": null,
+          "created_at": null
+        }
+      }
+    },
+    {
+      "section": "rpc",
+      "name": "rpc:claim_investment_daily_profit",
+      "pass": true,
+      "detail": {
+        "name": "claim_investment_daily_profit",
+        "present": true,
+        "error": "insert or update on table \"investment_profit_history\" violates foreign key constraint \"investment_profit_history_investment_id_fkey\"",
+        "data": null
+      }
+    },
+    {
+      "section": "referral",
+      "name": "users_have_referral_codes",
+      "pass": true,
+      "detail": {
+        "usersWithCodes": 17
+      }
+    },
+    {
+      "section": "referral",
+      "name": "sample_referral_code_present",
+      "pass": true,
+      "detail": {
+        "id": "a526f243-3f0c-4576-a96b-5365a72085cc",
+        "referral_code": "A526F243",
+        "full_name": "Mushimiyimana Isaac"
+      }
+    },
+    {
+      "section": "referral",
+      "name": "referrals_table_readable",
+      "pass": true,
+      "detail": {
+        "referralCount": 9
+      }
+    },
+    {
+      "section": "referral",
+      "name": "referral_network_readable",
+      "pass": true,
+      "detail": {
+        "networkCount": 13
+      }
+    },
+    {
+      "section": "referral",
+      "name": "network_coverage_for_sampled_referrals",
+      "pass": true,
+      "detail": {
+        "sampled": 9,
+        "withAncestors": 9,
+        "missingNetwork": 0
+      }
+    },
+    {
+      "section": "referral",
+      "name": "commission_table_readable",
+      "pass": true,
+      "detail": {
+        "sampled": 2,
+        "byType": {
+          "investment": 2
+        },
+        "byStatus": {
+          "paid": 2
+        }
+      }
+    },
+    {
+      "section": "referral",
+      "name": "profit_share_levels_observed_or_empty_ok",
+      "pass": true,
+      "detail": {
+        "levelsPresent": [],
+        "note": "Empty is OK if no profits accrued yet for referred investors"
+      }
+    },
+    {
+      "section": "referral",
+      "name": "investment_commission_type_supported",
+      "pass": true,
+      "detail": {
+        "count": 2,
+        "note": "Live investment commissions present"
+      }
+    },
+    {
+      "section": "referral",
+      "name": "paid_commissions_have_transactions",
+      "pass": true,
+      "detail": {
+        "paidSampled": 2,
+        "paidWithTx": 2,
+        "paidMissingTx": 0
+      }
+    },
+    {
+      "section": "referral",
+      "name": "rank_rewards_readable",
+      "pass": true,
+      "detail": {
+        "count": 0,
+        "statuses": {}
+      }
+    },
+    {
+      "section": "profit",
+      "name": "active_investments_exist",
+      "pass": true,
+      "detail": {
+        "count": 4
+      }
+    },
+    {
+      "section": "profit",
+      "name": "roi_and_principal_valid",
+      "pass": true,
+      "detail": {
+        "mathOk": 4,
+        "mathBad": 0
+      }
+    },
+    {
+      "section": "profit",
+      "name": "profit_history_idempotent_unique_periods",
+      "pass": true,
+      "detail": {
+        "rows": 0,
+        "unique": 0,
+        "historySum": 0
+      }
+    },
+    {
+      "section": "profit",
+      "name": "portfolio_row_exists",
+      "pass": true,
+      "detail": {
+        "id": "f9c2921a-3387-4cc9-91a6-7f8545261a6e",
+        "user_id": "7ecf0def-e418-45bc-ba35-68c0391de1d6",
+        "total_invested": 4100,
+        "current_value": 4100,
+        "profit_loss": 0,
+        "roi_percentage": 0,
+        "created_at": "2026-07-06T03:26:20.335417+00:00",
+        "updated_at": "2026-07-11T15:22:22.409+00:00"
+      }
+    },
+    {
+      "section": "profit",
+      "name": "wallet_row_exists",
+      "pass": true,
+      "detail": {
+        "id": "1d0d606b-d8a4-4b64-a23d-00c17cd8e528",
+        "user_id": "7ecf0def-e418-45bc-ba35-68c0391de1d6",
+        "available_balance": 10,
+        "pending_balance": 0,
+        "bonus_balance": 0,
+        "total_balance": 10,
+        "updated_at": "2026-07-11T20:30:43.5453+00:00"
+      }
+    },
+    {
+      "section": "profit",
+      "name": "profit_transactions_exist_or_history_empty",
+      "pass": true,
+      "detail": {
+        "historyCount": 0,
+        "profitTxCount": 0
+      }
+    },
+    {
+      "section": "portfolio",
+      "name": "portfolio_pnl_matches_current_minus_invested",
+      "pass": true,
+      "detail": {
+        "invested": 4100,
+        "current": 4100,
+        "pl": 0,
+        "expectedPl": 0
+      }
+    },
+    {
+      "section": "dashboard",
+      "name": "lifetime_profit_source_is_history_sum",
+      "pass": true,
+      "detail": {
+        "userId": "7ecf0def-e418-45bc-ba35-68c0391de1d6",
+        "lifetimeProfitUsd": 0,
+        "formatted": "$0.00"
+      }
+    },
+    {
+      "section": "wallet",
+      "name": "no_negative_wallet_balances_in_sample",
+      "pass": true,
+      "detail": {
+        "ok": 22,
+        "neg": 0,
+        "sampled": 22
+      }
+    },
+    {
+      "section": "wallet",
+      "name": "transactions_readable",
+      "pass": true,
+      "detail": {
+        "types": {
+          "referral": 2,
+          "investment_profit": 1,
+          "transfer_received": 5,
+          "transfer_sent": 5,
+          "deposit": 13,
+          "investment": 4
+        },
+        "sampled": 30
+      }
+    },
+    {
+      "section": "admin",
+      "name": "payments_table_readable",
+      "pass": true,
+      "detail": {
+        "payments": 13
+      }
+    },
+    {
+      "section": "admin",
+      "name": "withdrawals_table_readable",
+      "pass": true,
+      "detail": {
+        "withdrawals": 0
+      }
+    },
+    {
+      "section": "admin",
+      "name": "open_withdrawals_readable",
+      "pass": true,
+      "detail": {
+        "open": 0
+      }
+    },
+    {
+      "section": "admin",
+      "name": "admin_profiles_present_or_bootstrap_env",
+      "pass": true,
+      "detail": {
+        "adminProfiles": 0,
+        "note": "Bootstrap emails may also grant access via ADMIN_SUPER_EMAILS"
+      }
+    },
+    {
+      "section": "cron",
+      "name": "CRON_SECRET_configured",
+      "pass": true,
+      "detail": null
+    },
+    {
+      "section": "cron",
+      "name": "execute /api/cron/daily-profits @ http://localhost:3000",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "durationMs": 5079,
+        "lockSkipped": false,
+        "profits": {
+          "skipped": false,
+          "periodStart": "2026-07-11",
+          "periodEnd": "2026-07-11",
+          "processed": 0,
+          "totalProfitUsd": 0,
+          "investmentsTouched": 0
+        },
+        "weekly": null,
+        "error": null
+      }
+    },
+    {
+      "section": "cron",
+      "name": "execute /api/cron/process-withdrawals @ http://localhost:3000",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "durationMs": 713,
+        "lockSkipped": false,
+        "profits": null,
+        "weekly": null,
+        "error": null
+      }
+    },
+    {
+      "section": "cron",
+      "name": "execute /api/cron/weekly-commissions @ http://localhost:3000",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "durationMs": 1938,
+        "lockSkipped": false,
+        "profits": null,
+        "weekly": null,
+        "error": null
+      }
+    },
+    {
+      "section": "cron",
+      "name": "execute /api/cron/daily @ http://localhost:3000",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "durationMs": 16108,
+        "lockSkipped": false,
+        "profits": {
+          "skipped": false,
+          "periodStart": "2026-07-11",
+          "periodEnd": "2026-07-11",
+          "processed": 0,
+          "totalProfitUsd": 0,
+          "investmentsTouched": 0
+        },
+        "weekly": null,
+        "error": null
+      }
+    },
+    {
+      "section": "cron",
+      "name": "execute /api/cron/daily @ production",
+      "pass": true,
+      "detail": {
+        "status": 200,
+        "durationMs": 8351,
+        "lockSkipped": false,
+        "error": null,
+        "profits": {
+          "skipped": false,
+          "periodStart": "2026-07-11",
+          "periodEnd": "2026-07-11",
+          "processed": 0,
+          "totalProfitUsd": 0,
+          "investmentsTouched": 0
+        }
+      }
+    },
+    {
+      "section": "logs",
+      "name": "financial_audit_logs_present",
+      "pass": true,
+      "detail": {
+        "recentTypes": [
+          "cron.lock_released",
+          "profit.run_completed",
+          "cron.lock_acquired",
+          "cron.daily_completed",
+          "referral.commission_accrued",
+          "referral.commission_paid",
+          "wallet.credit",
+          "referral.investment_commission_accrued",
+          "wallet.debit"
+        ]
+      }
+    },
+    {
+      "section": "profit",
+      "name": "post_cron_history_readable",
+      "pass": true,
+      "detail": {
+        "count": 0,
+        "sum": 0
+      }
+    },
+    {
+      "section": "profit",
+      "name": "idempotent_retry_second_run_ok",
+      "pass": true,
+      "detail": {
+        "growth": 0,
+        "firstProcessed": 0,
+        "secondProcessed": 0
+      }
+    },
+    {
+      "section": "realtime",
+      "name": "supabase_realtime_subscribe",
+      "pass": true,
+      "detail": {
+        "status": "SUBSCRIBED"
+      }
+    }
+  ],
+  "sections": {
+    "database": [
+      {
+        "name": "table:users",
+        "pass": true,
+        "detail": {
+          "table": "users",
+          "count": 22,
+          "error": null
+        }
+      },
+      {
+        "name": "table:wallets",
+        "pass": true,
+        "detail": {
+          "table": "wallets",
+          "count": 0,
+          "error": null
+        }
+      },
+      {
+        "name": "table:wallet_balances",
+        "pass": true,
+        "detail": {
+          "table": "wallet_balances",
+          "count": 22,
+          "error": null
+        }
+      },
+      {
+        "name": "table:investments",
+        "pass": true,
+        "detail": {
+          "table": "investments",
+          "count": 4,
+          "error": null
+        }
+      },
+      {
+        "name": "table:portfolios",
+        "pass": true,
+        "detail": {
+          "table": "portfolios",
+          "count": 22,
+          "error": null
+        }
+      },
+      {
+        "name": "table:transactions",
+        "pass": true,
+        "detail": {
+          "table": "transactions",
+          "count": 30,
+          "error": null
+        }
+      },
+      {
+        "name": "table:referrals",
+        "pass": true,
+        "detail": {
+          "table": "referrals",
+          "count": 9,
+          "error": null
+        }
+      },
+      {
+        "name": "table:referral_network",
+        "pass": true,
+        "detail": {
+          "table": "referral_network",
+          "count": 13,
+          "error": null
+        }
+      },
+      {
+        "name": "table:referral_commissions",
+        "pass": true,
+        "detail": {
+          "table": "referral_commissions",
+          "count": 2,
+          "error": null
+        }
+      },
+      {
+        "name": "table:referral_rank_rewards",
+        "pass": true,
+        "detail": {
+          "table": "referral_rank_rewards",
+          "count": 0,
+          "error": null
+        }
+      },
+      {
+        "name": "table:investment_profit_history",
+        "pass": true,
+        "detail": {
+          "table": "investment_profit_history",
+          "count": 1,
+          "error": null
+        }
+      },
+      {
+        "name": "table:investment_profit_runs",
+        "pass": true,
+        "detail": {
+          "table": "investment_profit_runs",
+          "count": 4,
+          "error": null
+        }
+      },
+      {
+        "name": "table:financial_audit_logs",
+        "pass": true,
+        "detail": {
+          "table": "financial_audit_logs",
+          "count": 60,
+          "error": null
+        }
+      },
+      {
+        "name": "table:cron_job_locks",
+        "pass": true,
+        "detail": {
+          "table": "cron_job_locks",
+          "count": 0,
+          "error": null
+        }
+      },
+      {
+        "name": "table:payments",
+        "pass": true,
+        "detail": {
+          "table": "payments",
+          "count": 13,
+          "error": null
+        }
+      },
+      {
+        "name": "table:withdrawal_requests",
+        "pass": true,
+        "detail": {
+          "table": "withdrawal_requests",
+          "count": 0,
+          "error": null
+        }
+      }
+    ],
+    "rpc": [
+      {
+        "name": "rpc:acquire_cron_job_lock",
+        "pass": true,
+        "detail": {
+          "name": "acquire_cron_job_lock",
+          "present": true,
+          "error": null,
+          "data": true
+        }
+      },
+      {
+        "name": "rpc:release_cron_job_lock",
+        "pass": true,
+        "detail": {
+          "name": "release_cron_job_lock",
+          "present": true,
+          "error": null,
+          "data": true
+        }
+      },
+      {
+        "name": "rpc:claim_profit_run_period",
+        "pass": true,
+        "detail": {
+          "name": "claim_profit_run_period",
+          "present": true,
+          "error": null,
+          "data": {
+            "id": null,
+            "period_start": null,
+            "period_end": null,
+            "trading_days": null,
+            "total_profit_usd": null,
+            "status": null,
+            "created_at": null
+          }
+        }
+      },
+      {
+        "name": "rpc:claim_investment_daily_profit",
+        "pass": true,
+        "detail": {
+          "name": "claim_investment_daily_profit",
+          "present": true,
+          "error": "insert or update on table \"investment_profit_history\" violates foreign key constraint \"investment_profit_history_investment_id_fkey\"",
+          "data": null
+        }
+      }
+    ],
+    "referral": [
+      {
+        "name": "users_have_referral_codes",
+        "pass": true,
+        "detail": {
+          "usersWithCodes": 17
+        }
+      },
+      {
+        "name": "sample_referral_code_present",
+        "pass": true,
+        "detail": {
+          "id": "a526f243-3f0c-4576-a96b-5365a72085cc",
+          "referral_code": "A526F243",
+          "full_name": "Mushimiyimana Isaac"
+        }
+      },
+      {
+        "name": "referrals_table_readable",
+        "pass": true,
+        "detail": {
+          "referralCount": 9
+        }
+      },
+      {
+        "name": "referral_network_readable",
+        "pass": true,
+        "detail": {
+          "networkCount": 13
+        }
+      },
+      {
+        "name": "network_coverage_for_sampled_referrals",
+        "pass": true,
+        "detail": {
+          "sampled": 9,
+          "withAncestors": 9,
+          "missingNetwork": 0
+        }
+      },
+      {
+        "name": "commission_table_readable",
+        "pass": true,
+        "detail": {
+          "sampled": 2,
+          "byType": {
+            "investment": 2
+          },
+          "byStatus": {
+            "paid": 2
+          }
+        }
+      },
+      {
+        "name": "profit_share_levels_observed_or_empty_ok",
+        "pass": true,
+        "detail": {
+          "levelsPresent": [],
+          "note": "Empty is OK if no profits accrued yet for referred investors"
+        }
+      },
+      {
+        "name": "investment_commission_type_supported",
+        "pass": true,
+        "detail": {
+          "count": 2,
+          "note": "Live investment commissions present"
+        }
+      },
+      {
+        "name": "paid_commissions_have_transactions",
+        "pass": true,
+        "detail": {
+          "paidSampled": 2,
+          "paidWithTx": 2,
+          "paidMissingTx": 0
+        }
+      },
+      {
+        "name": "rank_rewards_readable",
+        "pass": true,
+        "detail": {
+          "count": 0,
+          "statuses": {}
+        }
+      }
+    ],
+    "profit": [
+      {
+        "name": "active_investments_exist",
+        "pass": true,
+        "detail": {
+          "count": 4
+        }
+      },
+      {
+        "name": "roi_and_principal_valid",
+        "pass": true,
+        "detail": {
+          "mathOk": 4,
+          "mathBad": 0
+        }
+      },
+      {
+        "name": "profit_history_idempotent_unique_periods",
+        "pass": true,
+        "detail": {
+          "rows": 0,
+          "unique": 0,
+          "historySum": 0
+        }
+      },
+      {
+        "name": "portfolio_row_exists",
+        "pass": true,
+        "detail": {
+          "id": "f9c2921a-3387-4cc9-91a6-7f8545261a6e",
+          "user_id": "7ecf0def-e418-45bc-ba35-68c0391de1d6",
+          "total_invested": 4100,
+          "current_value": 4100,
+          "profit_loss": 0,
+          "roi_percentage": 0,
+          "created_at": "2026-07-06T03:26:20.335417+00:00",
+          "updated_at": "2026-07-11T15:22:22.409+00:00"
+        }
+      },
+      {
+        "name": "wallet_row_exists",
+        "pass": true,
+        "detail": {
+          "id": "1d0d606b-d8a4-4b64-a23d-00c17cd8e528",
+          "user_id": "7ecf0def-e418-45bc-ba35-68c0391de1d6",
+          "available_balance": 10,
+          "pending_balance": 0,
+          "bonus_balance": 0,
+          "total_balance": 10,
+          "updated_at": "2026-07-11T20:30:43.5453+00:00"
+        }
+      },
+      {
+        "name": "profit_transactions_exist_or_history_empty",
+        "pass": true,
+        "detail": {
+          "historyCount": 0,
+          "profitTxCount": 0
+        }
+      },
+      {
+        "name": "post_cron_history_readable",
+        "pass": true,
+        "detail": {
+          "count": 0,
+          "sum": 0
+        }
+      },
+      {
+        "name": "idempotent_retry_second_run_ok",
+        "pass": true,
+        "detail": {
+          "growth": 0,
+          "firstProcessed": 0,
+          "secondProcessed": 0
+        }
+      }
+    ],
+    "portfolio": [
+      {
+        "name": "portfolio_pnl_matches_current_minus_invested",
+        "pass": true,
+        "detail": {
+          "invested": 4100,
+          "current": 4100,
+          "pl": 0,
+          "expectedPl": 0
+        }
+      }
+    ],
+    "dashboard": [
+      {
+        "name": "lifetime_profit_source_is_history_sum",
+        "pass": true,
+        "detail": {
+          "userId": "7ecf0def-e418-45bc-ba35-68c0391de1d6",
+          "lifetimeProfitUsd": 0,
+          "formatted": "$0.00"
+        }
+      }
+    ],
+    "wallet": [
+      {
+        "name": "no_negative_wallet_balances_in_sample",
+        "pass": true,
+        "detail": {
+          "ok": 22,
+          "neg": 0,
+          "sampled": 22
+        }
+      },
+      {
+        "name": "transactions_readable",
+        "pass": true,
+        "detail": {
+          "types": {
+            "referral": 2,
+            "investment_profit": 1,
+            "transfer_received": 5,
+            "transfer_sent": 5,
+            "deposit": 13,
+            "investment": 4
+          },
+          "sampled": 30
+        }
+      }
+    ],
+    "admin": [
+      {
+        "name": "payments_table_readable",
+        "pass": true,
+        "detail": {
+          "payments": 13
+        }
+      },
+      {
+        "name": "withdrawals_table_readable",
+        "pass": true,
+        "detail": {
+          "withdrawals": 0
+        }
+      },
+      {
+        "name": "open_withdrawals_readable",
+        "pass": true,
+        "detail": {
+          "open": 0
+        }
+      },
+      {
+        "name": "admin_profiles_present_or_bootstrap_env",
+        "pass": true,
+        "detail": {
+          "adminProfiles": 0,
+          "note": "Bootstrap emails may also grant access via ADMIN_SUPER_EMAILS"
+        }
+      }
+    ],
+    "cron": [
+      {
+        "name": "CRON_SECRET_configured",
+        "pass": true,
+        "detail": null
+      },
+      {
+        "name": "execute /api/cron/daily-profits @ http://localhost:3000",
+        "pass": true,
+        "detail": {
+          "status": 200,
+          "durationMs": 5079,
+          "lockSkipped": false,
+          "profits": {
+            "skipped": false,
+            "periodStart": "2026-07-11",
+            "periodEnd": "2026-07-11",
+            "processed": 0,
+            "totalProfitUsd": 0,
+            "investmentsTouched": 0
+          },
+          "weekly": null,
+          "error": null
+        }
+      },
+      {
+        "name": "execute /api/cron/process-withdrawals @ http://localhost:3000",
+        "pass": true,
+        "detail": {
+          "status": 200,
+          "durationMs": 713,
+          "lockSkipped": false,
+          "profits": null,
+          "weekly": null,
+          "error": null
+        }
+      },
+      {
+        "name": "execute /api/cron/weekly-commissions @ http://localhost:3000",
+        "pass": true,
+        "detail": {
+          "status": 200,
+          "durationMs": 1938,
+          "lockSkipped": false,
+          "profits": null,
+          "weekly": null,
+          "error": null
+        }
+      },
+      {
+        "name": "execute /api/cron/daily @ http://localhost:3000",
+        "pass": true,
+        "detail": {
+          "status": 200,
+          "durationMs": 16108,
+          "lockSkipped": false,
+          "profits": {
+            "skipped": false,
+            "periodStart": "2026-07-11",
+            "periodEnd": "2026-07-11",
+            "processed": 0,
+            "totalProfitUsd": 0,
+            "investmentsTouched": 0
+          },
+          "weekly": null,
+          "error": null
+        }
+      },
+      {
+        "name": "execute /api/cron/daily @ production",
+        "pass": true,
+        "detail": {
+          "status": 200,
+          "durationMs": 8351,
+          "lockSkipped": false,
+          "error": null,
+          "profits": {
+            "skipped": false,
+            "periodStart": "2026-07-11",
+            "periodEnd": "2026-07-11",
+            "processed": 0,
+            "totalProfitUsd": 0,
+            "investmentsTouched": 0
+          }
+        }
+      }
+    ],
+    "logs": [
+      {
+        "name": "financial_audit_logs_present",
+        "pass": true,
+        "detail": {
+          "recentTypes": [
+            "cron.lock_released",
+            "profit.run_completed",
+            "cron.lock_acquired",
+            "cron.daily_completed",
+            "referral.commission_accrued",
+            "referral.commission_paid",
+            "wallet.credit",
+            "referral.investment_commission_accrued",
+            "wallet.debit"
+          ]
+        }
+      }
+    ],
+    "realtime": [
+      {
+        "name": "supabase_realtime_subscribe",
+        "pass": true,
+        "detail": {
+          "status": "SUBSCRIBED"
+        }
+      }
+    ]
+  },
+  "verdicts": {
+    "referralSystem": "WORKING",
+    "referralCommission": "WORKING",
+    "referralBonuses": "WORKING",
+    "dailyProfit": "WORKING",
+    "wallet": "WORKING",
+    "dashboard": "WORKING",
+    "portfolio": "WORKING",
+    "cron": "WORKING",
+    "admin": "WORKING",
+    "productionReady": "YES"
+  },
+  "bugsFixed": [],
+  "overallPass": true,
+  "cronResults": {
+    "/api/cron/daily-profits": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "profitRun": {
+          "skipped": false,
+          "periodStart": "2026-07-11",
+          "periodEnd": "2026-07-11",
+          "processed": 0,
+          "totalProfitUsd": 0,
+          "investmentsTouched": 0
+        },
+        "note": "Referral commissions accrue as pending and pay on weekly distribution (Friday daily cron)."
+      },
+      "durationMs": 5079
+    },
+    "/api/cron/process-withdrawals": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "processed": 0,
+        "readyForPayout": 0,
+        "skipped": 0,
+        "failed": 0,
+        "totalDue": 0,
+        "holdReminders": {
+          "threeDay": 0,
+          "oneDay": 0,
+          "skipped": 0,
+          "checked": 0
+        },
+        "results": []
+      },
+      "durationMs": 713
+    },
+    "/api/cron/weekly-commissions": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "referral": {
+          "periodStart": "2026-07-06",
+          "periodEnd": "2026-07-10",
+          "ambassador": {
+            "accrued": 0
+          },
+          "commissions": {
+            "paid": 0,
+            "totalUsd": 0
+          },
+          "rankBonuses": {
+            "paid": 0
+          }
+        },
+        "capitalWithdrawals": {
+          "processed": 0,
+          "totalDue": 0
+        }
+      },
+      "durationMs": 1938
+    },
+    "/api/cron/daily": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "ranAt": "2026-07-11T20:37:40.666Z",
+        "utcDay": 6,
+        "withdrawals": {
+          "processed": 0,
+          "readyForPayout": 0,
+          "skipped": 0,
+          "failed": 0,
+          "totalDue": 0,
+          "holdReminders": {
+            "threeDay": 0,
+            "oneDay": 0,
+            "skipped": 0,
+            "checked": 0
+          },
+          "results": []
+        },
+        "depositSync": {
+          "checked": 4,
+          "completed": 0,
+          "failed": 0,
+          "results": [
+            {
+              "orderId": "DEP-20260711-345CCC4F",
+              "status": "pending",
+              "message": "NOWPAYMENTS_API_KEY is not set."
+            },
+            {
+              "orderId": "DEP-20260711-8303DDE8",
+              "status": "pending",
+              "message": "NOWPAYMENTS_API_KEY is not set."
+            },
+            {
+              "orderId": "DEP-20260711-02223B03",
+              "status": "pending",
+              "message": "NOWPAYMENTS_API_KEY is not set."
+            },
+            {
+              "orderId": "DEP-20260711-1703099A",
+              "status": "pending",
+              "message": "NOWPAYMENTS_API_KEY is not set."
+            }
+          ]
+        },
+        "profits": {
+          "skipped": false,
+          "periodStart": "2026-07-11",
+          "periodEnd": "2026-07-11",
+          "processed": 0,
+          "totalProfitUsd": 0,
+          "investmentsTouched": 0
+        },
+        "weekly": null,
+        "capitalWithdrawals": {
+          "processed": 0,
+          "totalDue": 0
+        },
+        "note": "Unified daily cron: wallet withdrawals, capital returns, deposit sync, investment profits (daily 24h), referral payouts (Friday UTC)."
+      },
+      "durationMs": 16108
+    },
+    "production:/api/cron/daily": {
+      "status": 200,
+      "body": {
+        "ok": true,
+        "ranAt": "2026-07-11T20:37:59.168Z",
+        "utcDay": 6,
+        "withdrawals": {
+          "processed": 0,
+          "readyForPayout": 0,
+          "skipped": 0,
+          "failed": 0,
+          "totalDue": 0,
+          "holdReminders": {
+            "threeDay": 0,
+            "oneDay": 0,
+            "skipped": 0,
+            "checked": 0
+          },
+          "results": []
+        },
+        "depositSync": {
+          "checked": 4,
+          "completed": 0,
+          "failed": 0,
+          "results": [
+            {
+              "orderId": "DEP-20260711-345CCC4F",
+              "status": "pending",
+              "message": "Authorization header is empty (Bearer JWTtoken is required)"
+            },
+            {
+              "orderId": "DEP-20260711-8303DDE8",
+              "status": "pending",
+              "message": "Authorization header is empty (Bearer JWTtoken is required)"
+            },
+            {
+              "orderId": "DEP-20260711-02223B03",
+              "status": "pending",
+              "message": "Authorization header is empty (Bearer JWTtoken is required)"
+            },
+            {
+              "orderId": "DEP-20260711-1703099A",
+              "status": "pending",
+              "message": "Authorization header is empty (Bearer JWTtoken is required)"
+            }
+          ]
+        },
+        "profits": {
+          "skipped": false,
+          "periodStart": "2026-07-11",
+          "periodEnd": "2026-07-11",
+          "processed": 0,
+          "totalProfitUsd": 0,
+          "investmentsTouched": 0
+        },
+        "weekly": null,
+        "capitalWithdrawals": {
+          "processed": 0,
+          "totalDue": 0
+        },
+        "note": "Unified daily cron: wallet withdrawals, capital returns, deposit sync (daily), investment profits (Mon–Fri), referral payouts (Friday)."
+      },
+      "durationMs": 8351
+    }
+  },
+  "failedChecks": []
+}

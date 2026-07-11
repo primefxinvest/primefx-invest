@@ -28,10 +28,17 @@ export type FinancialAuditEvent =
   | 'referral.commission_accrued'
   | 'referral.commission_duplicate_blocked'
   | 'referral.commission_paid'
+  | 'referral.commission_paid_partial'
+  | 'referral.investment_commission_accrued'
   | 'referral.rank_bonus_paid'
+  | 'referral.rank_bonus_paid_partial'
+  | 'profit.credit_failed'
+  | 'profit.referral_accrual_failed'
   | 'cron.lock_acquired'
   | 'cron.lock_released'
   | 'cron.lock_skipped'
+  | 'cron.daily_completed'
+  | 'cron.daily_failed'
 
 export async function logFinancialAudit(input: {
   eventType: FinancialAuditEvent

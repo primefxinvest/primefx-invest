@@ -1,0 +1,127 @@
+{
+  "networkDepths": {
+    "1": 9,
+    "2": 4
+  },
+  "referrals": {
+    "total": 9,
+    "active": 6,
+    "pending": 3
+  },
+  "commissions": {
+    "total": 0,
+    "byType": {},
+    "byStatus": {},
+    "byLevel": {},
+    "totalUsd": 0
+  },
+  "rankRewards": {
+    "total": 0,
+    "byStatus": {},
+    "byRank": {}
+  },
+  "activeInvestments": {
+    "count": 4,
+    "totalPrincipal": 5110,
+    "totalCurrent": 5110.69,
+    "totalAccumulated": 0.69
+  },
+  "profitHistory": {
+    "rows": 1,
+    "totalUsd": 0.69
+  },
+  "sampleInvestor": {
+    "userId": "7ecf0def-e418-45bc-ba35-68c0391de1d6",
+    "referralCode": "IRIN7ECF",
+    "lifetimeProfitUsd": 0,
+    "portfolio": {
+      "invested": 4100,
+      "current": 4100,
+      "pnl": 0,
+      "roi": 0
+    },
+    "wallet": {
+      "available": 0,
+      "total": 0,
+      "pending": 0
+    },
+    "recentTxTypes": {
+      "transfer_sent": 1,
+      "transfer_received": 2,
+      "investment": 1
+    }
+  },
+  "ambassadors": 0,
+  "auditLast24h": {
+    "cron.lock_acquired": 3,
+    "profit.run_completed": 8,
+    "cron.lock_released": 3,
+    "wallet.credit": 10,
+    "wallet.debit": 8,
+    "deposit.credited": 2,
+    "cron.daily_completed": 1
+  },
+  "cronSummaries": {
+    "/api/cron/daily-profits": {
+      "status": 200,
+      "durationMs": 25163,
+      "ok": true,
+      "profits": {
+        "skipped": false,
+        "periodStart": "2026-07-11",
+        "periodEnd": "2026-07-11",
+        "processed": 1,
+        "totalProfitUsd": 0.69,
+        "investmentsTouched": 1
+      },
+      "weekly": null,
+      "error": null
+    },
+    "/api/cron/process-withdrawals": {
+      "status": 200,
+      "durationMs": 30201,
+      "ok": true,
+      "profits": null,
+      "weekly": null,
+      "error": null
+    },
+    "/api/cron/weekly-commissions": {
+      "status": 200,
+      "durationMs": 25153,
+      "ok": true,
+      "profits": null,
+      "weekly": null,
+      "error": null
+    },
+    "/api/cron/daily": {
+      "status": 200,
+      "durationMs": 24413,
+      "ok": true,
+      "profits": {
+        "skipped": false,
+        "periodStart": "2026-07-11",
+        "periodEnd": "2026-07-11",
+        "processed": 0,
+        "totalProfitUsd": 0,
+        "investmentsTouched": 0
+      },
+      "weekly": null,
+      "error": null
+    },
+    "production:/api/cron/daily": {
+      "status": 200,
+      "durationMs": 9134,
+      "ok": true,
+      "profits": {
+        "skipped": false,
+        "periodStart": "2026-07-11",
+        "periodEnd": "2026-07-11",
+        "processed": 0,
+        "totalProfitUsd": 0,
+        "investmentsTouched": 0
+      },
+      "weekly": null,
+      "error": null
+    }
+  }
+}
