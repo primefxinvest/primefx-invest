@@ -11,8 +11,10 @@ import {
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import {
   assertModuleAccess,
-  assertTransactionApprovalPermission,
-  canApproveOrRejectTransactions,
+  assertDepositApprovalPermission,
+  assertWithdrawalApprovalPermission,
+  assertTransactionTypeApprovalAccess,
+  canApproveDeposits,
   getAdminContext,
   rejectSelfTarget,
   requireAdmin,
@@ -420,20 +422,18 @@ export async function updateTransactionStatus(
 ) {
   const context = await getContext()
   assertModuleAccess(context, 'financial_management')
-  assertTransactionApprovalPermission(context)
 
   const db = getDb()
   const { data: before } = await db.from('transactions').select('*').eq('id', transactionId).single()
   if (!before) throw new Error('Transaction not found')
 
+  // Split gate: deposits = Platform Owner only; withdrawals/other = portal financial admins.
+  assertTransactionTypeApprovalAccess(context.email, String(before.type ?? ''))
+
   const amount = Number(before.amount ?? 0)
-  if (
-    amount >= DUAL_APPROVAL_THRESHOLD &&
-    context.tier !== 1 &&
-    !canApproveOrRejectTransactions(context.email)
-  ) {
+  if (amount >= DUAL_APPROVAL_THRESHOLD && context.tier !== 1 && !canApproveDeposits(context.email)) {
     throw new Error(
-      `Financial adjustments above $${DUAL_APPROVAL_THRESHOLD.toLocaleString()} require Super Admin approval.`
+      `Financial adjustments above $${DUAL_APPROVAL_THRESHOLD.toLocaleString()} require Platform Owner approval.`
     )
   }
 
@@ -745,7 +745,8 @@ export async function adminUpdateSupportTicketStatus(
 export async function processDueFinancialJobsAction() {
   const context = await getContext()
   assertModuleAccess(context, 'financial_management')
-  assertTransactionApprovalPermission(context)
+  // Due jobs can complete deposit sync — Platform Owner only.
+  assertDepositApprovalPermission(context)
 
   const { processDueFinancialJobs } = await import('@/lib/cron/daily-jobs')
   const result = await processDueFinancialJobs()
@@ -770,7 +771,7 @@ export async function processDueFinancialJobsAction() {
 export async function approveWithdrawalQueueItem(requestId: string) {
   const context = await getContext()
   assertModuleAccess(context, 'financial_management')
-  assertTransactionApprovalPermission(context)
+  assertWithdrawalApprovalPermission(context)
 
   const { executeWithdrawalPayoutAfterApproval } = await import('@/lib/payments/withdrawal-payout')
   const result = await executeWithdrawalPayoutAfterApproval(requestId)
@@ -800,7 +801,7 @@ export async function markWithdrawalPaidQueueItem(
 ) {
   const context = await getContext()
   assertModuleAccess(context, 'financial_management')
-  assertTransactionApprovalPermission(context)
+  assertWithdrawalApprovalPermission(context)
 
   const { markWithdrawalAsPaid } = await import('@/lib/payments/withdrawal-payout')
   const result = await markWithdrawalAsPaid(requestId, {
@@ -832,7 +833,7 @@ export async function markWithdrawalPaidQueueItem(
 export async function rejectWithdrawalQueueItem(requestId: string, reason?: string) {
   const context = await getContext()
   assertModuleAccess(context, 'financial_management')
-  assertTransactionApprovalPermission(context)
+  assertWithdrawalApprovalPermission(context)
 
   const { rejectWithdrawalRequest } = await import('@/lib/payments/withdrawal-payout')
   const result = await rejectWithdrawalRequest(requestId, reason)

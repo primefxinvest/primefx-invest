@@ -4,8 +4,10 @@ import { NextResponse } from 'next/server'
 import { canAccessModule } from '@/lib/admin/permissions'
 import { getAdminContext } from '@/lib/admin/auth'
 import {
-  canApproveOrRejectTransactions,
-  TRANSACTION_APPROVAL_FORBIDDEN_MESSAGE,
+  canApproveDeposits,
+  canApproveWithdrawals,
+  DEPOSIT_APPROVAL_FORBIDDEN_MESSAGE,
+  WITHDRAWAL_APPROVAL_FORBIDDEN_MESSAGE,
 } from '@/lib/admin/transaction-approval-auth'
 import type { AdminContext, AdminModule } from '@/lib/admin/types'
 
@@ -28,19 +30,41 @@ export async function requireAdminApiModule(module: AdminModule) {
   return { context, response: null }
 }
 
-export async function requireTransactionApprovalApiAccess() {
+export async function requireDepositApprovalApiAccess() {
   const auth = await requireAdminApiModule('financial_management')
   if (auth.response) return auth
 
-  if (!canApproveOrRejectTransactions(auth.context!.email)) {
+  if (!canApproveDeposits(auth.context!.email)) {
     return {
       context: null as AdminContext | null,
       response: NextResponse.json(
-        { error: TRANSACTION_APPROVAL_FORBIDDEN_MESSAGE },
+        { error: DEPOSIT_APPROVAL_FORBIDDEN_MESSAGE },
         { status: 403 }
       ),
     }
   }
 
   return auth
+}
+
+export async function requireWithdrawalApprovalApiAccess() {
+  const auth = await requireAdminApiModule('financial_management')
+  if (auth.response) return auth
+
+  if (!canApproveWithdrawals(auth.context!.email)) {
+    return {
+      context: null as AdminContext | null,
+      response: NextResponse.json(
+        { error: WITHDRAWAL_APPROVAL_FORBIDDEN_MESSAGE },
+        { status: 403 }
+      ),
+    }
+  }
+
+  return auth
+}
+
+/** @deprecated Prefer requireDepositApprovalApiAccess */
+export async function requireTransactionApprovalApiAccess() {
+  return requireDepositApprovalApiAccess()
 }

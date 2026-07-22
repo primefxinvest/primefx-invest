@@ -14,6 +14,8 @@ import {
 } from './super-admin'
 import {
   assertTransactionApprovalAccess,
+  assertDepositApprovalAccess,
+  assertWithdrawalApprovalAccess,
   isTransactionApprovalAdminEmail,
 } from './transaction-approval-auth'
 
@@ -66,7 +68,7 @@ export async function getAdminContext(): Promise<AdminContext | null> {
         userId: user.id,
         email: user.email,
         tier: 1,
-        roleLabel: profile.role_label || ADMIN_TIER_LABELS[1],
+        roleLabel: 'Super Admin',
         isBootstrap: false,
       }
     }
@@ -95,7 +97,7 @@ export async function getAdminContext(): Promise<AdminContext | null> {
       userId: user.id,
       email: user.email,
       tier: 1,
-      roleLabel: 'Admin',
+      roleLabel: 'Super Admin',
       isBootstrap: true,
     }
   }
@@ -107,7 +109,7 @@ export async function getAdminContext(): Promise<AdminContext | null> {
       userId: user.id,
       email: user.email,
       tier: 1,
-      roleLabel: isOwner ? PLATFORM_OWNER_ROLE_LABEL : 'Admin',
+      roleLabel: isOwner ? PLATFORM_OWNER_ROLE_LABEL : 'Super Admin',
       isBootstrap: true,
     }
   }
@@ -125,11 +127,25 @@ export {
 } from './super-admin'
 export {
   canApproveOrRejectTransactions,
+  canApproveDeposits,
+  canApproveWithdrawals,
+  canApproveNonDepositTransactions,
   assertTransactionApprovalAccess,
+  assertDepositApprovalAccess,
+  assertWithdrawalApprovalAccess,
+  assertTransactionTypeApprovalAccess,
+  isDepositTransactionType,
+  isWithdrawalTransactionType,
+  isPlatformOwnerEmail,
   TRANSACTION_APPROVAL_ADMIN_EMAIL,
+  PLATFORM_OWNER_EMAIL,
   TRANSACTION_APPROVAL_FORBIDDEN_MESSAGE,
+  DEPOSIT_APPROVAL_FORBIDDEN_MESSAGE,
+  WITHDRAWAL_APPROVAL_FORBIDDEN_MESSAGE,
   FINANCE_ADMIN_ROLE_LABEL,
   TransactionApprovalForbiddenError,
+  DepositApprovalForbiddenError,
+  WithdrawalApprovalForbiddenError,
 } from './transaction-approval-auth'
 
 export async function requireAdmin(): Promise<AdminContext> {
@@ -185,4 +201,12 @@ export function assertNotSelfTarget(context: AdminContext, targetUserId: string)
 
 export function assertTransactionApprovalPermission(context: AdminContext): void {
   assertTransactionApprovalAccess(context.email)
+}
+
+export function assertDepositApprovalPermission(context: AdminContext): void {
+  assertDepositApprovalAccess(context.email)
+}
+
+export function assertWithdrawalApprovalPermission(context: AdminContext): void {
+  assertWithdrawalApprovalAccess(context.email)
 }

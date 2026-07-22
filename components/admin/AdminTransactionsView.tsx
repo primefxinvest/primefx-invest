@@ -282,7 +282,7 @@ function TransactionActionButtons({
   onApprove,
   onReject,
   layout = 'inline',
-  canApproveTransactions = false,
+  canMutate = false,
 }: {
   tx: AdminTransactionRow
   isProcessing: boolean
@@ -290,14 +290,14 @@ function TransactionActionButtons({
   onApprove: () => void
   onReject: () => void
   layout?: 'inline' | 'stacked'
-  canApproveTransactions?: boolean
+  canMutate?: boolean
 }) {
   if (tx.status.toLowerCase() !== 'pending') {
     return <TransactionActionPlaceholder status={tx.status} />
   }
 
-  if (!canApproveTransactions) {
-    return <span className="text-xs text-muted-foreground">—</span>
+  if (!canMutate) {
+    return <span className="text-xs text-muted-foreground">View only</span>
   }
 
   const isStacked = layout === 'stacked'
@@ -351,11 +351,27 @@ function TransactionActionButtons({
 
 export function AdminTransactionsView({
   transactions: initialTransactions,
-  canApproveTransactions = false,
+  canApproveDeposits = false,
+  canApproveWithdrawals = false,
+  /** @deprecated Prefer canApproveDeposits / canApproveWithdrawals */
+  canApproveTransactions,
 }: {
   transactions: AdminTransactionRow[]
+  canApproveDeposits?: boolean
+  canApproveWithdrawals?: boolean
   canApproveTransactions?: boolean
 }) {
+  const depositsAllowed = canApproveDeposits || canApproveTransactions === true
+  const withdrawalsAllowed = canApproveWithdrawals || canApproveTransactions === true
+
+  function canMutateTransaction(tx: AdminTransactionRow): boolean {
+    const type = tx.type.toLowerCase()
+    if (type === 'deposit' || type === 'bonus' || type === 'profit') {
+      return depositsAllowed
+    }
+    return withdrawalsAllowed
+  }
+
   const [rows, setRows] = useState(initialTransactions)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -512,6 +528,16 @@ export function AdminTransactionsView({
   }
 
   const handleApprove = async (tx: AdminTransactionRow) => {
+    if (!canMutateTransaction(tx)) {
+      toast.error(
+        tx.type.toLowerCase() === 'deposit' ||
+          tx.type.toLowerCase() === 'bonus' ||
+          tx.type.toLowerCase() === 'profit'
+          ? "You don't have permission to approve deposits."
+          : 'You do not have permission to approve this transaction.'
+      )
+      return
+    }
     const meta = getTransactionActionMeta(tx)
     const confirmed = await confirm({
       title: meta.approveTitle,
@@ -524,6 +550,16 @@ export function AdminTransactionsView({
   }
 
   const handleReject = async (tx: AdminTransactionRow) => {
+    if (!canMutateTransaction(tx)) {
+      toast.error(
+        tx.type.toLowerCase() === 'deposit' ||
+          tx.type.toLowerCase() === 'bonus' ||
+          tx.type.toLowerCase() === 'profit'
+          ? "You don't have permission to approve deposits."
+          : 'You do not have permission to reject this transaction.'
+      )
+      return
+    }
     const meta = getTransactionActionMeta(tx)
     const description = meta.rejectNote
       ? `${meta.rejectDescription} ${meta.rejectNote}`
@@ -689,7 +725,7 @@ export function AdminTransactionsView({
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2 sm:ml-auto">
-            {canApproveTransactions ? (
+            {depositsAllowed ? (
               <button
                 type="button"
                 disabled={processingDueJobs}
@@ -777,7 +813,7 @@ export function AdminTransactionsView({
                       onApprove={() => void handleApprove(tx)}
                       onReject={() => void handleReject(tx)}
                       layout="stacked"
-                      canApproveTransactions={canApproveTransactions}
+                      canMutate={canMutateTransaction(tx)}
                     />
                   </div>
                 ) : null}
@@ -872,7 +908,7 @@ export function AdminTransactionsView({
                         processingAction={processingId === tx.id ? processingAction : null}
                         onApprove={() => void handleApprove(tx)}
                         onReject={() => void handleReject(tx)}
-                        canApproveTransactions={canApproveTransactions}
+                        canMutate={canMutateTransaction(tx)}
                       />
                     </td>
                   </tr>

@@ -1,12 +1,17 @@
 import { AdminTransactionsView } from '@/components/admin/AdminTransactionsView'
 import { AdminServiceRoleBanner } from '@/components/admin/AdminServiceRoleBanner'
-import { requireAdminModule, canApproveOrRejectTransactions } from '@/lib/admin/auth'
+import {
+  requireAdminModule,
+  canApproveDeposits,
+  canApproveWithdrawals,
+} from '@/lib/admin/auth'
 import { getAdminTransactions } from '@/lib/admin/queries'
 import { withAdminData } from '@/lib/admin/safe-query'
 
 export default async function AdminTransactionsPage() {
   const context = await requireAdminModule('financial_management')
-  const canApproveTransactions = canApproveOrRejectTransactions(context.email)
+  const canApproveDepositsFlag = canApproveDeposits(context.email)
+  const canApproveWithdrawalsFlag = canApproveWithdrawals(context.email)
   const { data, error, configured } = await withAdminData(getAdminTransactions, [])
 
   return (
@@ -17,7 +22,11 @@ export default async function AdminTransactionsPage() {
           {error}
         </div>
       ) : null}
-      <AdminTransactionsView transactions={data} canApproveTransactions={canApproveTransactions} />
+      <AdminTransactionsView
+        transactions={data}
+        canApproveDeposits={canApproveDepositsFlag}
+        canApproveWithdrawals={canApproveWithdrawalsFlag}
+      />
     </>
   )
 }

@@ -1,18 +1,18 @@
 import {
-  isTransactionApprovalAdminEmail,
-  TRANSACTION_APPROVAL_ADMIN_EMAIL,
+  isPlatformOwnerEmail,
+  PLATFORM_OWNER_EMAIL,
 } from './transaction-approval-auth'
+import { FULL_ADMIN_PORTAL_EMAIL } from './super-admin-emails'
 
-/** Designated platform owner — Super Admin, ownership protection, financial approver. */
-export const SUPER_ADMIN_EMAIL = TRANSACTION_APPROVAL_ADMIN_EMAIL
+export { FULL_ADMIN_PORTAL_EMAIL }
 
-/** Full admin portal access without ownership or financial approval privileges. */
-export const FULL_ADMIN_PORTAL_EMAIL = 'fxinvestprime@gmail.com'
+/** Designated platform owner — ownership protection + deposit approval authority. */
+export const SUPER_ADMIN_EMAIL = PLATFORM_OWNER_EMAIL
 
 export const PLATFORM_OWNER_ROLE_LABEL = 'Platform Owner'
 
 export function isSuperAdminEmail(email: string | null | undefined): boolean {
-  return isTransactionApprovalAdminEmail(email)
+  return isPlatformOwnerEmail(email)
 }
 
 export function isFullAdminPortalEmail(email: string | null | undefined): boolean {
