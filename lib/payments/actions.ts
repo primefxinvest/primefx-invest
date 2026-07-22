@@ -91,6 +91,9 @@ export async function initiateWithdrawal(
     amountUsd: number
     currency: string
     address: string
+    coin?: string
+    network?: string
+    walletLabel?: string
   } & TransactionStepUpCredentials
 ): Promise<CreateWithdrawalResult> {
   const user = await requireUser()
@@ -127,19 +130,31 @@ export async function initiateWithdrawal(
     return { success: false, error: kyc.error }
   }
 
+  if (!input.address?.trim()) {
+    return { success: false, error: 'Wallet address is required.' }
+  }
+  if (!input.currency?.trim()) {
+    return { success: false, error: 'Cryptocurrency is required.' }
+  }
+
   const result = await createWithdrawalPayment({
     userId: user.id,
     amountUsd: input.amountUsd,
     currency: input.currency,
     address: input.address.trim(),
+    coin: input.coin,
+    network: input.network,
+    walletLabel: input.walletLabel,
   })
 
   if (result.success) {
     revalidatePath('/wallet')
     revalidatePath('/wallet/deposit')
     revalidatePath('/wallet/withdraw')
+    revalidatePath('/wallet/withdraw/success')
     revalidatePath('/wallet/transfer')
     revalidatePath('/transactions')
+    revalidatePath('/admin/withdrawals')
   }
 
   return result

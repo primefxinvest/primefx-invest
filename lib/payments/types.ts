@@ -53,6 +53,12 @@ export interface CreateWithdrawalResult {
   orderId?: string
   availableAt?: string
   noticeDays?: number
+  status?: string
+  feeUsd?: number
+  netAmountUsd?: number
+  coin?: string
+  network?: string
+  walletAddress?: string
   error?: string
   code?: string
 }

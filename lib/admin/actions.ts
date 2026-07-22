@@ -789,6 +789,42 @@ export async function approveWithdrawalQueueItem(requestId: string) {
   revalidatePath('/wallet')
   revalidatePath('/wallet/withdraw')
   revalidatePath('/transactions')
+  revalidatePath('/portfolio')
+
+  return result
+}
+
+export async function markWithdrawalPaidQueueItem(
+  requestId: string,
+  input?: { txHash?: string; notes?: string }
+) {
+  const context = await getContext()
+  assertModuleAccess(context, 'financial_management')
+  assertTransactionApprovalPermission(context)
+
+  const { markWithdrawalAsPaid } = await import('@/lib/payments/withdrawal-payout')
+  const result = await markWithdrawalAsPaid(requestId, {
+    txHash: input?.txHash,
+    notes: input?.notes,
+    processedBy: context.userId,
+  })
+
+  await logAdminAction({
+    context,
+    module: 'financial_management',
+    action: 'withdrawal_marked_paid',
+    targetResource: requestId,
+    afterState: result as unknown as Record<string, unknown>,
+  })
+
+  revalidatePath('/admin/rewards')
+  revalidatePath('/admin/withdrawals')
+  revalidatePath('/admin/transactions')
+  revalidatePath('/wallet')
+  revalidatePath('/wallet/withdraw')
+  revalidatePath('/transactions')
+  revalidatePath('/portfolio')
+  revalidatePath('/dashboard')
 
   return result
 }

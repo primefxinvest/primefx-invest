@@ -2,6 +2,8 @@ import 'server-only'
 
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { logFinancialAudit } from '@/lib/payments/financial-audit'
+import { isMissingDbFunctionError } from '@/lib/db/missing-rpc'
+import { roundMoney } from '@/lib/fees/constants'
 import type { PaymentStatus } from './types'
 
 function getDb() {
@@ -10,6 +12,79 @@ function getDb() {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY is required for payment operations.')
   }
   return db
+}
+
+type HoldFallbackKind = 'hold' | 'release' | 'restore'
+
+/**
+ * Direct table fallback when atomic_*_wallet_hold RPCs are missing in production.
+ * Uses conditional UPDATE so balances cannot go negative.
+ */
+async function fallbackWalletHoldOp(
+  kind: HoldFallbackKind,
+  userId: string,
+  amountUsd: number
+) {
+  const db = getDb()
+  const amount = roundMoney(amountUsd)
+  if (amount <= 0) {
+    throw new Error(`${kind} amount must be positive`)
+  }
+
+  const { data: wallet, error: readError } = await db
+    .from('wallet_balances')
+    .select('available_balance, pending_balance, total_balance')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (readError) throw new Error(readError.message)
+  if (!wallet) throw new Error('Wallet not found')
+
+  const available = roundMoney(Number(wallet.available_balance ?? 0))
+  const pending = roundMoney(Number(wallet.pending_balance ?? 0))
+  const total = roundMoney(Number(wallet.total_balance ?? 0))
+
+  let nextAvailable = available
+  let nextPending = pending
+  let nextTotal = total
+
+  if (kind === 'hold') {
+    if (available < amount) throw new Error('Insufficient available balance')
+    nextAvailable = roundMoney(available - amount)
+    nextPending = roundMoney(pending + amount)
+  } else if (kind === 'release') {
+    if (pending < amount) throw new Error('Insufficient pending balance')
+    nextPending = roundMoney(pending - amount)
+    nextTotal = Math.max(0, roundMoney(total - amount))
+  } else {
+    if (pending < amount) throw new Error('Insufficient pending balance')
+    nextAvailable = roundMoney(available + amount)
+    nextPending = roundMoney(pending - amount)
+  }
+
+  let query = db
+    .from('wallet_balances')
+    .update({
+      available_balance: nextAvailable,
+      pending_balance: nextPending,
+      total_balance: nextTotal,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('user_id', userId)
+
+  if (kind === 'hold') {
+    query = query.gte('available_balance', amount)
+  } else {
+    query = query.gte('pending_balance', amount)
+  }
+
+  const { data: updated, error: updateError } = await query.select('user_id').maybeSingle()
+  if (updateError) throw new Error(updateError.message)
+  if (!updated) {
+    throw new Error(
+      kind === 'hold' ? 'Insufficient available balance' : 'Insufficient pending balance'
+    )
+  }
 }
 
 async function rpcWalletOp(
@@ -25,8 +100,19 @@ async function rpcWalletOp(
   })
 
   if (error) {
-    console.error(`[Wallet] RPC ${fn} failed:`, error.message)
-    throw new Error(error.message)
+    const holdFallback: Record<string, HoldFallbackKind | undefined> = {
+      atomic_hold_wallet_funds: 'hold',
+      atomic_release_wallet_hold: 'release',
+      atomic_restore_wallet_hold: 'restore',
+    }
+    const fallbackKind = holdFallback[fn]
+    if (fallbackKind && isMissingDbFunctionError(error.message)) {
+      console.warn(`[Wallet] RPC ${fn} missing — using direct balance fallback`)
+      await fallbackWalletHoldOp(fallbackKind, userId, amountUsd)
+    } else {
+      console.error(`[Wallet] RPC ${fn} failed:`, error.message)
+      throw new Error(error.message)
+    }
   }
 
   await logFinancialAudit({

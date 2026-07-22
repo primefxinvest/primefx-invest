@@ -94,14 +94,23 @@ function mapNowPaymentsDepositError(message: string) {
 function mapNowPaymentsWithdrawalError(message: string) {
   const lower = normalizeMessage(message)
 
+  if (lower.includes('insufficient available balance') || lower.includes('insufficient available')) {
+    return 'Withdrawal could not be processed due to insufficient funds. Please check your balance and try again.'
+  }
   if (isNowPaymentsAvailabilityError(message)) {
     return 'Withdrawals are temporarily unavailable. Please try again later or contact support.'
   }
   if (lower.includes('insufficient') || lower.includes('balance')) {
     return 'Withdrawal could not be processed due to insufficient funds. Please check your balance and try again.'
   }
-  if (lower.includes('address') && (lower.includes('invalid') || lower.includes('not valid'))) {
+  if (lower.includes('address') && (lower.includes('invalid') || lower.includes('required') || lower.includes('not valid'))) {
     return 'The wallet address looks invalid. Please check it and try again.'
+  }
+  if (lower.includes('minimum withdrawal')) {
+    return message
+  }
+  if (lower.includes('cryptocurrency is required') || lower.includes('network is required')) {
+    return message
   }
   if (
     lower.includes('timeout') ||
@@ -111,7 +120,7 @@ function mapNowPaymentsWithdrawalError(message: string) {
     return 'We could not submit your withdrawal. Please try again in a moment.'
   }
 
-  return 'We could not submit your withdrawal. Please try again later or contact support.'
+  return message || 'We could not submit your withdrawal. Please try again later or contact support.'
 }
 
 export function logPaymentProviderError(

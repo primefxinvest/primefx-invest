@@ -1033,7 +1033,12 @@ export async function getAdminWithdrawalQueue(): Promise<AdminWithdrawalQueueRow
       available_at: String(row.available_at ?? ''),
       processed_at: (row.processed_at as string | null) ?? null,
       reference_id: (row.reference_id as string) ?? null,
-      currency: kind === 'wallet' ? ((row.currency as string | null) ?? null) : null,
+      currency:
+        kind === 'wallet'
+          ? ((metadata.coin as string | null | undefined) ??
+            (row.currency as string | null) ??
+            null)
+          : null,
       payout_address: kind === 'wallet' ? ((row.payout_address as string | null) ?? null) : null,
       method_label:
         kind === 'wallet'
@@ -1041,7 +1046,10 @@ export async function getAdminWithdrawalQueue(): Promise<AdminWithdrawalQueueRow
           : 'Capital withdrawal',
       network_label:
         kind === 'wallet'
-          ? resolveWithdrawalNetworkLabel((row.currency as string | null) ?? null)
+          ? String(
+              (metadata.network as string | undefined) ??
+                resolveWithdrawalNetworkLabel((row.currency as string | null) ?? null)
+            )
           : '—',
       metadata,
       wallet_balance: walletByUser.get(userId) ?? 0,

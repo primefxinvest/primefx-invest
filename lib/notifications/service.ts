@@ -116,20 +116,12 @@ export async function notifyDepositFailed(userId: string, amountUsd: number, ref
 }
 
 export async function notifyWithdrawalSubmitted(userId: string, amountUsd: number, referenceId?: string) {
-  await createUserNotification({
-    userId,
-    title: 'Withdrawal request received',
-    message: `Your withdrawal request for $${amountUsd.toFixed(2)} has been received.`,
-    type: 'wallet',
-    metadata: { referenceId, amountUsd, event: 'withdrawal_submitted' },
-  })
-
   return createUserNotification({
     userId,
-    title: 'Security hold started',
-    message: `Your withdrawal of $${amountUsd.toFixed(2)} is under a 7-day security review. Funds are reserved until the hold expires.`,
+    title: 'Withdrawal request submitted successfully',
+    message: `Your withdrawal request for $${amountUsd.toFixed(2)} has been received and is pending review.`,
     type: 'wallet',
-    metadata: { referenceId, amountUsd, event: 'withdrawal_hold_started' },
+    metadata: { referenceId, amountUsd, event: 'withdrawal_submitted' },
   })
 }
 
@@ -182,8 +174,8 @@ export async function notifyWithdrawalReadyForPayout(
 export async function notifyWithdrawalApproved(userId: string, amountUsd: number, referenceId?: string) {
   return createUserNotification({
     userId,
-    title: 'Withdrawal approved',
-    message: `Your withdrawal of $${amountUsd.toFixed(2)} has been approved and is being processed.`,
+    title: 'Your withdrawal has been approved',
+    message: `Your withdrawal of $${amountUsd.toFixed(2)} has been approved and will be paid out shortly.`,
     type: 'wallet',
     metadata: { referenceId, amountUsd, event: 'withdrawal_approved' },
   })
@@ -202,7 +194,7 @@ export async function notifyWithdrawalRejected(userId: string, amountUsd: number
 export async function notifyWithdrawalCompleted(userId: string, amountUsd: number, referenceId?: string) {
   return createUserNotification({
     userId,
-    title: 'Withdrawal completed',
+    title: 'Your withdrawal has been sent successfully',
     message: `$${amountUsd.toFixed(2)} has been sent to your payout address.`,
     type: 'wallet',
     metadata: { referenceId, amountUsd, event: 'withdrawal_completed' },

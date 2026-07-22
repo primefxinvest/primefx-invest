@@ -2,6 +2,7 @@ import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/referral/program-config'
 
 /** Internal withdrawal request statuses stored in the database. */
 export type WithdrawalRequestStatus =
+  | 'pending'
   | 'pending_notice'
   | 'ready'
   | 'approved'
@@ -11,25 +12,27 @@ export type WithdrawalRequestStatus =
   | 'failed'
 
 export type WithdrawalDisplayStatus =
+  | 'Pending Review'
   | 'Pending Hold'
   | 'Ready for Payout'
   | 'Approved'
-  | 'Completed'
+  | 'Paid'
   | 'Rejected'
 
 const DISPLAY_STATUS: Record<string, WithdrawalDisplayStatus> = {
+  pending: 'Pending Review',
   pending_notice: 'Pending Hold',
   ready: 'Ready for Payout',
   approved: 'Approved',
   processing: 'Approved',
-  completed: 'Completed',
+  completed: 'Paid',
   cancelled: 'Rejected',
   failed: 'Rejected',
 }
 
 export function formatWithdrawalDisplayStatus(status: string | null | undefined): WithdrawalDisplayStatus {
   const key = String(status ?? '').toLowerCase()
-  return DISPLAY_STATUS[key] ?? 'Pending Hold'
+  return DISPLAY_STATUS[key] ?? 'Pending Review'
 }
 
 export function isWithdrawalOnHold(status: string | null | undefined): boolean {
@@ -37,18 +40,31 @@ export function isWithdrawalOnHold(status: string | null | undefined): boolean {
 }
 
 export function isWithdrawalReadyForPayout(status: string | null | undefined): boolean {
-  return String(status ?? '').toLowerCase() === 'ready'
+  const key = String(status ?? '').toLowerCase()
+  return key === 'ready' || key === 'pending'
 }
 
 export function canAdminApproveWithdrawal(input: {
   status: string | null | undefined
-  availableAt: string | Date | null | undefined
+  availableAt?: string | Date | null | undefined
   now?: Date
 }): boolean {
   const status = String(input.status ?? '').toLowerCase()
-  if (status !== 'ready') return false
-  if (!input.availableAt) return false
-  return new Date(input.availableAt).getTime() <= (input.now ?? new Date()).getTime()
+  // New Binance-style queue: pending is immediately approvable.
+  if (status === 'pending') return true
+  // Legacy hold flow: must be ready and past available_at.
+  if (status === 'ready') {
+    if (!input.availableAt) return true
+    return new Date(input.availableAt).getTime() <= (input.now ?? new Date()).getTime()
+  }
+  return false
+}
+
+export function canAdminMarkWithdrawalPaid(input: {
+  status: string | null | undefined
+}): boolean {
+  const status = String(input.status ?? '').toLowerCase()
+  return status === 'approved' || status === 'processing'
 }
 
 export function getWithdrawalHoldRemainingMs(
@@ -64,7 +80,7 @@ export function formatWithdrawalHoldRemaining(
   now: Date = new Date()
 ): string {
   const ms = getWithdrawalHoldRemainingMs(availableAt, now)
-  if (ms <= 0) return 'Ready for Payout'
+  if (ms <= 0) return 'Ready for review'
 
   const totalSeconds = Math.ceil(ms / 1000)
   const days = Math.floor(totalSeconds / 86400)
@@ -130,7 +146,7 @@ export function matchesWithdrawalAdminFilter(
     case 'pending_hold':
       return normalized === 'pending_notice'
     case 'ready_for_payout':
-      return normalized === 'ready'
+      return normalized === 'ready' || normalized === 'pending'
     case 'approved':
       return normalized === 'approved' || normalized === 'processing'
     case 'completed':

@@ -86,13 +86,22 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
   const withdrawalHistory = withdrawalHistoryQuery.data ?? []
 
   const availableApiCurrencies = useMemo(() => {
+    const defaults = [
+      'USDT_TRC20',
+      'USDT_ERC20',
+      'BTC',
+      'ETH',
+      'USDC',
+      'BNB',
+      'SOL',
+      'MATIC',
+    ]
     if (initialPaymentOptions.withdrawalCurrencies.length > 0) {
-      return initialPaymentOptions.withdrawalCurrencies.map((c) => c.value)
+      const fromProvider = initialPaymentOptions.withdrawalCurrencies.map((c) => c.value)
+      return Array.from(new Set([...fromProvider, ...defaults]))
     }
-    return ['USDT_TRC20', 'BTC', 'ETH', 'USDC', 'BNB', 'SOL', 'MATIC']
+    return defaults
   }, [initialPaymentOptions.withdrawalCurrencies])
-
-  const cryptoWithdrawalsEnabled = initialPaymentOptions.nowPaymentsEnabled
 
   const [amount, setAmount] = useState('')
   const [assetId, setAssetId] = useState<WithdrawAssetId>(() =>
@@ -123,7 +132,7 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
   const activeHoldCount = useMemo(
     () =>
       withdrawalHistory.filter((row) =>
-        ['pending_notice', 'ready', 'approved', 'processing'].includes(row.status)
+        ['pending', 'pending_notice', 'ready', 'approved', 'processing'].includes(row.status)
       ).length,
     [withdrawalHistory]
   )
@@ -140,8 +149,8 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
 
   const amountNum = Number(amount) || 0
   const minWithdrawal = INVESTOR_RULES.financial.minimumWithdrawal
-  const withdrawBlocked = kyc.loading || kyc.fetchError || !kyc.verified || !cryptoWithdrawalsEnabled
-
+  const withdrawBlocked = kyc.loading || kyc.fetchError || !kyc.verified
+  const cryptoWithdrawalsEnabled = true
   const displayFees = calculateDisplayWithdrawalReceive(amountNum, networkId)
 
   const handleSubmit = () => {
@@ -176,13 +185,18 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
       return
     }
 
-    if (!cryptoWithdrawalsEnabled) {
-      toast.error(t('cryptoUnavailable'))
+    if (!address.trim()) {
+      toast.error(t('addressRequired'))
       return
     }
 
-    if (!address.trim()) {
-      toast.error(t('addressRequired'))
+    if (!assetId) {
+      toast.error(t('selectCurrency'))
+      return
+    }
+
+    if (!networkId) {
+      toast.error(t('noNetworksAvailable'))
       return
     }
 
@@ -197,6 +211,8 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
         amountUsd: amountNum,
         currency: apiCurrency,
         address: address.trim(),
+        coin: assetId,
+        network: networkId,
       })
       if (!result.success) {
         if (isEmailNotVerifiedResult(result)) {
@@ -205,11 +221,17 @@ export function WithdrawPageView({ initialPaymentOptions }: WithdrawPageViewProp
         toast.error(t('failed'), { description: result.error })
         return
       }
-      toast.success(t('submitted'), { description: t('submittedDesc') })
       setAmount('')
       setAddress('')
       void withdrawalHistoryQuery.reload({ silent: true })
-      router.refresh()
+      reloadWallet()
+      const params = new URLSearchParams({
+        ref: result.orderId ?? '',
+        amount: String(amountNum),
+        network: result.network ?? networkId,
+        address: result.walletAddress ?? address.trim(),
+      })
+      router.push(`/wallet/withdraw/success?${params.toString()}`)
     })
   }
 

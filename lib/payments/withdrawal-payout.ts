@@ -1,23 +1,20 @@
 import 'server-only'
 
-import { createNowPaymentsPayout } from '@/lib/payments/nowpayments'
-import { isProviderConfigured } from '@/lib/payments/env'
 import { logFinancialAudit } from '@/lib/payments/financial-audit'
 import {
   completeTransaction,
-  createPendingTransaction,
-  getPaymentByOrderId,
   releaseWalletHold,
   restoreWalletHold,
 } from '@/lib/payments/wallet-ledger'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import {
   claimWithdrawalForProcessing,
-  markWithdrawalRequestStatus,
+  claimWithdrawalStatusTransition,
 } from '@/lib/wallet/withdrawals'
 import { canAdminApproveWithdrawal } from '@/lib/wallet/withdrawal-status'
 import {
   notifyWithdrawalApproved,
+  notifyWithdrawalCompleted,
   notifyWithdrawalReadyForPayout,
   notifyWithdrawalRejected,
 } from '@/lib/notifications/service'
@@ -30,87 +27,27 @@ function getDb() {
   return db
 }
 
-function isCryptoWithdrawal(row: Record<string, unknown>) {
-  return (
-    String(row.provider ?? '') === 'now_payments' &&
-    typeof row.payout_address === 'string' &&
-    row.payout_address.length > 0 &&
-    typeof row.currency === 'string' &&
-    row.currency.length > 0
-  )
-}
-
-async function recordProcessingWithdrawalPayment(input: {
-  userId: string
-  orderId: string
-  amount: number
-  netAmount: number
-  currency: string
-  address: string
-  providerPaymentId: string
-  transactionId?: string
-}) {
-  const db = getDb()
-
-  const existingPayment = await getPaymentByOrderId(input.orderId)
-  if (existingPayment) {
-    return {
-      paymentId: String(existingPayment.id),
-      transactionId: String(existingPayment.transaction_id ?? input.transactionId ?? ''),
-    }
-  }
-
-  const transactionId =
-    input.transactionId ??
-    (await createPendingTransaction({
-      userId: input.userId,
-      type: 'withdrawal',
-      amount: input.amount,
-      description: `Crypto withdrawal payout in progress (${input.currency.toUpperCase()})`,
-      referenceId: input.orderId,
-    }))
-
-  const { data, error } = await db
-    .from('payments')
-    .insert({
-      investor_id: input.userId,
-      provider: 'now_payments',
-      order_id: input.orderId,
-      type: 'withdrawal',
-      status: 'processing',
-      amount_usd: input.amount,
-      pay_currency: input.currency.toUpperCase(),
-      pay_address: input.address,
-      provider_payment_id: input.providerPaymentId,
-      transaction_id: transactionId,
-      metadata: {
-        currency: input.currency,
-        address: input.address,
-        net_amount_usd: input.netAmount,
-        payout_initiated_at: new Date().toISOString(),
-      },
-    })
-    .select('id')
-    .single()
-
-  if (error || !data) {
-    throw new Error(error?.message ?? 'Failed to record withdrawal payment.')
-  }
-
-  return { paymentId: data.id as string, transactionId }
-}
-
 export function assertWithdrawalRequestApprovable(row: Record<string, unknown>, now = new Date()) {
-  if (!canAdminApproveWithdrawal({
-    status: String(row.status ?? ''),
-    availableAt: row.available_at as string | null,
-    now,
-  })) {
+  if (
+    !canAdminApproveWithdrawal({
+      status: String(row.status ?? ''),
+      availableAt: row.available_at as string | null,
+      now,
+    })
+  ) {
     const status = String(row.status ?? '').toLowerCase()
     if (status === 'pending_notice') {
-      throw new Error('Withdrawal is still under the 7-day security hold. Approval is not available yet.')
+      throw new Error(
+        'Withdrawal is still under the 7-day security hold. Unlock or wait until the hold expires.'
+      )
     }
-    throw new Error('Only withdrawals in Ready for Payout status can be approved.')
+    if (status === 'approved' || status === 'processing') {
+      throw new Error('Withdrawal is already approved. Use Mark as Paid to complete it.')
+    }
+    if (status === 'completed') {
+      throw new Error('Withdrawal has already been paid.')
+    }
+    throw new Error('Only pending withdrawals can be approved.')
   }
 }
 
@@ -144,24 +81,7 @@ export async function processDueWithdrawalRow(row: Record<string, unknown>) {
   return promoteDueWithdrawalToReady(row)
 }
 
-async function claimWithdrawalForApproval(requestId: string) {
-  const db = getDb()
-  const now = new Date().toISOString()
-
-  const { data, error } = await db
-    .from('withdrawal_requests')
-    .update({ status: 'approved' })
-    .eq('id', requestId)
-    .eq('status', 'ready')
-    .lte('available_at', now)
-    .select('*')
-    .maybeSingle()
-
-  if (error) throw new Error(error.message)
-  return data as Record<string, unknown> | null
-}
-
-/** Admin approval: ready → approved → payout (crypto) or manual completion. */
+/** Admin approval only: pending/ready → approved (no payout yet). */
 export async function executeWithdrawalPayoutAfterApproval(requestId: string) {
   const db = getDb()
 
@@ -176,35 +96,22 @@ export async function executeWithdrawalPayoutAfterApproval(requestId: string) {
   }
 
   const existingStatus = String(existing.status ?? '').toLowerCase()
-  if (['processing', 'completed'].includes(existingStatus)) {
-    throw new Error('Withdrawal has already been processed.')
+  if (['approved', 'processing', 'completed'].includes(existingStatus)) {
+    throw new Error('Withdrawal has already been approved or completed.')
   }
 
-  const referenceId = String(existing.reference_id)
-  const existingPayment = await getPaymentByOrderId(referenceId)
-  if (
-    existingPayment &&
-    ['processing', 'completed'].includes(String(existingPayment.status ?? '').toLowerCase())
-  ) {
-    throw new Error('Payout has already been initiated for this withdrawal.')
-  }
+  assertWithdrawalRequestApprovable(existing as Record<string, unknown>)
 
-  const canRetryApproved =
-    existingStatus === 'approved' &&
-    Boolean((existing.metadata as Record<string, unknown> | null)?.payout_error)
-
-  if (!canRetryApproved) {
-    assertWithdrawalRequestApprovable(existing as Record<string, unknown>)
-  }
-
-  if (existingStatus === 'approved' && !canRetryApproved) {
-    throw new Error('Withdrawal is already approved and awaiting payout.')
-  }
-
-  const claimed =
-    existingStatus === 'approved' && canRetryApproved
-      ? (existing as Record<string, unknown>)
-      : await claimWithdrawalForApproval(requestId)
+  const claimed = await claimWithdrawalStatusTransition({
+    requestId,
+    fromStatuses: ['pending', 'ready'],
+    toStatus: 'approved',
+    extra: {
+      metadata: {
+        approved_at: new Date().toISOString(),
+      },
+    },
+  })
 
   if (!claimed) {
     throw new Error('Withdrawal could not be approved. It may have already been processed.')
@@ -212,7 +119,7 @@ export async function executeWithdrawalPayoutAfterApproval(requestId: string) {
 
   const userId = String(claimed.user_id)
   const gross = Number(claimed.amount_usd)
-  const netAmount = Number(claimed.net_amount_usd ?? gross)
+  const referenceId = String(claimed.reference_id)
 
   await notifyWithdrawalApproved(userId, gross, referenceId)
 
@@ -224,93 +131,69 @@ export async function executeWithdrawalPayoutAfterApproval(requestId: string) {
     metadata: { provider: claimed.provider },
   })
 
-  if (isCryptoWithdrawal(claimed)) {
-    if (!isProviderConfigured('now_payments')) {
-      await markWithdrawalRequestStatus(requestId, 'approved', {
-        metadata: {
-          ...(claimed.metadata as Record<string, unknown>),
-          payout_error: 'NOWPayments is not configured.',
-        },
-      })
-      throw new Error('NOWPayments is not configured. Withdrawal approved but payout deferred.')
-    }
+  return { status: 'approved' as const, referenceId }
+}
 
-    try {
-      await releaseWalletHold(userId, gross)
+/** Admin mark as paid: approved → completed, release reserved funds. */
+export async function markWithdrawalAsPaid(
+  requestId: string,
+  input?: {
+    txHash?: string
+    notes?: string
+    processedBy?: string
+  }
+) {
+  const db = getDb()
 
-      const payout = await createNowPaymentsPayout({
-        address: String(claimed.payout_address),
-        currency: String(claimed.currency),
-        amount: netAmount,
-        extraId: referenceId,
-      })
+  const { data: existing } = await db
+    .from('withdrawal_requests')
+    .select('*')
+    .eq('id', requestId)
+    .maybeSingle()
 
-      const providerPaymentId = String(payout.id ?? referenceId)
+  if (!existing) {
+    throw new Error('Withdrawal request not found.')
+  }
 
-      const { data: existingTx } = await db
-        .from('transactions')
-        .select('id')
-        .eq('reference_id', referenceId)
-        .maybeSingle()
+  const existingStatus = String(existing.status ?? '').toLowerCase()
+  if (existingStatus === 'completed') {
+    throw new Error('Withdrawal has already been marked as paid.')
+  }
+  if (!['approved', 'processing'].includes(existingStatus)) {
+    throw new Error('Only approved withdrawals can be marked as paid.')
+  }
 
-      await recordProcessingWithdrawalPayment({
-        userId,
-        orderId: referenceId,
-        amount: gross,
-        netAmount,
-        currency: String(claimed.currency),
-        address: String(claimed.payout_address),
-        providerPaymentId,
-        transactionId: existingTx?.id as string | undefined,
-      })
+  const userId = String(existing.user_id)
+  const gross = Number(existing.amount_usd)
+  const referenceId = String(existing.reference_id)
+  const txHash = input?.txHash?.trim() || null
+  const notes = input?.notes?.trim() || null
 
-      await markWithdrawalRequestStatus(requestId, 'processing', {
-        metadata: {
-          ...(claimed.metadata as Record<string, unknown>),
-          provider_payment_id: providerPaymentId,
-          payout_initiated_at: new Date().toISOString(),
-        },
-      })
+  const claimed = await claimWithdrawalStatusTransition({
+    requestId,
+    fromStatuses: ['approved', 'processing'],
+    toStatus: 'completed',
+    extra: {
+      processed_by: input?.processedBy ?? null,
+      tx_hash: txHash,
+      notes,
+      metadata: {
+        ...(existing.metadata as Record<string, unknown>),
+        tx_hash: txHash,
+        admin_notes: notes,
+        completed_at: new Date().toISOString(),
+        marked_paid_by: input?.processedBy ?? null,
+      },
+    },
+  })
 
-      await logFinancialAudit({
-        eventType: 'withdrawal.payout_initiated',
-        userId,
-        referenceId,
-        amountUsd: netAmount,
-        metadata: { providerPaymentId, currency: claimed.currency },
-      })
-
-      return { status: 'payout_initiated' as const, referenceId, providerPaymentId }
-    } catch (err) {
-      await restoreWalletHold(userId, gross)
-      await markWithdrawalRequestStatus(requestId, 'approved', {
-        metadata: {
-          ...(claimed.metadata as Record<string, unknown>),
-          payout_error: err instanceof Error ? err.message : 'Payout initiation failed',
-        },
-      })
-
-      await logFinancialAudit({
-        eventType: 'withdrawal.failed',
-        userId,
-        referenceId,
-        amountUsd: gross,
-        metadata: {
-          stage: 'payout_initiation',
-          error: err instanceof Error ? err.message : 'unknown',
-        },
-      })
-
-      throw err
-    }
+  if (!claimed) {
+    throw new Error('Withdrawal could not be marked as paid. It may have already been processed.')
   }
 
   await releaseWalletHold(userId, gross)
-
-  await markWithdrawalRequestStatus(requestId, 'completed')
   await completeTransaction(referenceId, 'Completed')
 
-  const { notifyWithdrawalCompleted } = await import('@/lib/notifications/service')
   await notifyWithdrawalCompleted(userId, gross, referenceId)
 
   await logFinancialAudit({
@@ -318,10 +201,10 @@ export async function executeWithdrawalPayoutAfterApproval(requestId: string) {
     userId,
     referenceId,
     amountUsd: gross,
-    metadata: { source: 'admin_approval', manual: true },
+    metadata: { source: 'admin_mark_paid', txHash, notes },
   })
 
-  return { status: 'completed' as const, referenceId }
+  return { status: 'completed' as const, referenceId, txHash }
 }
 
 /** Admin rejection: restore reserved funds and cancel the request. */
@@ -339,7 +222,7 @@ export async function rejectWithdrawalRequest(requestId: string, reason?: string
   }
 
   const status = String(request.status ?? '').toLowerCase()
-  const rejectable = ['pending_notice', 'ready', 'approved'].includes(status)
+  const rejectable = ['pending', 'pending_notice', 'ready', 'approved'].includes(status)
 
   if (!rejectable) {
     throw new Error('This withdrawal can no longer be rejected.')
@@ -349,23 +232,19 @@ export async function rejectWithdrawalRequest(requestId: string, reason?: string
   const gross = Number(request.amount_usd)
   const referenceId = String(request.reference_id)
 
-  const { data: cancelled, error } = await db
-    .from('withdrawal_requests')
-    .update({
-      status: 'cancelled',
-      processed_at: new Date().toISOString(),
+  const cancelled = await claimWithdrawalStatusTransition({
+    requestId,
+    fromStatuses: ['pending', 'pending_notice', 'ready', 'approved'],
+    toStatus: 'cancelled',
+    extra: {
       metadata: {
         ...(request.metadata as Record<string, unknown>),
         rejection_reason: reason ?? null,
         rejected_at: new Date().toISOString(),
       },
-    })
-    .eq('id', requestId)
-    .in('status', ['pending_notice', 'ready', 'approved'])
-    .select('id')
-    .maybeSingle()
+    },
+  })
 
-  if (error) throw new Error(error.message)
   if (!cancelled) {
     throw new Error('Withdrawal could not be rejected. It may have already been processed.')
   }

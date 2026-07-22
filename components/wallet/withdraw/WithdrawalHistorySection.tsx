@@ -35,9 +35,11 @@ function WithdrawalHistoryRow({
     ? adminUnlockLabel
     : withdrawal.status === 'pending_notice'
       ? countdown.holdRemaining
-      : withdrawal.status === 'processing'
-        ? withdrawal.estimatedCompletion
-        : null
+      : withdrawal.status === 'pending'
+        ? 'Within 24 hours'
+        : withdrawal.status === 'processing'
+          ? withdrawal.estimatedCompletion
+          : null
 
   return (
     <li className="rounded-xl border border-border bg-card shadow-sm">
@@ -51,6 +53,14 @@ function WithdrawalHistoryRow({
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
             {withdrawal.networkLabel} · {withdrawal.referenceId ?? withdrawal.id.slice(0, 8)}
           </p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Requested {new Date(withdrawal.requestedAt).toLocaleString()}
+          </p>
+          {withdrawal.payoutAddress ? (
+            <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
+              {withdrawal.payoutAddress}
+            </p>
+          ) : null}
           {substatus ? <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">{substatus}</p> : null}
         </div>
         <div className="flex shrink-0 items-start gap-2">

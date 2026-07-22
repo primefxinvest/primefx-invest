@@ -34,7 +34,6 @@ import {
 import { logFinancialAudit } from '@/lib/payments/financial-audit'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin-server'
 import { INVESTOR_RULES } from '@/lib/investor/rules'
-import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/referral/program-config'
 import { requireVerifiedKyc } from '@/lib/investor/kyc-server'
 import {
   notifyDepositCreated,
@@ -189,6 +188,9 @@ export async function createWithdrawalPayment(input: {
   amountUsd: number
   currency: string
   address: string
+  coin?: string
+  network?: string
+  walletLabel?: string
 }): Promise<CreateWithdrawalResult> {
   const kyc = await requireVerifiedKyc(input.userId, 'withdrawal')
   if (!kyc.allowed) {
@@ -206,32 +208,46 @@ export async function createWithdrawalPayment(input: {
     }
   }
 
-  if (!isProviderConfigured('now_payments')) {
-    return { success: false, error: providerUnavailableUserMessage('now_payments') }
+  const address = input.address.trim()
+  if (!address) {
+    return { success: false, error: 'Wallet address is required.' }
   }
 
-  const orderId = generatePaymentReference('withdrawal')
+  const coin = (input.coin ?? input.currency.split('_')[0] ?? input.currency).toUpperCase()
+  const network = (input.network ?? input.currency.split('_')[1] ?? 'UNKNOWN').toUpperCase()
 
   try {
     const { createWithdrawalRequest } = await import('@/lib/wallet/withdrawals')
     const queued = await createWithdrawalRequest({
       userId: input.userId,
       amountUsd: amount,
-      methodLabel: `Crypto (${input.currency.toUpperCase()})`,
-      provider: 'now_payments',
+      methodLabel: `Crypto (${coin} · ${network})`,
+      // Queue for admin review/manual payout. NOWPayments is optional at mark-paid time.
+      provider: isProviderConfigured('now_payments') ? 'now_payments' : 'manual',
       currency: input.currency,
-      payoutAddress: input.address,
-      metadata: { address: input.address, currency: input.currency },
+      payoutAddress: address,
+      coin,
+      network,
+      walletLabel: input.walletLabel,
+      metadata: { address, currency: input.currency, coin, network },
     })
 
-    await notifyWithdrawalSubmitted(input.userId, amount, queued.referenceId)
+    if (!queued.duplicate) {
+      await notifyWithdrawalSubmitted(input.userId, amount, queued.referenceId)
+    }
 
     return {
       success: true,
       paymentId: queued.requestId,
       orderId: queued.referenceId,
       availableAt: queued.availableAt,
-      noticeDays: WITHDRAWAL_NOTICE_DAYS,
+      noticeDays: 0,
+      status: queued.status,
+      feeUsd: queued.fee,
+      netAmountUsd: queued.netAmount,
+      coin: queued.coin,
+      network: queued.network,
+      walletAddress: queued.walletAddress,
     }
   } catch (err) {
     return {

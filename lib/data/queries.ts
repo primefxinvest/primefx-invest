@@ -1319,7 +1319,10 @@ export async function fetchWalletWithdrawalRequests(): Promise<WalletWithdrawalR
     const payment = referenceId ? paymentsByOrder.get(referenceId) : undefined
     const paymentMetadata = (payment?.metadata as Record<string, unknown> | undefined) ?? {}
     const transactionHash = extractTransactionHash(metadata, paymentMetadata)
-    const networkLabel = resolveWithdrawalNetworkLabel(currency)
+    const networkLabel =
+      typeof metadata.network === 'string' && metadata.network
+        ? String(metadata.network)
+        : resolveWithdrawalNetworkLabel(currency)
     const adminUnlocked = isWithdrawalAdminUnlocked(metadata)
 
     return {

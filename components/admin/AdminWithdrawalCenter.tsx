@@ -22,15 +22,16 @@ import {
   adminUnlockWithdrawalHoldAction,
   bulkApproveWithdrawalsAction,
   bulkRejectWithdrawalsAction,
+  markWithdrawalPaidQueueItem,
   rejectWithdrawalQueueItem,
 } from '@/lib/admin/actions'
 import { formatRiskScoreLabel, riskScoreTone } from '@/lib/admin/withdrawal-risk'
 import { useWithdrawalHoldCountdown } from '@/lib/hooks/useWithdrawalHoldCountdown'
-import { WITHDRAWAL_NOTICE_DAYS } from '@/lib/referral/program-config'
+import { useAdminWithdrawalRealtime } from '@/lib/hooks/useAdminWithdrawalRealtime'
 import { getDefaultAvatarUrl } from '@/lib/profile/avatar'
 import {
   canAdminApproveWithdrawal,
-  formatEligiblePayoutDate,
+  canAdminMarkWithdrawalPaid,
   formatWithdrawalDisplayStatus,
   isWithdrawalOnHold,
   matchesWithdrawalAdminFilter,
@@ -159,13 +160,14 @@ function WithdrawalCard({
   onToggle: () => void
   canApproveTransactions: boolean
   canUnlockWithdrawals: boolean
-  onAction: (kind: 'approve' | 'reject' | 'unlock' | 'relock', id: string) => void
+  onAction: (kind: 'approve' | 'reject' | 'unlock' | 'relock' | 'markPaid', id: string) => void
   busyId: string | null
 }) {
   const approvable = row.kind === 'wallet' && canAdminApproveWithdrawal({ status: row.status, availableAt: row.available_at })
+  const markable = row.kind === 'wallet' && canAdminMarkWithdrawalPaid({ status: row.status })
   const rejectable =
     row.kind === 'wallet' &&
-    ['pending_notice', 'ready', 'approved'].includes(String(row.status).toLowerCase())
+    ['pending', 'pending_notice', 'ready', 'approved'].includes(String(row.status).toLowerCase())
   const showUnlock = canUnlockWithdrawals && row.kind === 'wallet' && isWithdrawalOnHold(row.status)
   const showRelock =
     canUnlockWithdrawals && row.kind === 'wallet' && String(row.status).toLowerCase() === 'ready'
@@ -174,11 +176,25 @@ function WithdrawalCard({
   const riskTone = riskScoreTone(row.risk_score)
   const avatar = row.user_avatar_url || getDefaultAvatarUrl(row.user_name ?? row.user_email)
   const unlockLabel = getWithdrawalAdminUnlockLabel(row.metadata)
+  const coin =
+    String((row.metadata as Record<string, unknown>)?.coin ?? row.currency ?? '—').toUpperCase()
+  const network =
+    String((row.metadata as Record<string, unknown>)?.network ?? row.network_label ?? '—')
+  const walletAddress =
+    row.payout_address ||
+    (typeof row.metadata?.wallet_address === 'string' ? row.metadata.wallet_address : null) ||
+    null
 
   const copyAddress = async () => {
-    if (!row.payout_address) return
-    await navigator.clipboard.writeText(row.payout_address)
+    if (!walletAddress) return
+    await navigator.clipboard.writeText(walletAddress)
     toast.success('Address copied')
+  }
+
+  const copyReference = async () => {
+    if (!row.reference_id) return
+    await navigator.clipboard.writeText(row.reference_id)
+    toast.success('Reference copied')
   }
 
   return (
@@ -210,18 +226,22 @@ function WithdrawalCard({
             </div>
             <div className="text-right">
               <p className="text-lg font-bold text-foreground">${row.amount_usd.toFixed(2)}</p>
-              <p className="text-xs text-muted-foreground">Net ${row.net_amount_usd.toFixed(2)}</p>
+              <p className="text-xs text-muted-foreground">
+                Fee ${row.fee_usd.toFixed(2)} · Net ${row.net_amount_usd.toFixed(2)}
+              </p>
             </div>
           </div>
 
           <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <div><span className="text-muted-foreground">Coin:</span> {row.currency?.toUpperCase() ?? '—'}</div>
-            <div><span className="text-muted-foreground">Network:</span> {row.network_label}</div>
-            <div><span className="text-muted-foreground">Wallet balance:</span> ${row.wallet_balance.toFixed(2)}</div>
-            <div><span className="text-muted-foreground">Investments:</span> ${row.investment_total.toFixed(2)}</div>
+            <div><span className="text-muted-foreground">User:</span> {row.user_name || '—'}</div>
+            <div><span className="text-muted-foreground">Email:</span> {row.user_email}</div>
+            <div><span className="text-muted-foreground">Coin:</span> {coin}</div>
+            <div><span className="text-muted-foreground">Network:</span> {network}</div>
+            <div><span className="text-muted-foreground">Amount:</span> ${row.amount_usd.toFixed(2)}</div>
+            <div><span className="text-muted-foreground">Fee:</span> ${row.fee_usd.toFixed(2)}</div>
+            <div><span className="text-muted-foreground">Net:</span> ${row.net_amount_usd.toFixed(2)}</div>
             <div><span className="text-muted-foreground">KYC:</span> {row.kyc_status}</div>
-            <div><span className="text-muted-foreground">Email:</span> {row.email_verified ? 'Verified' : 'Not verified'}</div>
-            <div><span className="text-muted-foreground">Referral:</span> {row.referral_status}</div>
+            <div><span className="text-muted-foreground">Country:</span> {row.user_country ?? '—'}</div>
             <div>
               <span className="text-muted-foreground">Risk:</span>{' '}
               <span
@@ -235,9 +255,33 @@ function WithdrawalCard({
                 {riskLabel} ({row.risk_score})
               </span>
             </div>
-            <div className="sm:col-span-2 lg:col-span-3">
-              <span className="text-muted-foreground">Address:</span>{' '}
-              <span className="font-mono text-xs">{row.payout_address ?? '—'}</span>
+            <div className="sm:col-span-2 lg:col-span-3 flex flex-wrap items-center gap-2">
+              <span className="text-muted-foreground">Wallet Address:</span>{' '}
+              <span className="font-mono text-xs">{walletAddress ?? '—'}</span>
+              {walletAddress ? (
+                <button
+                  type="button"
+                  onClick={() => void copyAddress()}
+                  className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] font-medium"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </button>
+              ) : null}
+            </div>
+            <div className="sm:col-span-2 lg:col-span-3 flex flex-wrap items-center gap-2">
+              <span className="text-muted-foreground">Reference:</span>{' '}
+              <span className="font-mono text-xs">{row.reference_id ?? '—'}</span>
+              {row.reference_id ? (
+                <button
+                  type="button"
+                  onClick={() => void copyReference()}
+                  className="inline-flex items-center gap-1 rounded border border-border px-2 py-0.5 text-[11px] font-medium"
+                >
+                  <Copy className="h-3 w-3" />
+                  Copy
+                </button>
+              ) : null}
             </div>
             {row.transaction_hash ? (
               <div className="sm:col-span-2 lg:col-span-3">
@@ -246,8 +290,7 @@ function WithdrawalCard({
               </div>
             ) : null}
             <div><span className="text-muted-foreground">Requested:</span> {new Date(row.requested_at).toLocaleString()}</div>
-            <div><span className="text-muted-foreground">Unlock date:</span> {formatEligiblePayoutDate(row.available_at)}</div>
-            <div><HoldBadge row={row} /></div>
+            <div><span className="text-muted-foreground">Status:</span> <HoldBadge row={row} /></div>
           </div>
 
           {unlockLabel ? (
@@ -269,6 +312,17 @@ function WithdrawalCard({
               >
                 {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
                 Approve
+              </button>
+            ) : null}
+            {canApproveTransactions && markable ? (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => onAction('markPaid', row.id)}
+                className="inline-flex items-center gap-1 rounded-lg bg-[#0052ff] px-3 py-1.5 text-xs font-semibold text-white"
+              >
+                {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                Mark as Paid
               </button>
             ) : null}
             {canApproveTransactions && rejectable ? (
@@ -302,16 +356,6 @@ function WithdrawalCard({
               >
                 <Lock className="h-3 w-3" />
                 Lock Again
-              </button>
-            ) : null}
-            {row.payout_address ? (
-              <button
-                type="button"
-                onClick={() => void copyAddress()}
-                className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium"
-              >
-                <Copy className="h-3 w-3" />
-                Copy Address
               </button>
             ) : null}
             <Link
@@ -354,6 +398,8 @@ export function AdminWithdrawalCenter({
     requestId?: string
   } | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  useAdminWithdrawalRealtime({ enabled: true })
 
   const filteredRows = useMemo(() => {
     const list = rows.filter(
@@ -464,7 +510,10 @@ export function AdminWithdrawalCenter({
     })
   }
 
-  const handleAction = (kind: 'approve' | 'reject' | 'unlock' | 'relock', requestId: string) => {
+  const handleAction = (
+    kind: 'approve' | 'reject' | 'unlock' | 'relock' | 'markPaid',
+    requestId: string
+  ) => {
     if (kind === 'approve') {
       setBusyId(requestId)
       startTransition(async () => {
@@ -473,6 +522,20 @@ export function AdminWithdrawalCenter({
           toast.success('Withdrawal approved')
         } catch (err) {
           toast.error(err instanceof Error ? err.message : 'Approval failed')
+        } finally {
+          setBusyId(null)
+        }
+      })
+      return
+    }
+    if (kind === 'markPaid') {
+      setBusyId(requestId)
+      startTransition(async () => {
+        try {
+          await markWithdrawalPaidQueueItem(requestId)
+          toast.success('Withdrawal marked as paid')
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Mark as paid failed')
         } finally {
           setBusyId(null)
         }
@@ -495,7 +558,7 @@ export function AdminWithdrawalCenter({
     <div className="min-w-0 space-y-6">
       <AdminPageHeader
         title="Withdrawal Center"
-        description={`Manage wallet and capital withdrawals. Locked withdrawals require a ${WITHDRAWAL_NOTICE_DAYS}-day hold unless unlocked by Super Admin.`}
+        description="Manage wallet and capital withdrawals. New requests appear as Pending for immediate review. Approve, then Mark as Paid after sending funds."
       />
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
